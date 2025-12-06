@@ -281,17 +281,26 @@ class ModelManager:
         Dynamically optimize beam size based on audio characteristics.
         For longer/complex audio, use higher beam size for accuracy.
         For shorter/simple audio, use lower beam size for speed.
+        Refined logic for better granularity.
         """
         try:
             # Analyze audio if it's a numpy array
             if isinstance(audio, np.ndarray):
                 duration = len(audio) / 16000  # Assume 16kHz
-                # For very short audio (< 5s), use lower beam for speed
+                
+                # Refined logic:
+                # < 5s: very short, speed is key (beam=1)
+                # 5-30s: short, balanced (beam=default-1)
+                # 30-120s: medium, default (beam=default)
+                # > 120s: long, accuracy is key (beam=default+2)
+                
                 if duration < 5.0:
-                    return max(1, default_beam - 2), max(1, default_best_of - 2)
-                # For very long audio (> 60s), use higher beam for accuracy
-                elif duration > 60.0:
+                    return 1, 1
+                elif duration < 30.0:
+                    return max(2, default_beam - 1), max(2, default_best_of - 1)
+                elif duration > 120.0:
                     return min(10, default_beam + 2), min(10, default_best_of + 2)
+                    
             # For file paths, use default (analysis would require loading)
             return default_beam, default_best_of
         except Exception as e:
@@ -302,16 +311,27 @@ class ModelManager:
         """
         Adaptively optimize VAD parameters based on audio characteristics.
         Adjusts threshold based on estimated noise level.
+        Refined to be less aggressive on quiet speech.
         """
         try:
             if isinstance(audio, np.ndarray):
                 # Estimate noise level from audio RMS
+                # Use a more robust noise estimation if possible, but RMS is fast
                 rms = np.sqrt(np.mean(audio**2))
-                # Adjust threshold: lower RMS = lower threshold (more sensitive)
-                if rms < 0.01:  # Very quiet audio
+                
+                # Adjust threshold:
+                # Very quiet (rms < 0.005): Lower threshold significantly to catch whispers
+                # Quiet (rms < 0.02): Lower threshold slightly
+                # Normal: Keep default
+                # Loud/Noisy (rms > 0.1): Raise threshold to avoid noise
+                
+                if rms < 0.005:  # Very quiet audio
+                    base_params["threshold"] = max(0.2, base_params["threshold"] - 0.2)
+                elif rms < 0.02: # Quiet audio
                     base_params["threshold"] = max(0.3, base_params["threshold"] - 0.1)
                 elif rms > 0.1:  # Loud/noisy audio
                     base_params["threshold"] = min(0.7, base_params["threshold"] + 0.1)
+                    
             return base_params
         except Exception as e:
             logger.debug(f"VAD optimization failed: {e}, using defaults")

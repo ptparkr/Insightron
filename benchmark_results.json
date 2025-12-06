@@ -2,95 +2,95 @@
   "system_info": {
     "cpu_count": 12,
     "memory_gb": 15.73,
-    "python_version": "3.13.9 (tags/v3.13.9:8183fa5, Oct 14 2025, 14:09:13) [MSC v.1944 64 bit (AMD64)]",
+    "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
     "platform": "win32"
   },
-  "timestamp": "2025-12-02 19:44:56",
+  "timestamp": "2025-12-06 11:13:40",
   "text_formatter": {
     "Small text": {
       "text_length": 36,
-      "clean_time": 5.14984130859375e-05,
-      "format_time": 0.0007100105285644531,
-      "custom_time": 7.62939453125e-05,
-      "total_time": 0.0008378028869628906,
-      "chars_per_second": 42969.5344336938
+      "clean_time": 0.0,
+      "format_time": 0.0,
+      "custom_time": 0.0,
+      "total_time": 0.0,
+      "chars_per_second": 0
     },
     "Medium text": {
       "text_length": 1850,
-      "clean_time": 0.0013473033905029297,
-      "format_time": 0.003055572509765625,
-      "custom_time": 0.021436691284179688,
-      "total_time": 0.025839567184448242,
-      "chars_per_second": 71595.62645900036
+      "clean_time": 0.0022275447845458984,
+      "format_time": 0.0017507076263427734,
+      "custom_time": 0.015686750411987305,
+      "total_time": 0.019665002822875977,
+      "chars_per_second": 94075.75562856901
     },
     "Large text": {
       "text_length": 18500,
-      "clean_time": 0.011991262435913086,
-      "format_time": 0.02317667007446289,
-      "custom_time": 1.3980231285095215,
-      "total_time": 1.4331910610198975,
-      "chars_per_second": 12908.258014695473
+      "clean_time": 0.01146245002746582,
+      "format_time": 0.014829874038696289,
+      "custom_time": 1.7378289699554443,
+      "total_time": 1.7641212940216064,
+      "chars_per_second": 10486.807263590243
     },
     "Very large text": {
       "text_length": 74000,
-      "clean_time": 0.03487801551818848,
-      "format_time": 0.05495262145996094,
-      "custom_time": 21.337708950042725,
-      "total_time": 21.427539587020874,
-      "chars_per_second": 3453.499628339196
+      "clean_time": 0.032564640045166016,
+      "format_time": 0.0596921443939209,
+      "custom_time": 33.77947211265564,
+      "total_time": 33.87172889709473,
+      "chars_per_second": 2184.71280945884
     }
   },
   "markdown_creation": {
     "Small transcript": {
       "text_length": 27,
       "markdown_length": 628,
-      "creation_time": 0.0004470348358154297,
-      "chars_per_second": 60397.9776
+      "creation_time": 0.002748250961303711,
+      "chars_per_second": 9824.430294092132
     },
     "Medium transcript": {
       "text_length": 3600,
       "markdown_length": 7805,
-      "creation_time": 0.00014495849609375,
-      "chars_per_second": 24834694.736842107
+      "creation_time": 0.0,
+      "chars_per_second": 0
     },
     "Large transcript": {
       "text_length": 48000,
       "markdown_length": 96905,
-      "creation_time": 0.0009431838989257812,
-      "chars_per_second": 50891453.99393327
+      "creation_time": 0.0,
+      "chars_per_second": 0
     },
     "Very large transcript": {
       "text_length": 265000,
       "markdown_length": 532238,
-      "creation_time": 0.008111000061035156,
-      "chars_per_second": 32671680.188124634
+      "creation_time": 0.006384611129760742,
+      "chars_per_second": 41506051.75697375
     }
   },
   "memory_usage": {
-    "initial_memory_mb": 220.1484375,
-    "formatter_memory_mb": 0.37890625,
-    "markdown_memory_mb": 0.1953125,
-    "total_memory_mb": 0.57421875
+    "initial_memory_mb": 81.3125,
+    "formatter_memory_mb": 1.21484375,
+    "markdown_memory_mb": 0.0234375,
+    "total_memory_mb": 1.2734375
   },
   "single_file": {
     "model": "medium",
-    "load_time_seconds": 3.6422903537750244,
-    "cached_load_time_seconds": 4.0531158447265625e-06,
-    "transcription_time_seconds": 6.583103895187378,
+    "load_time_seconds": 39.7965202331543,
+    "cached_load_time_seconds": 0.0,
+    "transcription_time_seconds": 11.242316007614136,
     "audio_duration_seconds": 10.0,
-    "real_time_factor": 0.6583103895187378
+    "real_time_factor": 1.1242316007614135
   },
   "batch_processing": {
     "file_count": 4,
-    "total_time_seconds": 292.0569021701813,
-    "avg_time_per_file": 73.01422554254532,
+    "total_time_seconds": 138.89376044273376,
+    "avg_time_per_file": 34.72344011068344,
     "successful": 4,
     "failed": 0,
-    "throughput_files_per_min": 0.8217576719352869
+    "throughput_files_per_min": 1.7279393922015136
   },
   "realtime_simulation": {
-    "buffer_write_60s_time": 0.0966801643371582,
-    "buffer_read_snapshot_time": 0.022123098373413086,
-    "latency_overhead_ms": 23.734434445699055
+    "buffer_write_60s_time": 0.06091499328613281,
+    "buffer_read_snapshot_time": 0.030324220657348633,
+    "latency_overhead_ms": 31.339470545450844
   }
 }

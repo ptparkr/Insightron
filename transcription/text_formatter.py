@@ -137,31 +137,41 @@ class TextFormatter:
         Returns:
             Text with common errors fixed
         """
+        # Optimization: Apply all fixes in a loop is fine, but we can optimize by grouping if needed.
+        # For now, the loop is efficient enough given the small number of patterns.
         for pattern, replacement in self._transcription_fixes:
             text = pattern.sub(replacement, text)
         
         return text
 
     def _remove_excessive_fillers(self, text: str) -> str:
-        """Remove excessive filler words while preserving natural flow"""
+        """Remove excessive filler words while preserving natural flow. Optimized."""
         words = text.split()
+        if not words:
+            return ""
+            
         cleaned_words = []
+        n = len(words)
         i = 0
         
-        while i < len(words):
-            word = words[i].lower().strip('.,!?;:')
+        # Pre-calculate lowercased words for faster lookup
+        # This uses more memory but is faster for repeated lookups
+        words_lower = [w.lower().strip('.,!?;:') for w in words]
+        
+        while i < n:
+            word_lower = words_lower[i]
             
             # Check if it's a filler word
-            if word in self.filler_words:
+            if word_lower in self.filler_words:
                 # Always remove strict fillers
-                if word in {'um', 'uh', 'er', 'ah'}:
+                if word_lower in {'um', 'uh', 'er', 'ah'}:
                     i += 1
                     continue
 
                 # Count consecutive filler words
                 filler_count = 0
                 j = i
-                while j < len(words) and words[j].lower().strip('.,!?;:') in self.filler_words:
+                while j < n and words_lower[j] in self.filler_words:
                     filler_count += 1
                     j += 1
                 

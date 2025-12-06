@@ -163,17 +163,37 @@ class AudioTranscriber:
         """
         Preprocess audio for optimal transcription quality.
         Includes normalization, resampling, and noise reduction hints.
+        Optimized to use soundfile for faster loading.
         """
         if not self.enable_audio_preprocessing:
             return None
         
         try:
-            # Load audio with librosa (handles resampling automatically)
-            audio, sr = librosa.load(audio_path, sr=16000, mono=True, dtype=np.float32)
+            # Optimization: Use soundfile for faster loading
+            # It's significantly faster than librosa for standard formats
+            try:
+                audio, sr = soundfile.read(audio_path, dtype='float32')
+                
+                # Handle multi-channel audio (convert to mono)
+                if len(audio.shape) > 1:
+                    audio = audio.mean(axis=1)
+                
+                # Resample if necessary (Whisper expects 16kHz)
+                if sr != 16000:
+                    # Use librosa only for resampling if needed, as it's good at it
+                    # But we can use a faster method if available, e.g. scipy or soxr
+                    # For now, stick to librosa.resample but on the already loaded array
+                    audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
+                    
+            except Exception as sf_error:
+                logger.debug(f"Soundfile load failed ({sf_error}), falling back to librosa")
+                # Fallback to librosa if soundfile fails (e.g. obscure formats)
+                audio, sr = librosa.load(audio_path, sr=16000, mono=True, dtype=np.float32)
             
             # Normalize audio if enabled
             if self.enable_audio_normalization:
                 # Peak normalization to prevent clipping
+                # Optimized: Use numpy max directly
                 max_val = np.abs(audio).max()
                 if max_val > 0:
                     audio = audio / max_val * 0.95  # Leave 5% headroom
@@ -182,7 +202,8 @@ class AudioTranscriber:
             # (This is a lightweight filter, not full noise reduction)
             if len(audio) > 100:
                 # Remove DC offset
-                audio = audio - np.mean(audio)
+                # Optimized: In-place subtraction
+                audio -= np.mean(audio)
             
             return audio
         except Exception as e:
