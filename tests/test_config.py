@@ -27,7 +27,7 @@ class TestConfigDataclasses(unittest.TestCase):
     def test_model_config_defaults(self):
         """Test ModelConfig with default values."""
         config = ModelConfig()
-        self.assertEqual(config.name, "medium")
+        self.assertEqual(config.name, "small")
         self.assertEqual(config.compute_type, "int8")
         self.assertEqual(config.device, "auto")
     

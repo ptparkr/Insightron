@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ModelConfig:
     """Model configuration settings."""
-    name: str = "medium"
+    name: str = "small"
     compute_type: str = "int8"
     device: str = "auto"
     
@@ -48,8 +48,8 @@ class ModelConfig:
 @dataclass
 class RuntimeConfig:
     """Runtime configuration settings."""
-    transcription_folder: str = r"D:\2. Areas\Ideaverse\Areas\Insights"
-    recordings_folder: str = r"D:\2. Areas\Ideaverse\Areas\Recordings"
+    transcription_folder: str = r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Notes"
+    recordings_folder: str = r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Recordings"
     max_file_size_mb: int = 500
     log_level: str = "INFO"
     worker_count: Optional[int] = None  # None = auto-detect
@@ -181,7 +181,7 @@ class ConfigManager:
         """Initialize model configuration."""
         model_data = self._raw_config.get('model', {})
         return ModelConfig(
-            name=model_data.get('name', 'medium'),
+            name=model_data.get('name', 'small'),
             compute_type=model_data.get('compute_type', 'int8'),
             device=model_data.get('device', 'auto')
         )
@@ -190,8 +190,8 @@ class ConfigManager:
         """Initialize runtime configuration."""
         runtime_data = self._raw_config.get('runtime', {})
         return RuntimeConfig(
-            transcription_folder=runtime_data.get('transcription_folder', r"D:\2. Areas\Ideaverse\Areas\Insights"),
-            recordings_folder=runtime_data.get('recordings_folder', r"D:\2. Areas\Ideaverse\Areas\Recordings"),
+            transcription_folder=runtime_data.get('transcription_folder', r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Notes"),
+            recordings_folder=runtime_data.get('recordings_folder', r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Recordings"),
             max_file_size_mb=runtime_data.get('max_file_size_mb', 500),
             log_level=runtime_data.get('log_level', 'INFO'),
             worker_count=runtime_data.get('worker_count')

@@ -84,7 +84,7 @@ class ModelManager:
         self.device = "auto" if device_setting == "auto" else device_setting
         
         # Quality mode configuration
-        self.quality_mode = config.get('model.quality_mode', 'high')  # high|balanced|fast
+        self.quality_mode = config.get('model.quality_mode', 'balanced')  # high|balanced|fast
         self.enable_vad = config.get('model.enable_vad', True)
         self.enable_retry = config.get('model.enable_retry', True)
         self.max_retries = config.get('model.max_retries', 2)

@@ -473,7 +473,7 @@ class InsightronGUI:
                     
                     note_path = TRANSCRIPTION_FOLDER / f"{note_filename}.md"
                     note_path.write_text(note_content, encoding='utf-8')
-                    self.update_results(f"📝 Saved note to Insights: {note_filename}.md")
+                    self.update_results(f"📝 Saved note to Notes: {note_filename}.md")
                         
                 except Exception as e:
                     logger.error(f"Failed to save note: {e}")

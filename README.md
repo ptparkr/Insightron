@@ -94,13 +94,13 @@ Edit `config.yaml` to set your paths and preferences:
 ```yaml
 runtime:
   # Where to save transcription files
-  transcription_folder: "D:\\2. Areas\\Ideaverse\\Areas\\Insights"
+  transcription_folder: "D:\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Notes"
   
   # Where to save audio recordings
-  recordings_folder: "D:\\2. Areas\\Ideaverse\\Areas\\Recordings"
+  recordings_folder: "D:\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Recordings"
 
 model:
-  name: "medium"
+  name: "small"
   device: "auto"
   compute_type: "int8"
 ```

@@ -10,8 +10,8 @@ model:
   # Options: tiny, base, small, medium, large, large-v2, distil-medium.en, distil-large-v2
   # Smaller models are faster but less accurate. Larger models are slower but more accurate.
   # distil-* models are optimized for speed with minimal accuracy loss.
-  # Default: medium (good balance of speed and accuracy)
-  name: "medium"
+  # Default: small (faster for slower machines, still multilingual)
+  name: "small"
   
   # Compute type: Precision/quantization for model inference
   # Options: float16, int8_float16, int8, float32
@@ -36,8 +36,8 @@ model:
   # high = maximum accuracy, slower (beam_size=5, best_of=5)
   # balanced = good accuracy and speed (beam_size=3, best_of=3)
   # fast = speed priority, lower accuracy (beam_size=1, best_of=1)
-  # Default: high
-  quality_mode: "high"
+  # Default: balanced (faster default for broader hardware support)
+  quality_mode: "balanced"
   
   # Enable VAD (Voice Activity Detection): Filter out silence and noise
   # Produces cleaner segments by removing non-speech portions
@@ -88,13 +88,13 @@ model:
 runtime:
   # Transcription folder: Where transcription text files (.md) are saved
   # Use absolute path. Backslashes must be doubled (\\) or use forward slashes (/)
-  # Default: D:\2. Areas\Ideaverse\Areas\Insights
-  transcription_folder: "D:\\2. Areas\\Ideaverse\\Areas\\Insights"
+  # Default: D:\2. Areas\IdeaVerse\Areas\Inner Library\Notes
+  transcription_folder: "D:\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Notes"
   
   # Recordings folder: Where audio recordings are saved
   # Use absolute path. Backslashes must be doubled (\\) or use forward slashes (/)
-  # Default: D:\2. Areas\Ideaverse\Areas\Recordings
-  recordings_folder: "D:\\2. Areas\\Ideaverse\\Areas\\Recordings"
+  # Default: D:\2. Areas\IdeaVerse\Areas\Inner Library\Recordings
+  recordings_folder: "D:\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Recordings"
   
   # Maximum file size: Maximum audio file size to process (in megabytes)
   # Files larger than this will be rejected with an error
