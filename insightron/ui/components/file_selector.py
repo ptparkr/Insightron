@@ -1,7 +1,7 @@
 """
 File Selector component for Insightron GUI.
 
-Provides file and folder selection functionality.
+Provides file and folder selection functionality with fluid button sizing.
 """
 
 import customtkinter as ctk
@@ -10,19 +10,22 @@ from tkinter import filedialog
 from pathlib import Path
 from typing import List, Optional, Callable
 from insightron.ui.themes.theme_manager import ThemeManager
+from insightron.ui.themes.design_tokens import SPACING, LayoutMode
 
 
 class FileSelector:
     """
     File selection component.
     Provides UI for selecting single files or multiple files/folders.
+    Uses fluid layout with responsive sizing.
     """
     
     def __init__(
         self,
         parent: ctk.CTkFrame,
         mode: str = "single",  # "single", "multiple", or "folder"
-        on_select: Optional[Callable] = None
+        on_select: Optional[Callable] = None,
+        responsive_manager: Optional['ResponsiveManager'] = None
     ):
         """
         Initialize file selector.
@@ -31,97 +34,129 @@ class FileSelector:
             parent: Parent frame
             mode: Selection mode ("single", "multiple", or "folder")
             on_select: Callback when files are selected
+            responsive_manager: Optional ResponsiveManager for responsive behavior
         """
         self.parent = parent
         self.theme = ThemeManager.get_theme()
         self.mode = mode
         self.on_select = on_select
+        self.responsive = responsive_manager
         self.selected_files: List[str] = []
         self.file_path_var = tk.StringVar(value="No file selected" if mode == "single" else "No files selected")
         self._create_selector()
+        
+        # Subscribe to layout changes
+        if self.responsive:
+            self.responsive.subscribe(self._on_layout_change)
+    
+    def _on_layout_change(self, mode: LayoutMode) -> None:
+        """Update typography and layout based on mode."""
+        try:
+            icon_size = ThemeManager.get_font_size('hero')
+            body_size = ThemeManager.get_font_size('body')
+            caption_size = ThemeManager.get_font_size('caption')
+            
+            self.icon_label.configure(font=('Segoe UI', icon_size + 12))
+            self.file_label.configure(font=('Segoe UI', body_size))
+            self.formats_label.configure(font=('Segoe UI', caption_size))
+            
+            if hasattr(self, 'browse_btn'):
+                self.browse_btn.configure(font=('Segoe UI', body_size, 'bold'))
+            if hasattr(self, 'browse_files_btn'):
+                self.browse_files_btn.configure(font=('Segoe UI', body_size, 'bold'))
+            if hasattr(self, 'browse_folder_btn'):
+                self.browse_folder_btn.configure(font=('Segoe UI', body_size, 'bold'))
+        except Exception:
+            pass  # Component may be destroyed
+
     
     def _create_selector(self):
         """Create the file selector UI."""
         # Card container
         self.card = ctk.CTkFrame(
             self.parent,
-            corner_radius=12,
+            corner_radius=ThemeManager.get_radius('lg'),
             border_width=1,
             border_color=self.theme.border,
             fg_color=self.theme.surface,
         )
-        self.card.pack(fill="x", pady=20, padx=20)
+        self.card.pack(fill="x", pady=SPACING.md, padx=SPACING.md)
         
         # Inner container
         inner = ctk.CTkFrame(self.card, fg_color="transparent")
-        inner.pack(fill="x", padx=30, pady=30)
+        inner.pack(fill="x", padx=SPACING.lg, pady=SPACING.lg)
         
         # Icon
         icon_text = "🎵" if self.mode == "single" else "📦" if self.mode == "multiple" else "📂"
-        icon = ctk.CTkLabel(inner, text=icon_text, font=('Segoe UI', 48))
-        icon.pack(pady=(0, 15))
+        icon_size = ThemeManager.get_font_size('hero')
+        self.icon_label = ctk.CTkLabel(inner, text=icon_text, font=('Segoe UI', icon_size + 12))
+        self.icon_label.pack(pady=(0, SPACING.md))
         
         # File status
-        file_label = ctk.CTkLabel(
+        self.file_label = ctk.CTkLabel(
             inner,
             textvariable=self.file_path_var,
-            font=('Segoe UI', 15),
+            font=('Segoe UI', ThemeManager.get_font_size('body')),
             text_color=self.theme.text_secondary
         )
-        file_label.pack(pady=(0, 20))
+        self.file_label.pack(pady=(0, SPACING.md))
         
-        # Button(s)
+        # Button(s) - using fill="x" for fluid widths
         btn_frame = ctk.CTkFrame(inner, fg_color="transparent")
-        btn_frame.pack()
+        btn_frame.pack(fill="x")
+        
+        btn_height = ThemeManager.get_button_height('md')
+        btn_font_size = ThemeManager.get_font_size('body')
         
         if self.mode == "single":
             self.browse_btn = ctk.CTkButton(
                 btn_frame,
                 text="📁 Choose Audio File",
                 command=self._browse_single,
-                font=('Segoe UI', 15, 'bold'),
-                height=50,
-                width=240,
-                corner_radius=10,
+                font=('Segoe UI', btn_font_size, 'bold'),
+                height=btn_height,
+                corner_radius=ThemeManager.get_radius('md'),
                 fg_color=self.theme.primary,
                 hover_color=self.theme.primary_hover
             )
-            self.browse_btn.pack()
+            self.browse_btn.pack(fill="x")  # Fluid width
         elif self.mode == "multiple":
+            # Grid layout for two buttons
+            btn_frame.columnconfigure(0, weight=1)
+            btn_frame.columnconfigure(1, weight=1)
+            
             self.browse_files_btn = ctk.CTkButton(
                 btn_frame,
                 text="📄 Choose Files",
                 command=self._browse_multiple,
-                font=('Segoe UI', 14, 'bold'),
-                height=48,
-                width=180,
-                corner_radius=10,
+                font=('Segoe UI', btn_font_size, 'bold'),
+                height=btn_height,
+                corner_radius=ThemeManager.get_radius('md'),
                 fg_color=self.theme.primary,
                 hover_color=self.theme.primary_hover
             )
-            self.browse_files_btn.pack(side="left", padx=8)
+            self.browse_files_btn.grid(row=0, column=0, sticky="ew", padx=(0, SPACING.sm))
             
             self.browse_folder_btn = ctk.CTkButton(
                 btn_frame,
                 text="📂 Choose Folder",
                 command=self._browse_folder,
-                font=('Segoe UI', 14, 'bold'),
-                height=48,
-                width=180,
-                corner_radius=10,
+                font=('Segoe UI', btn_font_size, 'bold'),
+                height=btn_height,
+                corner_radius=ThemeManager.get_radius('md'),
                 fg_color=self.theme.secondary,
                 hover_color=self.theme.secondary_hover
             )
-            self.browse_folder_btn.pack(side="left", padx=8)
+            self.browse_folder_btn.grid(row=0, column=1, sticky="ew")
         
         # Supported formats
-        formats = ctk.CTkLabel(
+        self.formats_label = ctk.CTkLabel(
             inner,
             text="MP3  •  WAV  •  M4A  •  FLAC  •  MP4  •  OGG  •  AAC",
-            font=('Segoe UI', 12),
+            font=('Segoe UI', ThemeManager.get_font_size('caption')),
             text_color=self.theme.text_secondary
         )
-        formats.pack(pady=(15, 0))
+        self.formats_label.pack(pady=(SPACING.md, 0))
     
     def _browse_single(self):
         """Browse for single file."""

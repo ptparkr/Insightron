@@ -16,6 +16,8 @@ from typing import Optional
 
 from insightron.ui.components import Header, SettingsPanel, ProgressPanel, ResultsPanel, FileSelector
 from insightron.ui.themes.theme_manager import ThemeManager
+from insightron.ui.themes.design_tokens import LayoutMode, SPACING
+from insightron.ui.responsive import ResponsiveManager
 from insightron.core.config import (
     APP_VERSION,
     TRANSCRIPTION_FOLDER,
@@ -54,7 +56,10 @@ class InsightronGUI:
         """
         self.root = root
         self.root.title(f"Insightron v{APP_VERSION}")
-        self.root.geometry("1000x850")
+        
+        # Responsive window sizing
+        self.root.minsize(520, 600)  # Minimum usable size
+        self.root.geometry("1100x900")  # Default size
         
         # Initialize managers
         self.settings_manager = SettingsManager()
@@ -68,34 +73,71 @@ class InsightronGUI:
         self.realtime_transcriber: Optional[RealtimeTranscriber] = None
         
         # Setup UI
+        self._setup_responsive()
         self._setup_ui()
         self._center_window()
         self._load_settings()
         
         logger.info("Insightron GUI initialized")
     
+    def _setup_responsive(self):
+        """Initialize responsive layout management."""
+        self.responsive = ResponsiveManager(self.root)
+        self.responsive.subscribe(self._on_layout_change)
+        self._current_layout_mode = LayoutMode.STANDARD
+    
+    def _on_layout_change(self, mode: LayoutMode):
+        """Handle layout mode changes from ResponsiveManager."""
+        if mode == self._current_layout_mode:
+            return
+        
+        self._current_layout_mode = mode
+        ThemeManager.set_layout_mode(mode)
+        
+        # Update spacing based on mode
+        self._update_layout_spacing(mode)
+        logger.debug(f"Layout mode changed to: {mode.name}")
+    
+    def _update_layout_spacing(self, mode: LayoutMode):
+        """Update component spacing for the layout mode."""
+        padding = self.responsive.get_spacing('md')
+        
+        # Update main container padding
+        if hasattr(self, 'content'):
+            self.content.configure()
+            # Re-pack with new padding - only affects new pack operations
+        
+        # Notify panels to adjust if they support it
+        # Components will be updated to respond to mode changes
+    
     def _setup_ui(self):
-        """Setup the main UI components."""
-        # Main container
+        """Setup the main UI components with responsive spacing."""
+        # Get spacing from design tokens
+        pad_lg = SPACING.lg  # 24
+        pad_md = SPACING.md  # 16
+        pad_sm = SPACING.sm  # 8
+        
+        # Main container with responsive padding
         self.content = ctk.CTkFrame(self.root, fg_color=self.theme.background)
-        self.content.pack(fill="both", expand=True, padx=20, pady=20)
+        self.content.pack(fill="both", expand=True, padx=pad_md, pady=pad_md)
         
         # Header
-        header_component = Header(self.content)
-        header_component.get_widget().pack(fill="x", pady=(0, 20))
+        self.header_component = Header(self.content, responsive_manager=self.responsive)
+        self.header_component.get_widget().pack(fill="x", pady=(0, pad_md))
         
-        # Tab view
+        # Tab view - constrained height to prioritize Output Log
         self.tab_view = ctk.CTkTabview(
             self.content,
-            corner_radius=12,
+            corner_radius=ThemeManager.get_radius('lg'),
             fg_color=self.theme.surface,
             segmented_button_fg_color=self.theme.surface_light,
             segmented_button_selected_color=self.theme.primary,
             segmented_button_selected_hover_color=self.theme.primary_hover,
             text_color=self.theme.text_secondary,
-            segmented_button_unselected_hover_color=self.theme.border
+            segmented_button_unselected_hover_color=self.theme.border,
+            height=280  # Constrain tab height to leave room for Output Log
         )
-        self.tab_view.pack(fill="both", expand=True, pady=(0, 15))
+        self.tab_view.pack(fill="x", pady=(0, pad_md))
         
         # Create tabs
         self.tab_single = self.tab_view.add("Single File")
@@ -111,20 +153,23 @@ class InsightronGUI:
         self._setup_batch_tab()
         self._setup_realtime_tab()
         
-        # Settings Panel
+        # Settings Panel - compact, non-expandable
         self.settings_panel = SettingsPanel(
             self.content,
-            on_change=self._save_settings
+            on_change=self._save_settings,
+            responsive_manager=self.responsive
         )
-        self.settings_panel.get_widget().pack(fill="x", pady=(0, 15))
+        self.settings_panel.get_widget().pack(fill="x", pady=(0, pad_sm))
         
-        # Progress Panel
-        self.progress_panel = ProgressPanel(self.content)
-        self.progress_panel.get_widget().pack(fill="x", pady=(0, 15))
+        # Progress Panel - compact, non-expandable
+        self.progress_panel = ProgressPanel(self.content, responsive_manager=self.responsive)
+        self.progress_panel.get_widget().pack(fill="x", pady=(0, pad_sm))
         
-        # Results Panel
-        self.results_panel = ResultsPanel(self.content)
+        # Results Panel (Output Log) - PRIORITY: gets all remaining space
+        self.results_panel = ResultsPanel(self.content, responsive_manager=self.responsive)
         self.results_panel.get_widget().pack(fill="both", expand=True)
+        # Set minimum height to ensure log visibility
+        self.results_panel.get_widget().configure(height=200)
     
     def _setup_single_file_tab(self):
         """Setup single file transcription tab."""
@@ -132,22 +177,25 @@ class InsightronGUI:
         self.single_file_selector = FileSelector(
             self.tab_single,
             mode="single",
-            on_select=lambda files: setattr(self, 'selected_file', files[0] if files else None)
+            on_select=lambda files: setattr(self, 'selected_file', files[0] if files else None),
+            responsive_manager=self.responsive
         )
         self.single_file_selector.get_widget().pack(fill="x", pady=20, padx=20)
         
         # Transcribe button
+        body_size = ThemeManager.get_font_size('body')
+        btn_height = ThemeManager.get_button_height('lg')
         self.transcribe_btn = ctk.CTkButton(
             self.tab_single,
             text="⚡ Start Transcription",
             command=self._start_transcription,
-            font=('Segoe UI', 18, 'bold'),
-            height=56,
-            corner_radius=12,
-            fg_color=self.theme.accent,
-            hover_color=self.theme.accent_hover
+            font=('Segoe UI', body_size + 3, 'bold'),
+            height=btn_height,
+            corner_radius=ThemeManager.get_radius('lg'),
+            fg_color=self.theme.primary,
+            hover_color=self.theme.primary_hover
         )
-        self.transcribe_btn.pack(fill="x", padx=20, pady=(10, 20))
+        self.transcribe_btn.pack(fill="x", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
     
     def _setup_batch_tab(self):
         """Setup batch processing tab."""
@@ -155,99 +203,112 @@ class InsightronGUI:
         self.batch_file_selector = FileSelector(
             self.tab_batch,
             mode="multiple",
-            on_select=lambda files: setattr(self, 'selected_batch_files', files)
+            on_select=lambda files: setattr(self, 'selected_batch_files', files),
+            responsive_manager=self.responsive
         )
         self.batch_file_selector.get_widget().pack(fill="x", pady=20, padx=20)
         
         # Batch transcribe button
+        body_size = ThemeManager.get_font_size('body')
+        btn_height = ThemeManager.get_button_height('lg')
         self.batch_transcribe_btn = ctk.CTkButton(
             self.tab_batch,
             text="⚡ Process All Files",
             command=self._start_batch_transcription,
-            font=('Segoe UI', 18, 'bold'),
-            height=56,
-            corner_radius=12,
+            font=('Segoe UI', body_size + 3, 'bold'),
+            height=btn_height,
+            corner_radius=ThemeManager.get_radius('lg'),
             fg_color=self.theme.accent,
             hover_color=self.theme.accent_hover
         )
-        self.batch_transcribe_btn.pack(fill="x", padx=20, pady=(10, 20))
+        self.batch_transcribe_btn.pack(fill="x", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
     
     def _setup_realtime_tab(self):
-        """Setup realtime transcription tab."""
+        """Setup realtime transcription tab with design tokens."""
         rt_card = ctk.CTkFrame(
             self.tab_realtime,
-            corner_radius=12,
+            corner_radius=ThemeManager.get_radius('lg'),
             border_width=1,
             border_color=self.theme.border,
             fg_color=self.theme.surface,
         )
-        rt_card.pack(fill="x", pady=20, padx=20)
+        rt_card.pack(fill="x", pady=SPACING.lg, padx=SPACING.lg)
         
         inner = ctk.CTkFrame(rt_card, fg_color="transparent")
-        inner.pack(fill="x", padx=30, pady=30)
+        inner.pack(fill="x", padx=SPACING.lg, pady=SPACING.lg)
         
         # Microphone selection
+        body_size = ThemeManager.get_font_size('body')
         ctk.CTkLabel(
             inner,
             text="Select Microphone",
-            font=('Segoe UI', 14, 'bold'),
+            font=('Segoe UI', body_size, 'bold'),
             text_color=self.theme.text_secondary
-        ).pack(pady=(0, 5))
+        ).pack(pady=(0, SPACING.xs))
         
         self.mic_var = ctk.StringVar(value="Loading...")
+        btn_height = ThemeManager.get_button_height('md')
         self.mic_combo = ctk.CTkComboBox(
             inner,
             variable=self.mic_var,
             values=["Loading..."],
-            font=('Segoe UI', 14),
-            width=300,
-            height=40,
-            corner_radius=8
+            font=('Segoe UI', body_size),
+            height=btn_height,
+            corner_radius=ThemeManager.get_radius('sm'),
+            fg_color=self.theme.surface_light,
+            border_color=self.theme.border,
+            button_color=self.theme.primary,
+            button_hover_color=self.theme.primary_hover,
+            dropdown_fg_color=self.theme.surface_light,
+            dropdown_hover_color=self.theme.primary
         )
-        self.mic_combo.pack(pady=(0, 20))
+        self.mic_combo.pack(fill="x", pady=(0, SPACING.lg))
         
         # Refresh button
+        btn_height_sm = ThemeManager.get_button_height('sm')
+        caption_size = ThemeManager.get_font_size('caption')
         ctk.CTkButton(
             inner,
             text="🔄 Refresh",
             command=self._refresh_microphones,
-            width=80,
-            height=24,
-            font=('Segoe UI', 11),
+            height=btn_height_sm,
+            font=('Segoe UI', caption_size),
             fg_color="transparent",
             border_width=1,
-            border_color=self.theme.border
-        ).pack(pady=(0, 20))
+            border_color=self.theme.border,
+            corner_radius=ThemeManager.get_radius('sm')
+        ).pack(fill="x", pady=(0, SPACING.md))
         
         # Audio level indicator
         ctk.CTkLabel(
             inner,
             text="Audio Level",
-            font=('Segoe UI', 12, 'bold'),
+            font=('Segoe UI', body_size, 'bold'),
             text_color=self.theme.text_secondary
-        ).pack(pady=(10, 5))
+        ).pack(pady=(SPACING.md, SPACING.xs))
         
         self.audio_level_bar = ctk.CTkProgressBar(
             inner,
-            width=300,
             height=20,
-            progress_color=self.theme.success
+            progress_color=self.theme.success,
+            corner_radius=ThemeManager.get_radius('sm')
         )
-        self.audio_level_bar.pack(pady=(0, 20))
+        self.audio_level_bar.pack(fill="x", pady=(0, SPACING.lg))
         self.audio_level_bar.set(0)
         
         # Record button
+        btn_height_lg = ThemeManager.get_button_height('lg')
         self.record_btn = ctk.CTkButton(
             self.tab_realtime,
             text="🔴 Start Recording",
             command=self._toggle_recording,
-            font=('Segoe UI', 18, 'bold'),
-            height=56,
-            corner_radius=12,
+            font=('Segoe UI', body_size + 3, 'bold'),
+            height=btn_height_lg,
+            corner_radius=ThemeManager.get_radius('lg'),
             fg_color=self.theme.error,
             hover_color='#DC2626'
         )
-        self.record_btn.pack(fill="x", padx=20, pady=(10, 20))
+        self.record_btn.pack(fill="x", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
         
         # Initialize realtime transcriber
         self.root.after(100, self._init_realtime)

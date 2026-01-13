@@ -7,6 +7,16 @@ Provides centralized theme management with modern dark theme support.
 from typing import Dict, Any
 from dataclasses import dataclass
 
+# Import design tokens for integration
+from insightron.ui.themes.design_tokens import (
+    LayoutMode,
+    SPACING,
+    TYPOGRAPHY,
+    SIZING,
+    BREAKPOINTS,
+    get_layout_mode
+)
+
 
 @dataclass
 class Theme:
@@ -46,7 +56,7 @@ class Theme:
 class ThemeManager:
     """
     Manages application themes.
-    Provides access to color schemes and styling.
+    Provides access to color schemes, styling, and design tokens.
     """
     
     # Modern Dark - Black Theme (Default)
@@ -69,6 +79,7 @@ class ThemeManager:
     )
     
     _current_theme: Theme = DARK_THEME
+    _current_mode: LayoutMode = LayoutMode.STANDARD
     
     @classmethod
     def get_theme(cls) -> Theme:
@@ -79,6 +90,16 @@ class ThemeManager:
     def set_theme(cls, theme: Theme):
         """Set the current theme."""
         cls._current_theme = theme
+    
+    @classmethod
+    def set_layout_mode(cls, mode: LayoutMode):
+        """Set the current layout mode for responsive sizing."""
+        cls._current_mode = mode
+    
+    @classmethod
+    def get_layout_mode(cls) -> LayoutMode:
+        """Get the current layout mode."""
+        return cls._current_mode
     
     @classmethod
     def get_colors(cls) -> Dict[str, str]:
@@ -101,8 +122,61 @@ class ThemeManager:
             'error': theme.error,
             'warning': theme.warning,
         }
+    
+    @classmethod
+    def get_spacing(cls, size: str = 'md') -> int:
+        """
+        Get spacing value from design tokens.
+        
+        Args:
+            size: Spacing size (xs, sm, md, lg, xl, xxl)
+            
+        Returns:
+            Spacing value in pixels
+        """
+        return SPACING.get(size)
+    
+    @classmethod
+    def get_font_size(cls, style: str) -> int:
+        """
+        Get font size for the current layout mode.
+        
+        Args:
+            style: Typography style (hero, h1, h2, body, caption, etc.)
+            
+        Returns:
+            Font size in pixels
+        """
+        return TYPOGRAPHY.get_size(style, cls._current_mode)
+    
+    @classmethod
+    def get_button_height(cls, size: str = 'md') -> int:
+        """
+        Get button height for the current layout mode.
+        
+        Args:
+            size: Button size (sm, md, lg)
+            
+        Returns:
+            Height in pixels
+        """
+        return SIZING.get_button_height(size, cls._current_mode)
+    
+    @classmethod
+    def get_radius(cls, size: str = 'md') -> int:
+        """
+        Get corner radius value.
+        
+        Args:
+            size: Radius size (sm, md, lg)
+            
+        Returns:
+            Radius value in pixels
+        """
+        return getattr(SIZING, f'radius_{size}', SIZING.radius_md)
 
 
 def get_theme() -> Dict[str, str]:
     """Get current theme colors as dictionary (convenience function)."""
     return ThemeManager.get_colors()
+

@@ -1,56 +1,77 @@
 """
 Progress Panel component for Insightron GUI.
 
-Displays transcription progress and status.
+Displays transcription progress and status with responsive spacing.
 """
 
 import customtkinter as ctk
 import tkinter as tk
+from typing import Optional
 from insightron.ui.themes.theme_manager import ThemeManager
+from insightron.ui.themes.design_tokens import SPACING, LayoutMode
 
 
 class ProgressPanel:
     """
     Progress display panel.
-    Shows current status and progress bar.
+    Shows current status and progress bar with design token spacing.
     """
     
-    def __init__(self, parent: ctk.CTkFrame):
+    def __init__(
+        self,
+        parent: ctk.CTkFrame,
+        responsive_manager: Optional['ResponsiveManager'] = None
+    ):
         """
         Initialize progress panel.
         
         Args:
             parent: Parent frame
+            responsive_manager: Optional ResponsiveManager for responsive behavior
         """
         self.parent = parent
         self.theme = ThemeManager.get_theme()
+        self.responsive = responsive_manager
         self.progress_var = tk.StringVar(value="Ready to transcribe")
         self._create_panel()
+        
+        # Subscribe to layout changes
+        if self.responsive:
+            self.responsive.subscribe(self._on_layout_change)
+    
+    def _on_layout_change(self, mode: LayoutMode) -> None:
+        """Update typography based on layout mode."""
+        try:
+            body_size = ThemeManager.get_font_size('body')
+            self.status_label.configure(font=('Segoe UI', body_size))
+        except Exception:
+            pass  # Component may be destroyed
+
     
     def _create_panel(self):
         """Create the progress panel UI."""
         # Card container
         self.card = ctk.CTkFrame(
             self.parent,
-            corner_radius=12,
+            corner_radius=ThemeManager.get_radius('lg'),
             border_width=1,
             border_color=self.theme.border,
             fg_color=self.theme.surface,
         )
-        self.card.pack(fill="x", pady=(0, 15))
+        self.card.pack(fill="x", pady=(0, SPACING.md))
         
-        # Inner container
+        # Inner container with responsive padding
         inner = ctk.CTkFrame(self.card, fg_color="transparent")
-        inner.pack(fill="x", padx=25, pady=20)
+        inner.pack(fill="x", padx=SPACING.lg, pady=SPACING.md)
         
         # Status label
         self.status_label = ctk.CTkLabel(
             inner,
             textvariable=self.progress_var,
-            font=('Segoe UI', 15),
+            font=('Segoe UI', ThemeManager.get_font_size('body')),
             text_color=self.theme.text_primary
         )
-        self.status_label.pack(anchor="w", pady=(0, 12))
+        self.status_label.pack(anchor="w", pady=(0, SPACING.sm))
         
         # Progress bar
         self.progress_bar = ctk.CTkProgressBar(

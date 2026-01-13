@@ -1,13 +1,15 @@
 """
 Settings Panel component for Insightron GUI.
 
-Provides configuration controls for model, language, and formatting.
+Provides configuration controls for model, language, and formatting
+with adaptive responsive grid layout.
 """
 
 import customtkinter as ctk
 import tkinter as tk
 from typing import Callable, Optional
 from insightron.ui.themes.theme_manager import ThemeManager
+from insightron.ui.themes.design_tokens import SPACING, LayoutMode
 from insightron.core.config import (
     WHISPER_MODEL,
     DEFAULT_LANGUAGE,
@@ -18,14 +20,19 @@ from insightron.core.config import (
 
 class SettingsPanel:
     """
-    Settings configuration panel.
-    Provides controls for model selection, language, and formatting.
+    Settings configuration panel with responsive grid layout.
+    
+    Adapts to viewport size:
+    - Expanded (desktop): 3 columns side-by-side
+    - Standard (tablet): 2 columns + 1 below
+    - Compact (mobile): Single column stack
     """
     
     def __init__(
         self,
         parent: ctk.CTkFrame,
-        on_change: Optional[Callable] = None
+        on_change: Optional[Callable] = None,
+        responsive_manager: Optional['ResponsiveManager'] = None
     ):
         """
         Initialize settings panel.
@@ -33,10 +40,13 @@ class SettingsPanel:
         Args:
             parent: Parent frame
             on_change: Callback function when settings change
+            responsive_manager: Optional ResponsiveManager for responsive behavior
         """
         self.parent = parent
         self.theme = ThemeManager.get_theme()
         self.on_change = on_change
+        self.responsive = responsive_manager
+        self._current_mode = LayoutMode.STANDARD
         
         # Variables
         self.model_var = tk.StringVar(value=WHISPER_MODEL)
@@ -50,63 +60,70 @@ class SettingsPanel:
             self.formatting_var.trace_add("write", lambda *args: self.on_change())
         
         self._create_panel()
+        
+        # Subscribe to layout changes
+        if self.responsive:
+            self.responsive.subscribe(self._on_layout_change)
     
     def _create_panel(self):
         """Create the settings panel UI."""
         # Card container
         self.card = ctk.CTkFrame(
             self.parent,
-            corner_radius=12,
+            corner_radius=ThemeManager.get_radius('lg'),
             border_width=1,
             border_color=self.theme.border,
             fg_color=self.theme.surface,
         )
-        self.card.pack(fill="x", pady=(0, 15))
+        self.card.pack(fill="x", pady=(0, SPACING.md))
         
         # Header
         header = ctk.CTkFrame(self.card, fg_color="transparent")
-        header.pack(fill="x", padx=25, pady=(20, 10))
+        header.pack(fill="x", padx=SPACING.lg, pady=(SPACING.md, SPACING.sm))
         
+        header_font_size = ThemeManager.get_font_size('h2')
         ctk.CTkLabel(
             header,
             text="⚙️ Configuration",
-            font=('Segoe UI', 18, 'bold'),
+            font=('Segoe UI', header_font_size, 'bold'),
             text_color=self.theme.text_primary
         ).pack(side="left")
         
-        # Settings Grid
-        grid = ctk.CTkFrame(self.card, fg_color="transparent")
-        grid.pack(fill="x", padx=25, pady=(0, 25))
+        # Settings Container - will be reorganized on layout change
+        self.settings_container = ctk.CTkFrame(self.card, fg_color="transparent")
+        self.settings_container.pack(fill="x", padx=SPACING.lg, pady=(0, SPACING.lg))
         
-        # Model Selection
-        self._create_model_selector(grid)
+        # Create selector frames (these will be reorganized in _update_grid_layout)
+        self.model_frame = self._create_model_selector()
+        self.language_frame = self._create_language_selector()
+        self.formatting_frame = self._create_formatting_selector()
         
-        # Language Selection
-        self._create_language_selector(grid)
-        
-        # Formatting Selection
-        self._create_formatting_selector(grid)
+        # Initial layout
+        self._update_grid_layout(self._current_mode)
     
-    def _create_model_selector(self, parent: ctk.CTkFrame):
+    def _create_model_selector(self) -> ctk.CTkFrame:
         """Create model selection dropdown."""
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.pack(side="left", fill="both", expand=True, padx=(0, 12))
+        frame = ctk.CTkFrame(self.settings_container, fg_color="transparent")
+        
+        label_size = ThemeManager.get_font_size('h3')
+        caption_size = ThemeManager.get_font_size('caption')
         
         ctk.CTkLabel(
             frame,
             text="Whisper Model",
-            font=('Segoe UI', 13, 'bold'),
+            font=('Segoe UI', label_size, 'bold'),
             text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(0, 8))
+        ).pack(anchor="w", pady=(0, SPACING.sm))
         
+        btn_height = ThemeManager.get_button_height('md')
         ctk.CTkOptionMenu(
             frame,
             variable=self.model_var,
             values=["tiny", "base", "small", "medium", "large-v2", "distil-medium.en", "distil-large-v2"],
-            font=('Segoe UI', 14, 'bold'),
-            dropdown_font=('Segoe UI', 13),
-            corner_radius=8,
-            height=42,
+            font=('Segoe UI', label_size, 'bold'),
+            dropdown_font=('Segoe UI', label_size),
+            corner_radius=ThemeManager.get_radius('sm'),
+            height=btn_height,
             fg_color=self.theme.primary,
             button_color=self.theme.primary,
             button_hover_color=self.theme.primary_hover,
@@ -117,32 +134,37 @@ class SettingsPanel:
         ctk.CTkLabel(
             frame,
             text="Speed vs Accuracy",
-            font=('Segoe UI', 11),
+            font=('Segoe UI', caption_size),
             text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(6, 0))
+        ).pack(anchor="w", pady=(SPACING.xs, 0))
+        
+        return frame
     
-    def _create_language_selector(self, parent: ctk.CTkFrame):
+    def _create_language_selector(self) -> ctk.CTkFrame:
         """Create language selection dropdown."""
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.pack(side="left", fill="both", expand=True, padx=(0, 12))
+        frame = ctk.CTkFrame(self.settings_container, fg_color="transparent")
+        
+        label_size = ThemeManager.get_font_size('h3')
+        caption_size = ThemeManager.get_font_size('caption')
         
         ctk.CTkLabel(
             frame,
             text="Language",
-            font=('Segoe UI', 13, 'bold'),
+            font=('Segoe UI', label_size, 'bold'),
             text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(0, 8))
+        ).pack(anchor="w", pady=(0, SPACING.sm))
         
         lang_options = [f"{code} - {name}" for code, name in SUPPORTED_LANGUAGES.items()]
         
+        btn_height = ThemeManager.get_button_height('md')
         ctk.CTkComboBox(
             frame,
             variable=self.language_var,
             values=lang_options,
-            font=('Segoe UI', 14, 'bold'),
-            dropdown_font=('Segoe UI', 13),
-            corner_radius=8,
-            height=42,
+            font=('Segoe UI', label_size, 'bold'),
+            dropdown_font=('Segoe UI', label_size),
+            corner_radius=ThemeManager.get_radius('sm'),
+            height=btn_height,
             fg_color=self.theme.secondary,
             border_color=self.theme.secondary,
             button_color=self.theme.secondary,
@@ -154,30 +176,35 @@ class SettingsPanel:
         ctk.CTkLabel(
             frame,
             text="Auto or Manual",
-            font=('Segoe UI', 11),
+            font=('Segoe UI', caption_size),
             text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(6, 0))
+        ).pack(anchor="w", pady=(SPACING.xs, 0))
+        
+        return frame
     
-    def _create_formatting_selector(self, parent: ctk.CTkFrame):
+    def _create_formatting_selector(self) -> ctk.CTkFrame:
         """Create formatting selection dropdown."""
-        frame = ctk.CTkFrame(parent, fg_color="transparent")
-        frame.pack(side="left", fill="both", expand=True)
+        frame = ctk.CTkFrame(self.settings_container, fg_color="transparent")
+        
+        label_size = ThemeManager.get_font_size('h3')
+        caption_size = ThemeManager.get_font_size('caption')
         
         ctk.CTkLabel(
             frame,
             text="Text Formatting",
-            font=('Segoe UI', 13, 'bold'),
+            font=('Segoe UI', label_size, 'bold'),
             text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(0, 8))
+        ).pack(anchor="w", pady=(0, SPACING.sm))
         
+        btn_height = ThemeManager.get_button_height('md')
         ctk.CTkOptionMenu(
             frame,
             variable=self.formatting_var,
             values=["auto", "paragraphs", "minimal", "bullets"],
-            font=('Segoe UI', 14, 'bold'),
-            dropdown_font=('Segoe UI', 13),
-            corner_radius=8,
-            height=42,
+            font=('Segoe UI', label_size, 'bold'),
+            dropdown_font=('Segoe UI', label_size),
+            corner_radius=ThemeManager.get_radius('sm'),
+            height=btn_height,
             fg_color=self.theme.accent,
             button_color=self.theme.accent,
             button_hover_color=self.theme.accent_hover,
@@ -188,9 +215,47 @@ class SettingsPanel:
         ctk.CTkLabel(
             frame,
             text="Smart Detection",
-            font=('Segoe UI', 11),
+            font=('Segoe UI', caption_size),
             text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(6, 0))
+        ).pack(anchor="w", pady=(SPACING.xs, 0))
+        
+        return frame
+    
+    def _update_grid_layout(self, mode: LayoutMode):
+        """Reorganize selector frames based on layout mode."""
+        # Remove all frames from grid
+        for frame in [self.model_frame, self.language_frame, self.formatting_frame]:
+            frame.pack_forget()
+        
+        gap = SPACING.sm
+        
+        if mode == LayoutMode.COMPACT:
+            # Single column - stack vertically
+            self.model_frame.pack(fill="x", pady=(0, gap))
+            self.language_frame.pack(fill="x", pady=(0, gap))
+            self.formatting_frame.pack(fill="x")
+        elif mode == LayoutMode.STANDARD:
+            # 2 columns + 1 below
+            row1 = ctk.CTkFrame(self.settings_container, fg_color="transparent")
+            row1.pack(fill="x", pady=(0, gap))
+            self.model_frame.pack(in_=row1, side="left", fill="both", expand=True, padx=(0, gap))
+            self.language_frame.pack(in_=row1, side="left", fill="both", expand=True)
+            self.formatting_frame.pack(fill="x")
+        else:  # EXPANDED
+            # 3 columns side-by-side
+            self.model_frame.pack(side="left", fill="both", expand=True, padx=(0, gap))
+            self.language_frame.pack(side="left", fill="both", expand=True, padx=(0, gap))
+            self.formatting_frame.pack(side="left", fill="both", expand=True)
+    
+    def _on_layout_change(self, mode: LayoutMode) -> None:
+        """Handle layout mode changes."""
+        if mode == self._current_mode:
+            return
+        self._current_mode = mode
+        try:
+            self._update_grid_layout(mode)
+        except Exception:
+            pass  # Component may be destroyed
     
     def get_model(self) -> str:
         """Get selected model."""
