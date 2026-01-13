@@ -50,6 +50,7 @@ class RuntimeConfig:
     """Runtime configuration settings."""
     transcription_folder: str = r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Notes"
     recordings_folder: str = r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Recordings"
+    processed_audio_folder: str = r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Processed"
     max_file_size_mb: int = 500
     log_level: str = "INFO"
     worker_count: Optional[int] = None  # None = auto-detect
@@ -192,6 +193,7 @@ class ConfigManager:
         return RuntimeConfig(
             transcription_folder=runtime_data.get('transcription_folder', r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Notes"),
             recordings_folder=runtime_data.get('recordings_folder', r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Recordings"),
+            processed_audio_folder=runtime_data.get('processed_audio_folder', r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Processed"),
             max_file_size_mb=runtime_data.get('max_file_size_mb', 500),
             log_level=runtime_data.get('log_level', 'INFO'),
             worker_count=runtime_data.get('worker_count')
@@ -223,6 +225,7 @@ class ConfigManager:
         try:
             Path(self.runtime.transcription_folder).mkdir(parents=True, exist_ok=True)
             Path(self.runtime.recordings_folder).mkdir(parents=True, exist_ok=True)
+            Path(self.runtime.processed_audio_folder).mkdir(parents=True, exist_ok=True)
         except Exception as e:
             logger.error(f"Error creating directories: {e}")
     
@@ -311,6 +314,7 @@ ENABLE_INT8_QUANTIZATION = _config_manager.model.compute_type == "int8"
 # Directory Configuration
 TRANSCRIPTION_FOLDER = Path(_config_manager.runtime.transcription_folder)
 RECORDINGS_FOLDER = Path(_config_manager.runtime.recordings_folder)
+PROCESSED_AUDIO_FOLDER = Path(_config_manager.runtime.processed_audio_folder)
 
 # Backward compatibility alias
 OBSIDIAN_VAULT_PATH = TRANSCRIPTION_FOLDER  # Deprecated: use TRANSCRIPTION_FOLDER instead

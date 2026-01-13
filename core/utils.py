@@ -5,6 +5,8 @@ Handles markdown creation and text formatting
 from datetime import datetime
 import logging
 from typing import List, Dict, Any
+from pathlib import Path
+import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +276,7 @@ def format_duration(seconds: float) -> str:
     else:
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
         return f"{hours}:{minutes:02d}:{secs:02d}"
 
 
@@ -294,9 +297,8 @@ def sanitize_filename(filename: str) -> str:
     filename = filename.replace(' ', '_')
     # Limit length
     if len(filename) > 200:
-        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-    else:
-        return f"{minutes:02d}:{secs:02d}"
+        filename = filename[:200]
+    return filename
 
 
 def create_timestamps_section(segments: List[Dict[str, Any]], max_segments: int = 20) -> str:
@@ -469,28 +471,53 @@ def format_duration(seconds: float) -> str:
     else:
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
         return f"{hours}:{minutes:02d}:{secs:02d}"
 
 
-def sanitize_filename(filename: str) -> str:
+def save_processed_audio(audio_path: str, processed_folder: Path) -> Path:
     """
-    Sanitize filename by removing invalid characters
+    Save processed audio file to the processed audio folder.
+    Copies the file to preserve the original.
     
     Args:
-        filename: Original filename
+        audio_path: Path to the original audio file
+        processed_folder: Path to the processed audio folder
         
     Returns:
-        Sanitized filename safe for filesystem
+        Path to the saved audio file in the processed folder
+        
+    Raises:
+        FileNotFoundError: If the audio file doesn't exist
+        OSError: If the file cannot be copied
     """
-    import re
-    # Remove invalid characters
-    filename = re.sub(r'[<>:"/\\|?*]', '', filename)
-    # Replace spaces with underscores
-    filename = filename.replace(' ', '_')
-    # Limit length
-    if len(filename) > 200:
-        filename = filename[:200]
-    return filename
+    audio_file = Path(audio_path)
+    
+    if not audio_file.exists():
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+    
+    # Ensure processed folder exists
+    processed_folder.mkdir(parents=True, exist_ok=True)
+    
+    # Create destination path
+    # If file already exists, add a timestamp to avoid overwriting
+    dest_path = processed_folder / audio_file.name
+    
+    if dest_path.exists():
+        # Add timestamp to filename to avoid overwriting
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        stem = audio_file.stem
+        suffix = audio_file.suffix
+        dest_path = processed_folder / f"{stem}_{timestamp}{suffix}"
+    
+    try:
+        # Copy the file
+        shutil.copy2(audio_file, dest_path)
+        logger.info(f"Saved processed audio: {audio_file.name} -> {dest_path}")
+        return dest_path
+    except Exception as e:
+        logger.error(f"Error saving processed audio {audio_file.name}: {e}")
+        raise OSError(f"Failed to save processed audio: {e}")
 
 
 # Example usage and testing

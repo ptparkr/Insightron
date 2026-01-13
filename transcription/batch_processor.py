@@ -47,6 +47,8 @@ def transcribe_single_file_worker(audio_file: str, model_size: str, language: st
             formatting_style=formatting_style
         )
         
+        # Note: Audio saving is handled in transcribe_file() method
+        
         return {
             'output_path': str(output_path),
             'duration': transcription_data['duration'],
@@ -282,6 +284,8 @@ class BatchTranscriber:
             audio_file,
             formatting_style=formatting_style
         )
+        
+        # Note: Audio saving is handled in transcribe_file() method
         
         return {
             'output_path': str(output_path),

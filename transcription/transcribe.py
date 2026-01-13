@@ -10,11 +10,12 @@ import numpy as np
 from functools import lru_cache
 
 
-from core.utils import create_markdown
+from core.utils import create_markdown, save_processed_audio
 from core.config import (
     get_config_manager,
     WHISPER_MODEL, 
     TRANSCRIPTION_FOLDER, 
+    PROCESSED_AUDIO_FOLDER,
     SUPPORTED_LANGUAGES, 
     DEFAULT_LANGUAGE, 
     ENSURE_UTF8_ENCODING, 
@@ -454,6 +455,14 @@ class AudioTranscriber:
             
             if progress_callback:
                 progress_callback("✓ Transcription completed!")
+            
+            # Save processed audio file to processed folder
+            try:
+                saved_audio_path = save_processed_audio(audio_path, PROCESSED_AUDIO_FOLDER)
+                logger.info(f"Processed audio saved to: {saved_audio_path}")
+            except Exception as e:
+                logger.warning(f"Failed to save processed audio: {e}")
+                # Don't fail the transcription if audio saving fails
             
             logger.info(f"Completed in {processing_time:.1f}s")
             return output_path, transcription_data
