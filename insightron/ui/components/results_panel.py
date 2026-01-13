@@ -59,19 +59,28 @@ class ResultsPanel:
     
     def _create_panel(self):
         """Create the results panel UI."""
-        # Card container - expands to fill available space
+        # Card container - expands to fill available space.
+        # Geometry (pack/grid) is managed by parent layout
+        # (e.g., main window grid), so we do not call pack/grid here.
+        # The parent grid with sticky="nsew" and weight=1 ensures this expands.
+        # Seamless look: border_width=0, match parent gray container
         self.card = ctk.CTkFrame(
             self.parent,
-            corner_radius=ThemeManager.get_radius('lg'),
-            border_width=1,
-            border_color=self.theme.border,
-            fg_color=self.theme.surface,
+            corner_radius=0,  # No corner radius - parent container has rounded corners
+            border_width=0,  # Seamless - no border gaps
+            fg_color="transparent",  # Transparent to show parent gray container
         )
-        self.card.pack(fill="both", expand=True)
+        # Configure card to expand and fill available space
+        # The card itself will be managed by parent grid, but we ensure
+        # internal layout expands properly
+        self.card.grid_propagate(True)  # Allow natural expansion
+        # Set a reasonable minimum height via minsize (handled by parent grid)
+        # The actual expansion is controlled by parent grid row weight=1
         
-        # Header
-        header = ctk.CTkFrame(self.card, fg_color="transparent")
-        header.pack(fill="x", padx=SPACING.lg, pady=(SPACING.md, SPACING.sm))
+        # Header - use grid for consistency
+        header = ctk.CTkFrame(self.card, fg_color="transparent", border_width=0)
+        header.grid(row=0, column=0, sticky="ew", padx=SPACING.lg, pady=(SPACING.md, SPACING.sm))
+        header.grid_columnconfigure(0, weight=1)
         
         header_font_size = ThemeManager.get_font_size('h2')
         self.title_label = ctk.CTkLabel(
@@ -80,7 +89,7 @@ class ResultsPanel:
             font=('Segoe UI', header_font_size, 'bold'),
             text_color=self.theme.text_primary
         )
-        self.title_label.pack(side="left")
+        self.title_label.grid(row=0, column=0, sticky="w")
         
         # Clear button
         btn_height = ThemeManager.get_button_height('sm')
@@ -97,9 +106,25 @@ class ResultsPanel:
             text_color=self.theme.text_secondary,
             hover_color=self.theme.surface_light
         )
-        self.clear_btn.pack(side="right")
+        self.clear_btn.grid(row=0, column=1, sticky="e")
         
-        # Results text area - word wrap enabled for narrow viewports
+        # Results text area - REMOVED (black box above progress bar)
+        # The text area is hidden/removed as per design requirements
+        # Only progress panel will be shown
+        
+        # Configure card grid - no text area, just progress panel
+        self.card.grid_rowconfigure(0, weight=0)  # Header: auto
+        self.card.grid_rowconfigure(1, weight=0)  # Progress panel: auto
+        self.card.grid_columnconfigure(0, weight=1)
+        
+        # Progress panel container - will be populated by main_window
+        # This creates a placeholder row for the progress panel
+        self.progress_container = ctk.CTkFrame(self.card, fg_color="transparent", border_width=0)
+        self.progress_container.grid(row=1, column=0, sticky="ew", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
+        self.progress_container.grid_columnconfigure(0, weight=1)
+        
+        # Create a hidden textbox for append() method compatibility
+        # This allows the code to still work but the textbox won't be visible
         mono_size = ThemeManager.get_font_size('mono')
         self.results_text = ctk.CTkTextbox(
             self.card,
@@ -107,9 +132,10 @@ class ResultsPanel:
             corner_radius=0,
             fg_color=self.theme.background,
             border_width=0,
-            wrap="word"  # Enable word wrap for narrow viewports
+            wrap="word",
+            height=1,  # Minimal height - effectively hidden
         )
-        self.results_text.pack(fill="both", expand=True, padx=SPACING.lg, pady=(0, SPACING.lg))
+        self.results_text.grid_remove()  # Hide the textbox
         self.results_text.configure(state="disabled")
     
     def append(self, message: str):

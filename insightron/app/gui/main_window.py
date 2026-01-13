@@ -61,6 +61,11 @@ class InsightronGUI:
         self.root.minsize(520, 600)  # Minimum usable size
         self.root.geometry("1100x900")  # Default size
         
+        # CRITICAL: Configure root window for expansion chain
+        # This ensures the root can expand and fill the screen
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        
         # Initialize managers
         self.settings_manager = SettingsManager()
         self.theme = ThemeManager.get_theme()
@@ -85,6 +90,35 @@ class InsightronGUI:
         self.responsive = ResponsiveManager(self.root)
         self.responsive.subscribe(self._on_layout_change)
         self._current_layout_mode = LayoutMode.STANDARD
+        
+        # Bind resize handler for dynamic padding updates
+        self.root.bind("<Configure>", self._on_window_resize)
+    
+    def _on_window_resize(self, event=None):
+        """Handle window resize events to dynamically update grid padding."""
+        # Only process root window resize events (if event provided)
+        if event and event.widget != self.root:
+            return
+        
+        # Update grid padding dynamically when height changes
+        if hasattr(self, 'content'):
+            pad_md = self.responsive.get_spacing('md')
+            pad_sm = self.responsive.get_spacing('sm')
+            
+            # Update grid padding for content container
+            self.content.grid_configure(padx=pad_md, pady=pad_md)
+            
+            # Update padding for all grid children
+            if hasattr(self, 'header_component'):
+                self.header_component.get_widget().grid_configure(
+                    pady=(0, pad_md)
+                )
+            if hasattr(self, 'tab_view'):
+                self.tab_view.grid_configure(pady=(0, pad_md))
+            if hasattr(self, 'config_container'):
+                self.config_container.grid_configure(pady=(0, pad_md))
+            if hasattr(self, 'output_container'):
+                self.output_container.grid_configure(pady=(0, pad_sm))
     
     def _on_layout_change(self, mode: LayoutMode):
         """Handle layout mode changes from ResponsiveManager."""
@@ -94,85 +128,195 @@ class InsightronGUI:
         self._current_layout_mode = mode
         ThemeManager.set_layout_mode(mode)
         
-        # Update spacing based on mode
-        self._update_layout_spacing(mode)
+        # Trigger resize handler to update spacing (no event needed)
+        self._on_window_resize()
         logger.debug(f"Layout mode changed to: {mode.name}")
-    
-    def _update_layout_spacing(self, mode: LayoutMode):
-        """Update component spacing for the layout mode."""
-        padding = self.responsive.get_spacing('md')
-        
-        # Update main container padding
-        if hasattr(self, 'content'):
-            self.content.configure()
-            # Re-pack with new padding - only affects new pack operations
-        
-        # Notify panels to adjust if they support it
-        # Components will be updated to respond to mode changes
     
     def _setup_ui(self):
         """Setup the main UI components with responsive spacing."""
-        # Get spacing from design tokens
-        pad_lg = SPACING.lg  # 24
-        pad_md = SPACING.md  # 16
-        pad_sm = SPACING.sm  # 8
+        # Get spacing from responsive manager so padding can adapt
+        # to both width and height (container-query style).
+        pad_lg = self.responsive.get_spacing('lg')
+        pad_md = self.responsive.get_spacing('md')
+        pad_sm = self.responsive.get_spacing('sm')
         
-        # Main container with responsive padding
-        self.content = ctk.CTkFrame(self.root, fg_color=self.theme.background)
-        self.content.pack(fill="both", expand=True, padx=pad_md, pady=pad_md)
+        # MASTER SCROLLABLE CONTAINER: Wrap entire app in scrollable frame
+        # This ensures if content is too tall, user can scroll to see Output Log
+        self.scrollable_container = ctk.CTkScrollableFrame(
+            self.root,
+            fg_color=self.theme.background,
+            border_width=0,  # Seamless look - no border
+        )
+        # CRITICAL: Configure scrollable container to expand fully
+        self.scrollable_container.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+        self.scrollable_container.grid_columnconfigure(0, weight=1)  # Single column expands
+        self.scrollable_container.grid_rowconfigure(0, weight=1)
         
-        # Header
+        # Inner content container - seamless, no borders
+        # This is the actual content that will be centered with max-width constraint
+        self.content = ctk.CTkFrame(
+            self.scrollable_container,
+            fg_color=self.theme.background,
+            border_width=0,  # Seamless look - no border gaps
+        )
+        # CRITICAL: Use sticky="ew" to force horizontal expansion
+        self.content.grid(row=0, column=0, sticky="ew", padx=pad_md, pady=pad_md)
+        
+        # CRITICAL: Apply max-width constraint to prevent over-stretching on wide screens
+        # This keeps content centered and prevents it from looking stretched on 4K monitors
+        max_content_width = 1200  # Maximum width for content
+        def enforce_max_width(event=None):
+            if hasattr(self, 'content'):
+                try:
+                    current_width = self.root.winfo_width()
+                    if current_width > max_content_width + (pad_md * 2):
+                        self.content.configure(width=max_content_width)
+                    else:
+                        self.content.configure(width=0)  # 0 = use natural size, expand to fill
+                except:
+                    pass  # Window might not be fully initialized
+        
+        self.root.bind("<Configure>", enforce_max_width)
+        self.root.after(100, enforce_max_width)  # Initial check
+        
+        # Configure CSS-grid-like macro layout within content container:
+        # Row 0: Header (auto, weight=0)
+        # Row 1: Tabs / Upload + Controls (auto, weight=0)
+        # Row 2: Configuration Panel (auto, weight=0)
+        # Row 3: Output Log Panel (expands, weight=1)
+        self.content.grid_columnconfigure(0, weight=1)  # CRITICAL: Allow column to expand
+        self.content.grid_rowconfigure(0, weight=0)  # Header: auto
+        self.content.grid_rowconfigure(1, weight=0)  # Tabs: auto
+        self.content.grid_rowconfigure(2, weight=0)  # Configuration: auto
+        self.content.grid_rowconfigure(3, weight=1, minsize=200)  # Output Log: expands
+        
+        # CRITICAL: Apply max-width constraint to content wrapper
+        # This prevents over-stretching on very wide screens while keeping it centered
+        def enforce_max_width(event=None):
+            if hasattr(self, 'content_wrapper'):
+                current_width = self.root.winfo_width()
+                if current_width > max_content_width + (pad_md * 2):
+                    self.content_wrapper.configure(width=max_content_width)
+                else:
+                    self.content_wrapper.configure(width=0)  # 0 = use natural size
+        
+        self.root.bind("<Configure>", enforce_max_width)
+        self.root.after(100, enforce_max_width)  # Initial check
+        
+        # Header - CRITICAL: Use sticky="ew" to force horizontal expansion
         self.header_component = Header(self.content, responsive_manager=self.responsive)
-        self.header_component.get_widget().pack(fill="x", pady=(0, pad_md))
+        self.header_component.get_widget().grid(
+            row=0,
+            column=0,
+            sticky="ew",  # Force horizontal expansion
+            pady=(0, pad_md),
+            padx=0
+        )
         
-        # Tab view - constrained height to prioritize Output Log
+        # Tab view - CRITICAL: Use sticky="ew" to force horizontal expansion
         self.tab_view = ctk.CTkTabview(
             self.content,
             corner_radius=ThemeManager.get_radius('lg'),
-            fg_color=self.theme.surface,
+            fg_color=self.theme.background,  # Match background for seamless look
             segmented_button_fg_color=self.theme.surface_light,
             segmented_button_selected_color=self.theme.primary,
             segmented_button_selected_hover_color=self.theme.primary_hover,
             text_color=self.theme.text_secondary,
             segmented_button_unselected_hover_color=self.theme.border,
-            height=280  # Constrain tab height to leave room for Output Log
+            border_width=0,  # Seamless - no border
         )
-        self.tab_view.pack(fill="x", pady=(0, pad_md))
+        self.tab_view.grid(row=1, column=0, sticky="ew", pady=(0, pad_md), padx=0)
         
         # Create tabs
         self.tab_single = self.tab_view.add("Single File")
         self.tab_batch = self.tab_view.add("Batch Mode")
         self.tab_realtime = self.tab_view.add("Realtime")
         
-        # Configure tab colors
+        # Configure tab colors and ensure tabs expand horizontally
         for tab in [self.tab_single, self.tab_batch, self.tab_realtime]:
             tab.configure(fg_color=self.theme.background)
+            # CRITICAL: Configure tab grid to allow horizontal expansion
+            tab.grid_columnconfigure(0, weight=1)
         
         # Setup tabs
         self._setup_single_file_tab()
         self._setup_batch_tab()
         self._setup_realtime_tab()
         
-        # Settings Panel - compact, non-expandable
-        self.settings_panel = SettingsPanel(
+        # Configuration Panel - separate gray container with reduced width
+        self.config_container = ctk.CTkFrame(
             self.content,
+            corner_radius=ThemeManager.get_radius('lg'),
+            border_width=0,  # Seamless - no border
+            fg_color=self.theme.surface,  # Gray color for visibility
+        )
+        self.config_container.grid(
+            row=2,
+            column=0,
+            sticky="ew",  # Horizontal expansion only
+            pady=(0, pad_md),
+            padx=pad_lg  # Increased horizontal padding to reduce width
+        )
+        self.config_container.grid_columnconfigure(0, weight=1)
+        
+        # Settings Panel - inside Configuration gray container
+        self.settings_panel = SettingsPanel(
+            self.config_container,
             on_change=self._save_settings,
             responsive_manager=self.responsive
         )
-        self.settings_panel.get_widget().pack(fill="x", pady=(0, pad_sm))
+        self.settings_panel.get_widget().grid(
+            row=0,
+            column=0,
+            sticky="ew",  # Force horizontal expansion
+            padx=pad_md,
+            pady=pad_md
+        )
         
-        # Progress Panel - compact, non-expandable
-        self.progress_panel = ProgressPanel(self.content, responsive_manager=self.responsive)
-        self.progress_panel.get_widget().pack(fill="x", pady=(0, pad_sm))
+        # Output Log Panel - separate gray container below Configuration with reduced width
+        self.output_container = ctk.CTkFrame(
+            self.content,
+            corner_radius=ThemeManager.get_radius('lg'),
+            border_width=0,  # Seamless - no border
+            fg_color=self.theme.surface,  # Gray color for visibility
+        )
+        self.output_container.grid(
+            row=3,
+            column=0,
+            sticky="nsew",  # Full expansion (both horizontal and vertical)
+            pady=(0, pad_sm),
+            padx=pad_lg  # Increased horizontal padding to reduce width
+        )
+        self.output_container.grid_columnconfigure(0, weight=1)
+        self.output_container.grid_rowconfigure(0, weight=1)  # Results panel expands
         
-        # Results Panel (Output Log) - PRIORITY: gets all remaining space
-        self.results_panel = ResultsPanel(self.content, responsive_manager=self.responsive)
-        self.results_panel.get_widget().pack(fill="both", expand=True)
-        # Set minimum height to ensure log visibility
-        self.results_panel.get_widget().configure(height=200)
+        # Results Panel (Output Log) - inside Output Log gray container
+        self.results_panel = ResultsPanel(
+            self.output_container,
+            responsive_manager=self.responsive
+        )
+        self.results_panel.get_widget().grid(
+            row=0,
+            column=0,
+            sticky="nsew",  # Full expansion (both horizontal and vertical)
+            padx=pad_md,
+            pady=pad_md
+        )
+        
+        # Progress Panel - inside Output Log (ResultsPanel)
+        # Add progress panel to the progress_container inside ResultsPanel
+        self.progress_panel = ProgressPanel(
+            self.results_panel.progress_container,
+            responsive_manager=self.responsive
+        )
+        # Progress panel widget should expand horizontally using grid
+        self.progress_panel.get_widget().grid(row=0, column=0, sticky="ew", padx=0, pady=0)
     
     def _setup_single_file_tab(self):
         """Setup single file transcription tab."""
+        # Configure tab grid for horizontal expansion
+        self.tab_single.grid_columnconfigure(0, weight=1)
+        
         # File selector
         self.single_file_selector = FileSelector(
             self.tab_single,
@@ -180,7 +324,8 @@ class InsightronGUI:
             on_select=lambda files: setattr(self, 'selected_file', files[0] if files else None),
             responsive_manager=self.responsive
         )
-        self.single_file_selector.get_widget().pack(fill="x", pady=20, padx=20)
+        # CRITICAL: Use grid with sticky="ew" to force horizontal expansion
+        self.single_file_selector.get_widget().grid(row=0, column=0, sticky="ew", pady=20, padx=20)
         
         # Transcribe button
         body_size = ThemeManager.get_font_size('body')
@@ -195,10 +340,14 @@ class InsightronGUI:
             fg_color=self.theme.primary,
             hover_color=self.theme.primary_hover
         )
-        self.transcribe_btn.pack(fill="x", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
+        # CRITICAL: Use grid with sticky="ew" to force horizontal expansion
+        self.transcribe_btn.grid(row=1, column=0, sticky="ew", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
     
     def _setup_batch_tab(self):
         """Setup batch processing tab."""
+        # Configure tab grid for horizontal expansion
+        self.tab_batch.grid_columnconfigure(0, weight=1)
+        
         # File selector
         self.batch_file_selector = FileSelector(
             self.tab_batch,
@@ -206,7 +355,8 @@ class InsightronGUI:
             on_select=lambda files: setattr(self, 'selected_batch_files', files),
             responsive_manager=self.responsive
         )
-        self.batch_file_selector.get_widget().pack(fill="x", pady=20, padx=20)
+        # CRITICAL: Use grid with sticky="ew" to force horizontal expansion
+        self.batch_file_selector.get_widget().grid(row=0, column=0, sticky="ew", pady=20, padx=20)
         
         # Batch transcribe button
         body_size = ThemeManager.get_font_size('body')
@@ -221,30 +371,37 @@ class InsightronGUI:
             fg_color=self.theme.accent,
             hover_color=self.theme.accent_hover
         )
-        self.batch_transcribe_btn.pack(fill="x", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
+        # CRITICAL: Use grid with sticky="ew" to force horizontal expansion
+        self.batch_transcribe_btn.grid(row=1, column=0, sticky="ew", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
     
     def _setup_realtime_tab(self):
         """Setup realtime transcription tab with design tokens."""
+        # Configure tab grid for horizontal expansion
+        self.tab_realtime.grid_columnconfigure(0, weight=1)
+        
         rt_card = ctk.CTkFrame(
             self.tab_realtime,
             corner_radius=ThemeManager.get_radius('lg'),
-            border_width=1,
-            border_color=self.theme.border,
-            fg_color=self.theme.surface,
+            border_width=0,  # Seamless - no border
+            fg_color=self.theme.background,  # Match background for seamless look
         )
-        rt_card.pack(fill="x", pady=SPACING.lg, padx=SPACING.lg)
+        # CRITICAL: Use grid with sticky="ew" to force horizontal expansion
+        rt_card.grid(row=0, column=0, sticky="ew", pady=SPACING.lg, padx=SPACING.lg)
+        rt_card.grid_columnconfigure(0, weight=1)
         
-        inner = ctk.CTkFrame(rt_card, fg_color="transparent")
-        inner.pack(fill="x", padx=SPACING.lg, pady=SPACING.lg)
+        inner = ctk.CTkFrame(rt_card, fg_color="transparent", border_width=0)
+        inner.grid(row=0, column=0, sticky="ew", padx=SPACING.lg, pady=SPACING.lg)
+        inner.grid_columnconfigure(0, weight=1)
         
         # Microphone selection
         body_size = ThemeManager.get_font_size('body')
-        ctk.CTkLabel(
+        mic_label = ctk.CTkLabel(
             inner,
             text="Select Microphone",
             font=('Segoe UI', body_size, 'bold'),
             text_color=self.theme.text_secondary
-        ).pack(pady=(0, SPACING.xs))
+        )
+        mic_label.grid(row=0, column=0, sticky="w", pady=(0, SPACING.xs))
         
         self.mic_var = ctk.StringVar(value="Loading...")
         btn_height = ThemeManager.get_button_height('md')
@@ -262,12 +419,12 @@ class InsightronGUI:
             dropdown_fg_color=self.theme.surface_light,
             dropdown_hover_color=self.theme.primary
         )
-        self.mic_combo.pack(fill="x", pady=(0, SPACING.lg))
+        self.mic_combo.grid(row=1, column=0, sticky="ew", pady=(0, SPACING.lg))
         
         # Refresh button
         btn_height_sm = ThemeManager.get_button_height('sm')
         caption_size = ThemeManager.get_font_size('caption')
-        ctk.CTkButton(
+        refresh_btn = ctk.CTkButton(
             inner,
             text="🔄 Refresh",
             command=self._refresh_microphones,
@@ -277,15 +434,17 @@ class InsightronGUI:
             border_width=1,
             border_color=self.theme.border,
             corner_radius=ThemeManager.get_radius('sm')
-        ).pack(fill="x", pady=(0, SPACING.md))
+        )
+        refresh_btn.grid(row=2, column=0, sticky="ew", pady=(0, SPACING.md))
         
         # Audio level indicator
-        ctk.CTkLabel(
+        audio_label = ctk.CTkLabel(
             inner,
             text="Audio Level",
             font=('Segoe UI', body_size, 'bold'),
             text_color=self.theme.text_secondary
-        ).pack(pady=(SPACING.md, SPACING.xs))
+        )
+        audio_label.grid(row=3, column=0, sticky="w", pady=(SPACING.md, SPACING.xs))
         
         self.audio_level_bar = ctk.CTkProgressBar(
             inner,
@@ -293,7 +452,7 @@ class InsightronGUI:
             progress_color=self.theme.success,
             corner_radius=ThemeManager.get_radius('sm')
         )
-        self.audio_level_bar.pack(fill="x", pady=(0, SPACING.lg))
+        self.audio_level_bar.grid(row=4, column=0, sticky="ew", pady=(0, SPACING.lg))
         self.audio_level_bar.set(0)
         
         # Record button
@@ -308,7 +467,8 @@ class InsightronGUI:
             fg_color=self.theme.error,
             hover_color='#DC2626'
         )
-        self.record_btn.pack(fill="x", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
+        # CRITICAL: Use grid with sticky="ew" to force horizontal expansion
+        self.record_btn.grid(row=1, column=0, sticky="ew", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
         
         # Initialize realtime transcriber
         self.root.after(100, self._init_realtime)

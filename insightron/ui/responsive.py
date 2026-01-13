@@ -37,6 +37,7 @@ class ResponsiveManager:
         """
         self.root = root
         self._current_mode: LayoutMode = LayoutMode.STANDARD
+        self._is_short_height: bool = False  # True when viewport height is limited
         self._observers: List[Callable[[LayoutMode], None]] = []
         self._debounce_id: Optional[str] = None
         self._debounce_delay: int = 100  # ms
@@ -61,6 +62,17 @@ class ResponsiveManager:
     def is_expanded(self) -> bool:
         """Check if in expanded (desktop) mode."""
         return self._current_mode == LayoutMode.EXPANDED
+    
+    @property
+    def is_short_height(self) -> bool:
+        """
+        Check if the viewport height is constrained.
+        
+        This acts like a container query for vertical height.
+        When True (e.g. height < 800px), components should
+        switch to more compact vertical layouts.
+        """
+        return self._is_short_height
     
     def subscribe(self, callback: Callable[[LayoutMode], None]) -> None:
         """
@@ -93,10 +105,20 @@ class ResponsiveManager:
             Spacing value in pixels
         """
         base = SPACING.get(size)
-        # Slightly reduce spacing in compact mode
+        
+        # Start with base spacing and scale based on layout conditions.
+        scale = 1.0
+        
+        # Slightly reduce spacing in compact (narrow width) mode.
         if self._current_mode == LayoutMode.COMPACT:
-            return max(2, int(base * 0.75))
-        return base
+            scale *= 0.75
+        
+        # If vertical height is constrained, aggressively reduce vertical
+        # padding by 50% to keep priority content (Output Log) visible.
+        if self._is_short_height:
+            scale *= 0.5
+        
+        return max(2, int(base * scale))
     
     def get_font_size(self, style: str) -> int:
         """
@@ -157,13 +179,25 @@ class ResponsiveManager:
         )
     
     def _update_mode(self) -> None:
-        """Update layout mode based on current window width."""
+        """Update layout mode and height flags based on current window size."""
         try:
             width = self.root.winfo_width()
-            new_mode = get_layout_mode(width)
+            height = self.root.winfo_height()
             
+            new_mode = get_layout_mode(width)
+            new_short_height = height < 800  # Container-query style breakpoint
+            
+            changed = False
             if new_mode != self._current_mode:
                 self._current_mode = new_mode
+                changed = True
+            
+            if new_short_height != self._is_short_height:
+                self._is_short_height = new_short_height
+                changed = True
+            
+            # Only notify observers if something actually changed
+            if changed:
                 self._notify_observers()
         except Exception:
             # Window might not be fully initialized

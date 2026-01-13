@@ -50,15 +50,15 @@ class ProgressPanel:
     
     def _create_panel(self):
         """Create the progress panel UI."""
-        # Card container
+        # Card container; geometry (pack/grid) is managed by parent
+        # layout (e.g., main window grid), so we do not call pack/grid here.
+        # Seamless look: border_width=0, match background color
         self.card = ctk.CTkFrame(
             self.parent,
             corner_radius=ThemeManager.get_radius('lg'),
-            border_width=1,
-            border_color=self.theme.border,
-            fg_color=self.theme.surface,
+            border_width=0,  # Seamless - no border gaps
+            fg_color=self.theme.background,  # Match main background for seamless look
         )
-        self.card.pack(fill="x", pady=(0, SPACING.md))
         
         # Inner container with responsive padding
         inner = ctk.CTkFrame(self.card, fg_color="transparent")

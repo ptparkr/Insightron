@@ -67,19 +67,19 @@ class SettingsPanel:
     
     def _create_panel(self):
         """Create the settings panel UI."""
-        # Card container
+        # Card container; geometry (pack/grid) is managed by parent
+        # layout (e.g., main window grid), so we do not call pack/grid here.
+        # Seamless look: border_width=0, match parent gray container
         self.card = ctk.CTkFrame(
             self.parent,
-            corner_radius=ThemeManager.get_radius('lg'),
-            border_width=1,
-            border_color=self.theme.border,
-            fg_color=self.theme.surface,
+            corner_radius=0,  # No corner radius - parent container has rounded corners
+            border_width=0,  # Seamless - no border gaps
+            fg_color="transparent",  # Transparent to show parent gray container
         )
-        self.card.pack(fill="x", pady=(0, SPACING.md))
         
-        # Header
-        header = ctk.CTkFrame(self.card, fg_color="transparent")
-        header.pack(fill="x", padx=SPACING.lg, pady=(SPACING.md, SPACING.sm))
+        # Header - minimal gap between header and settings
+        header = ctk.CTkFrame(self.card, fg_color="transparent", border_width=0)
+        header.pack(fill="x", padx=SPACING.lg, pady=(SPACING.md, 0))  # No bottom padding
         
         header_font_size = ThemeManager.get_font_size('h2')
         ctk.CTkLabel(
@@ -90,8 +90,10 @@ class SettingsPanel:
         ).pack(side="left")
         
         # Settings Container - will be reorganized on layout change
-        self.settings_container = ctk.CTkFrame(self.card, fg_color="transparent")
-        self.settings_container.pack(fill="x", padx=SPACING.lg, pady=(0, SPACING.lg))
+        # Minimal gap from header - start immediately after Configuration text
+        pad_y = SPACING.md if self.responsive and self.responsive.is_short_height else SPACING.lg
+        self.settings_container = ctk.CTkFrame(self.card, fg_color="transparent", border_width=0)
+        self.settings_container.pack(fill="x", padx=SPACING.lg, pady=(SPACING.sm, pad_y))  # Small top padding
         
         # Create selector frames (these will be reorganized in _update_grid_layout)
         self.model_frame = self._create_model_selector()
@@ -103,17 +105,19 @@ class SettingsPanel:
     
     def _create_model_selector(self) -> ctk.CTkFrame:
         """Create model selection dropdown."""
-        frame = ctk.CTkFrame(self.settings_container, fg_color="transparent")
+        frame = ctk.CTkFrame(self.settings_container, fg_color="transparent", border_width=0)
         
         label_size = ThemeManager.get_font_size('h3')
         caption_size = ThemeManager.get_font_size('caption')
         
-        ctk.CTkLabel(
+        # Label directly above dropdown - minimal gap
+        model_label = ctk.CTkLabel(
             frame,
             text="Whisper Model",
             font=('Segoe UI', label_size, 'bold'),
-            text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(0, SPACING.sm))
+            text_color=self.theme.text_primary  # Use primary text color for better visibility
+        )
+        model_label.pack(anchor="w", pady=(0, SPACING.xs))  # Minimal gap between label and dropdown
         
         btn_height = ThemeManager.get_button_height('md')
         ctk.CTkOptionMenu(
@@ -129,30 +133,32 @@ class SettingsPanel:
             button_hover_color=self.theme.primary_hover,
             dropdown_fg_color=self.theme.surface_light,
             dropdown_hover_color=self.theme.primary
-        ).pack(fill="x")
+        ).pack(fill="x", pady=(0, 0))  # No gap after dropdown
         
+        # Caption text - small gap after dropdown
         ctk.CTkLabel(
             frame,
             text="Speed vs Accuracy",
             font=('Segoe UI', caption_size),
             text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(SPACING.xs, 0))
+        ).pack(anchor="w", pady=(SPACING.sm, 0))  # Small gap after dropdown
         
         return frame
     
     def _create_language_selector(self) -> ctk.CTkFrame:
         """Create language selection dropdown."""
-        frame = ctk.CTkFrame(self.settings_container, fg_color="transparent")
+        frame = ctk.CTkFrame(self.settings_container, fg_color="transparent", border_width=0)
         
         label_size = ThemeManager.get_font_size('h3')
         caption_size = ThemeManager.get_font_size('caption')
         
+        # Label directly above dropdown - minimal gap
         ctk.CTkLabel(
             frame,
             text="Language",
             font=('Segoe UI', label_size, 'bold'),
-            text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(0, SPACING.sm))
+            text_color=self.theme.text_primary  # Use primary text color for better visibility
+        ).pack(anchor="w", pady=(0, SPACING.xs))  # Minimal gap between label and dropdown
         
         lang_options = [f"{code} - {name}" for code, name in SUPPORTED_LANGUAGES.items()]
         
@@ -171,30 +177,32 @@ class SettingsPanel:
             button_hover_color=self.theme.secondary_hover,
             dropdown_fg_color=self.theme.surface_light,
             dropdown_hover_color=self.theme.secondary
-        ).pack(fill="x")
+        ).pack(fill="x", pady=(0, 0))  # No gap after dropdown
         
+        # Caption text - small gap after dropdown
         ctk.CTkLabel(
             frame,
             text="Auto or Manual",
             font=('Segoe UI', caption_size),
             text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(SPACING.xs, 0))
+        ).pack(anchor="w", pady=(SPACING.sm, 0))  # Small gap after dropdown
         
         return frame
     
     def _create_formatting_selector(self) -> ctk.CTkFrame:
         """Create formatting selection dropdown."""
-        frame = ctk.CTkFrame(self.settings_container, fg_color="transparent")
+        frame = ctk.CTkFrame(self.settings_container, fg_color="transparent", border_width=0)
         
         label_size = ThemeManager.get_font_size('h3')
         caption_size = ThemeManager.get_font_size('caption')
         
+        # Label directly above dropdown - minimal gap
         ctk.CTkLabel(
             frame,
             text="Text Formatting",
             font=('Segoe UI', label_size, 'bold'),
-            text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(0, SPACING.sm))
+            text_color=self.theme.text_primary  # Use primary text color for better visibility
+        ).pack(anchor="w", pady=(0, SPACING.xs))  # Minimal gap between label and dropdown
         
         btn_height = ThemeManager.get_button_height('md')
         ctk.CTkOptionMenu(
@@ -210,14 +218,15 @@ class SettingsPanel:
             button_hover_color=self.theme.accent_hover,
             dropdown_fg_color=self.theme.surface_light,
             dropdown_hover_color=self.theme.accent
-        ).pack(fill="x")
+        ).pack(fill="x", pady=(0, 0))  # No gap after dropdown
         
+        # Caption text - small gap after dropdown
         ctk.CTkLabel(
             frame,
             text="Smart Detection",
             font=('Segoe UI', caption_size),
             text_color=self.theme.text_secondary
-        ).pack(anchor="w", pady=(SPACING.xs, 0))
+        ).pack(anchor="w", pady=(SPACING.sm, 0))  # Small gap after dropdown
         
         return frame
     
