@@ -1,5 +1,5 @@
 {
-    "model": "distil-medium.en",
+    "model": "medium",
     "language": "auto",
     "formatting": "auto",
     "theme": "Dark",

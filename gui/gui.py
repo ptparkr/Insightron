@@ -7,7 +7,7 @@ import os
 import logging
 from typing import Optional, List
 from datetime import datetime
-from core.config import SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, TRANSCRIPTION_FOLDER, RECORDINGS_FOLDER, APP_VERSION
+from core.config import SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, TRANSCRIPTION_FOLDER, RECORDINGS_FOLDER, APP_VERSION, WHISPER_MODEL
 from core.settings_manager import SettingsManager
 from realtime.realtime_transcriber import RealtimeTranscriber
 from core.utils import create_realtime_note
@@ -103,7 +103,7 @@ class InsightronGUI:
     def load_settings(self):
         """Load saved settings"""
         try:
-            self.model_var.set(self.settings.get("model", "medium"))
+            self.model_var.set(self.settings.get("model", WHISPER_MODEL))
             self.language_var.set(self.settings.get("language", DEFAULT_LANGUAGE))
             self.formatting_var.set(self.settings.get("formatting", "auto"))
         except Exception as e:
@@ -543,7 +543,7 @@ class InsightronGUI:
             text_color=self.COLORS['text_secondary']
         ).pack(anchor="w", pady=(0, 8))
         
-        self.model_var = ctk.StringVar(value="medium")
+        self.model_var = ctk.StringVar(value=WHISPER_MODEL)
         self.model_var.trace_add("write", self.save_current_settings)
         
         # Updated model list to include distil models

@@ -38,6 +38,7 @@ class ModelManager:
     """
     _instance = None
     _model = None
+    _loaded_model_size = None  # Track which model is currently loaded
 
     # Performance-optimized default parameters with dynamic tuning
     DEFAULT_PARAMS = {
@@ -125,14 +126,37 @@ class ModelManager:
 
     def load_model(self) -> WhisperModel:
         """
-        Loads the faster-whisper WhisperModel if not already loaded.
+        Loads the faster-whisper WhisperModel if not already loaded or if model size changed.
         Includes model warm-up for better first-inference performance.
         
         Returns:
             WhisperModel: Loaded model instance
         """
-        if self._model is None:
+        # Always check current config in case it changed
+        config = get_config_manager()
+        current_model_size = config.model.name
+        
+        # Check if we need to reload: model not loaded or model size changed
+        if self._model is None or ModelManager._loaded_model_size != current_model_size:
+            # If model size changed, clear the old model
+            if self._model is not None and ModelManager._loaded_model_size != current_model_size:
+                logger.info(f"Model size changed from '{ModelManager._loaded_model_size}' to '{current_model_size}'. Reloading model...")
+                # Clean up old model if possible
+                try:
+                    del self._model
+                except:
+                    pass
+                self._model = None
+                ModelManager._model_warmup_done = False  # Reset warmup flag for new model
+            
+            # Update instance model_size to match current config
+            self.model_size = current_model_size
+            
             logger.info(f"Loading faster-whisper v1.2.1: {self.model_size} on {self.device}...")
+            print(f"🔄 Loading Whisper model: {self.model_size}")
+            print("   (This may take a moment - downloading model files if needed...)")
+            print("   (First-time download can take 1-5 minutes depending on model size)")
+            
             try:
                 # Map model names for compatibility
                 model_name = self.model_size
@@ -142,6 +166,18 @@ class ModelManager:
                     model_name = model_name.replace("openai/whisper-", "")
                     logger.info(f"Mapped model name: {self.model_size} -> {model_name}")
                 
+                # Check if model needs download
+                import os
+                from pathlib import Path
+                cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
+                model_cache = cache_dir / f"models--guillaumekln--faster-whisper-{model_name}"
+                
+                if not model_cache.exists():
+                    print(f"   📥 Downloading model '{model_name}' (this may take several minutes)...")
+                    print("   💡 Tip: Model download happens once and is cached for future use")
+                else:
+                    print(f"   ✓ Model found in cache, loading...")
+                
                 self._model = WhisperModel(
                     model_name,
                     device=self.device,
@@ -149,7 +185,9 @@ class ModelManager:
                     download_root=None,
                     local_files_only=False
                 )
+                ModelManager._loaded_model_size = self.model_size  # Track loaded model size
                 logger.info(f"✓ Model loaded successfully: {model_name}")
+                print(f"   ✅ Model '{model_name}' loaded successfully!")
                 
                 # Warm up the model for better first-inference performance
                 if self.enable_model_warmup and not ModelManager._model_warmup_done:
@@ -157,8 +195,25 @@ class ModelManager:
                     ModelManager._model_warmup_done = True
                     
             except Exception as e:
-                logger.error(f"Failed to load model: {e}")
-                raise RuntimeError(f"Could not load model '{self.model_size}': {e}")
+                error_msg = str(e)
+                logger.error(f"Failed to load model: {error_msg}")
+                
+                # Provide helpful error messages
+                if "download" in error_msg.lower() or "connection" in error_msg.lower():
+                    print(f"\n❌ Error downloading model '{model_name}':")
+                    print("   This could be due to:")
+                    print("   - Slow or unstable internet connection")
+                    print("   - Firewall blocking the download")
+                    print("   - Hugging Face servers being temporarily unavailable")
+                    print("\n   💡 Solutions:")
+                    print("   1. Check your internet connection")
+                    print("   2. Try again in a few minutes")
+                    print("   3. Manually download the model from:")
+                    print(f"      https://huggingface.co/guillaumekln/faster-whisper-{model_name}")
+                    raise RuntimeError(f"Could not download model '{self.model_size}': {error_msg}")
+                else:
+                    print(f"\n❌ Error loading model '{model_name}': {error_msg}")
+                    raise RuntimeError(f"Could not load model '{self.model_size}': {error_msg}")
         return self._model
     
     def _warmup_model(self):

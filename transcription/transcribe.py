@@ -409,9 +409,10 @@ class AudioTranscriber:
             
             # Apply adaptive segment merging for better quality
             analysis = self.segment_analyzer.analyze_segments(transcribed_segments)
+            speech_rate_wpm = analysis.get('speech_rate_wpm', analysis['speech_rate'] * 60)
             logger.info(f"Segment analysis: {analysis['analysis_quality']} quality, "
                        f"adaptive_threshold={analysis['adaptive_threshold']:.3f}s, "
-                       f"speech_rate={analysis['speech_rate']:.2f} wps")
+                       f"speech_rate={speech_rate_wpm:.1f} WPM ({analysis['speech_rate']:.2f} WPS)")
             
             transcribed_segments = self._merge_segments_adaptive(
                 transcribed_segments, 

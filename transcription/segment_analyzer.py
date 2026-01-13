@@ -20,7 +20,13 @@ class SegmentMetrics:
     
     @property
     def words_per_second(self) -> float:
+        """Calculate words per second (WPS)"""
         return self.word_count / self.duration if self.duration > 0 else 0
+    
+    @property
+    def words_per_minute(self) -> float:
+        """Calculate words per minute (WPM) - standard speech rate metric"""
+        return self.words_per_second * 60.0
 
 class SegmentAnalyzer:
     """
@@ -75,25 +81,27 @@ class SegmentAnalyzer:
         # Calculate statistics
         gaps = [m.gap_after for m in metrics]
         durations = [m.duration for m in metrics]
-        speech_rates = [m.words_per_second for m in metrics]
+        speech_rates_wps = [m.words_per_second for m in metrics]
+        speech_rates_wpm = [m.words_per_minute for m in metrics]  # WPM for better readability
         confidences = [m.confidence for m in metrics if m.confidence >= -1.0]
         
         avg_gap = statistics.mean(gaps) if gaps else 0.3
         std_dev_gap = statistics.stdev(gaps) if len(gaps) > 1 else 0
         avg_duration = statistics.mean(durations) if durations else 3.0
-        avg_speech_rate = statistics.mean(speech_rates) if speech_rates else 1.5
+        avg_speech_rate_wps = statistics.mean(speech_rates_wps) if speech_rates_wps else 1.5
+        avg_speech_rate_wpm = statistics.mean(speech_rates_wpm) if speech_rates_wpm else 90.0  # Default ~90 WPM
         
-        # Adaptive threshold algorithm:
-        # If speech rate is fast (>2 wps), allow larger gaps (natural pauses)
-        # If speech rate is slow (<1 wps), use tighter thresholds (hesitations)
-        if avg_speech_rate > 2.0:
-            # Fast speaker: gaps < 0.7s are likely hesitations
+        # Adaptive threshold algorithm based on WPM:
+        # Original WPS thresholds: fast > 2.0 WPS, slow < 1.0 WPS, normal 1.0-2.0 WPS
+        # Converted to WPM: fast > 120 WPM (> 2.0 WPS), slow < 60 WPM (< 1.0 WPS), normal 60-120 WPM (1.0-2.0 WPS)
+        if avg_speech_rate_wpm > 120:
+            # Fast speaker (>120 WPM, >2.0 WPS): gaps < 0.7s are likely hesitations
             adaptive_threshold = 0.7
-        elif avg_speech_rate < 1.0:
-            # Slow speaker: gaps < 0.3s are likely breathing
+        elif avg_speech_rate_wpm < 60:
+            # Slow speaker (<60 WPM, <1.0 WPS): gaps < 0.3s are likely breathing
             adaptive_threshold = 0.3
         else:
-            # Normal speaker: gaps < 0.5s are likely hesitations
+            # Normal speaker (60-120 WPM, 1.0-2.0 WPS): gaps < 0.5s are likely hesitations
             adaptive_threshold = 0.5
         
         # Adjust for variability: high std dev = irregular pacing
@@ -104,7 +112,8 @@ class SegmentAnalyzer:
             'avg_gap': avg_gap,
             'std_dev_gap': std_dev_gap,
             'avg_duration': avg_duration,
-            'speech_rate': avg_speech_rate,
+            'speech_rate': avg_speech_rate_wps,  # Keep WPS for backward compatibility
+            'speech_rate_wpm': avg_speech_rate_wpm,  # Add WPM for better readability
             'adaptive_threshold': adaptive_threshold,
             'confidence_mean': statistics.mean(confidences) if confidences else 0.0,
             'confidence_std': statistics.stdev(confidences) if len(confidences) > 1 else 0.0,
@@ -161,7 +170,8 @@ class SegmentAnalyzer:
             'avg_gap': 0.3,
             'std_dev_gap': 0.15,
             'avg_duration': 3.0,
-            'speech_rate': 1.5,
+            'speech_rate': 1.5,  # WPS
+            'speech_rate_wpm': 90.0,  # WPM (default ~90 WPM)
             'adaptive_threshold': 0.5,
             'confidence_mean': 0.0,
             'confidence_std': 0.0,

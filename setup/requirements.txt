@@ -5,6 +5,7 @@
 # v1.2.0+ uses importlib.metadata (no pkg_resources warnings)
 # Includes batched inference for 4x faster batch processing
 # Compatible with Python 3.10-3.12
+# Updated to latest stable version for better download handling
 faster-whisper>=1.2.0,<2.0.0
 
 # Explicitly list tokenizers to ensure we get a compatible version
@@ -47,3 +48,6 @@ sounddevice>=0.4.6
 
 # Memory Monitoring
 psutil>=5.9.0
+
+# Configuration file parsing
+PyYAML>=6.0,<7.0
