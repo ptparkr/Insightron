@@ -9,8 +9,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from transcription.batch_processor import batch_transcribe_files
-from core.config import TRANSCRIPTION_FOLDER
+from insightron.services.batch.batch_processor import batch_transcribe_files
+from insightron.core.config import TRANSCRIPTION_FOLDER
 
 class TestBatchIntegration(unittest.TestCase):
     def setUp(self):

@@ -21,11 +21,11 @@ class TestAudioTranscriber(unittest.TestCase):
         self.mock_model_manager_instance.model_size = "base"
         
         # Patch sys.modules to return our mock module
-        self.modules_patcher = patch.dict(sys.modules, {'core.model_manager': self.mock_model_manager_module})
+        self.modules_patcher = patch.dict(sys.modules, {'insightron.core.model_manager': self.mock_model_manager_module})
         self.modules_patcher.start()
         
         # Now import AudioTranscriber (it will use the mocked model_manager)
-        from transcription.transcribe import AudioTranscriber
+        from insightron.services.transcription.transcribe import AudioTranscriber
         self.AudioTranscriber = AudioTranscriber
         
         # Initialize AudioTranscriber
@@ -61,11 +61,11 @@ class TestAudioTranscriber(unittest.TestCase):
         self.mock_model_manager_instance.transcribe.return_value = (mock_segments, mock_info)
         
         # Mock create_markdown and file operations to avoid writing to disk
-        with patch('transcription.transcribe.create_markdown', return_value="Mock Markdown"), \
+        with patch('insightron.services.transcription.transcribe.create_markdown', return_value="Mock Markdown"), \
              patch('pathlib.Path.write_text'), \
              patch('pathlib.Path.rename'), \
              patch('pathlib.Path.exists', return_value=False), \
-             patch('transcription.transcribe.TRANSCRIPTION_FOLDER'):
+             patch('insightron.services.transcription.transcribe.TRANSCRIPTION_FOLDER'):
             
             self.transcriber.transcribe_file("dummy_path.wav")
             

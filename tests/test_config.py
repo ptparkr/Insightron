@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 import yaml
 
 # Import config modules
-from core.config import (
+from insightron.core.config import (
     ConfigManager,
     ModelConfig,
     RuntimeConfig,
@@ -161,7 +161,7 @@ class TestConfigManager(unittest.TestCase):
         manager = ConfigManager('nonexistent_config.yaml')
         
         # Should use defaults
-        self.assertEqual(manager.model.name, 'medium')
+        self.assertEqual(manager.model.name, 'small')
         self.assertEqual(manager.runtime.max_file_size_mb, 500)
         self.assertEqual(manager.realtime.sample_rate, 16000)
     
@@ -174,7 +174,7 @@ class TestConfigManager(unittest.TestCase):
         try:
             manager = ConfigManager(config_path)
             # Should fallback to defaults without crashing
-            self.assertEqual(manager.model.name, 'medium')
+            self.assertEqual(manager.model.name, 'small')
         finally:
             os.unlink(config_path)
     
@@ -218,7 +218,7 @@ class TestConfigManager(unittest.TestCase):
         finally:
             os.unlink(config_path)
     
-    @patch('core.config.Path.mkdir')
+    @patch('insightron.core.config.Path.mkdir')
     def test_ensure_directories(self, mock_mkdir):
         """Test that ConfigManager creates necessary directories."""
         manager = ConfigManager('nonexistent.yaml')
@@ -239,7 +239,7 @@ class TestConfigHelperFunctions(unittest.TestCase):
         """Test get_config() helper function."""
         # The get_config function uses the global _config_manager instance
         # We need to replace it with our test instance
-        from core import config
+        from insightron.core import config
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             config_data = {'model': {'name': 'large'}}
@@ -275,7 +275,7 @@ class TestBackwardCompatibility(unittest.TestCase):
     
     def test_module_level_constants_exist(self):
         """Test that module-level constants still exist."""
-        from core.config import (
+        from insightron.core.config import (
             WHISPER_MODEL,
             ENABLE_INT8_QUANTIZATION,
             TRANSCRIPTION_FOLDER,

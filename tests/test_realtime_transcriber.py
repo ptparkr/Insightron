@@ -18,7 +18,7 @@ class TestRealtimeTranscriberInit(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures."""
-        self.patcher = patch('realtime.realtime_transcriber.ModelManager')
+        self.patcher = patch('insightron.services.realtime.realtime_transcriber.ModelManager')
         self.mock_model = self.patcher.start()
         
     def tearDown(self):
@@ -32,7 +32,7 @@ class TestSilenceDetection(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures."""
-        self.patcher = patch('realtime.realtime_transcriber.ModelManager')
+        self.patcher = patch('insightron.services.realtime.realtime_transcriber.ModelManager')
         self.mock_model = self.patcher.start()
         
     def tearDown(self):
@@ -41,7 +41,7 @@ class TestSilenceDetection(unittest.TestCase):
     
     def test_silence_detection(self):
         """Test silence threshold detection."""
-        from realtime.realtime_transcriber import RealtimeTranscriber
+        from insightron.services.realtime.realtime_transcriber import RealtimeTranscriber
         
         transcriber = RealtimeTranscriber()
         

@@ -5,7 +5,7 @@ Tests quality modes, VAD optimization, retry mechanism, and Distil-Whisper suppo
 import unittest
 import pytest
 from unittest.mock import MagicMock, patch, call
-from core.model_manager import ModelManager
+from insightron.core.model_manager import ModelManager
 
 
 @pytest.mark.unit
@@ -23,7 +23,7 @@ class TestModelManager(unittest.TestCase):
         manager2 = ModelManager()
         self.assertIs(manager1, manager2)
 
-    @patch('core.model_manager.WhisperModel')
+    @patch('insightron.core.model_manager.WhisperModel')
     def test_lazy_loading(self, mock_whisper):
         """Test that the model is not loaded on initialization."""
         manager = ModelManager()
@@ -34,7 +34,7 @@ class TestModelManager(unittest.TestCase):
         mock_whisper.assert_called_once()
         self.assertIsNotNone(manager._model)
 
-    @patch('core.model_manager.WhisperModel')
+    @patch('insightron.core.model_manager.WhisperModel')
     def test_transcribe_returns_tuple(self, mock_whisper):
         """Test that transcribe method returns (segments, info) tuple from faster-whisper."""
         # Create mock segments and info
@@ -76,7 +76,7 @@ class TestQualityModeConfiguration(unittest.TestCase):
         ModelManager._instance = None
         ModelManager._model = None
 
-    @patch('core.model_manager.get_config_manager')
+    @patch('insightron.core.model_manager.get_config_manager')
     def test_quality_mode_high_configuration(self, mock_get_config):
         """Test that 'high' quality mode sets correct parameters."""
         # Create mock config manager
@@ -109,7 +109,7 @@ class TestQualityModeConfiguration(unittest.TestCase):
         self.assertEqual(manager.default_beam_size, 5)
         self.assertEqual(manager.default_best_of, 5)
 
-    @patch('core.model_manager.get_config_manager')
+    @patch('insightron.core.model_manager.get_config_manager')
     def test_quality_mode_balanced_configuration(self, mock_get_config):
         """Test that 'balanced' quality mode sets correct parameters."""
         mock_config_manager = MagicMock()
@@ -139,7 +139,7 @@ class TestQualityModeConfiguration(unittest.TestCase):
         self.assertEqual(manager.default_beam_size, 3)
         self.assertEqual(manager.default_best_of, 3)
 
-    @patch('core.model_manager.get_config_manager')
+    @patch('insightron.core.model_manager.get_config_manager')
     def test_quality_mode_fast_configuration(self, mock_get_config):
         """Test that 'fast' quality mode sets correct parameters."""
         mock_config_manager = MagicMock()
@@ -179,7 +179,7 @@ class TestVADParameters(unittest.TestCase):
         ModelManager._instance = None
         ModelManager._model = None
 
-    @patch('core.model_manager.WhisperModel')
+    @patch('insightron.core.model_manager.WhisperModel')
     def test_vad_parameters_included(self, mock_whisper):
         """Test that VAD parameters are properly configured."""
         mock_model_instance = MagicMock()
@@ -194,8 +194,8 @@ class TestVADParameters(unittest.TestCase):
         if call_kwargs.get("vad_filter"):
             self.assertIn("vad_parameters", call_kwargs)
 
-    @patch('core.model_manager.WhisperModel')
-    @patch('core.config.get_config_manager')
+    @patch('insightron.core.model_manager.WhisperModel')
+    @patch('insightron.core.config.get_config_manager')
     def test_vad_threshold_configuration(self, mock_config, mock_whisper):
         """Test that VAD threshold is correctly configured."""
         mock_config_manager = MagicMock()
@@ -221,7 +221,7 @@ class TestVADParameters(unittest.TestCase):
         if 'vad_parameters' in call_kwargs:
             self.assertIn('threshold', call_kwargs['vad_parameters'])
 
-    @patch('core.config.get_config_manager')
+    @patch('insightron.core.config.get_config_manager')
     def test_adaptive_vad_disabled_by_default(self, mock_config):
         """Test that adaptive VAD is disabled by default."""
         mock_config_manager = MagicMock()
@@ -248,8 +248,8 @@ class TestRetryMechanism(unittest.TestCase):
         ModelManager._instance = None
         ModelManager._model = None
 
-    @patch('core.model_manager.WhisperModel')
-    @patch('core.config.get_config_manager')
+    @patch('insightron.core.model_manager.WhisperModel')
+    @patch('insightron.core.config.get_config_manager')
     def test_retry_mechanism_with_degraded_quality(self, mock_config, mock_whisper):
         """Test that retry mechanism degrades quality parameters on failure."""
         mock_config_manager = MagicMock()
@@ -282,7 +282,7 @@ class TestRetryMechanism(unittest.TestCase):
             # If retry is not implemented yet, this is expected
             pass
 
-    @patch('core.model_manager.WhisperModel')
+    @patch('insightron.core.model_manager.WhisperModel')
     def test_temperature_fallback_on_retry(self, mock_whisper):
         """Test that temperature parameter is adjusted during retry."""
         mock_model_instance = MagicMock()
@@ -309,7 +309,7 @@ class TestRetryMechanism(unittest.TestCase):
         except (RuntimeError, IndexError):
             pass
 
-    @patch('core.model_manager.WhisperModel')
+    @patch('insightron.core.model_manager.WhisperModel')
     def test_beam_size_fallback_on_retry(self, mock_whisper):
         """Test that beam_size is reduced during retry."""
         mock_model_instance = MagicMock()
@@ -352,9 +352,9 @@ class TestQualityMetrics(unittest.TestCase):
         
         # Create mock segments
         mock_segments = [
-            MagicMock(avg_logprob=-0.2),
-            MagicMock(avg_logprob=-0.4),
-            MagicMock(avg_logprob=-0.6),  # Low confidence
+            MagicMock(avg_logprob=-0.2, start=0.0, end=1.0, text="one"),
+            MagicMock(avg_logprob=-0.4, start=1.0, end=2.0, text="two"),
+            MagicMock(avg_logprob=-0.6, start=2.0, end=3.0, text="three"),  # Low confidence
         ]
         
         metrics = manager.get_quality_metrics(mock_segments)
@@ -378,9 +378,9 @@ class TestQualityMetrics(unittest.TestCase):
         manager = ModelManager()
         
         mock_segments = [
-            MagicMock(avg_logprob=-0.1),
-            MagicMock(avg_logprob=-0.2),
-            MagicMock(avg_logprob=-0.15),
+            MagicMock(avg_logprob=-0.1, start=0.0, end=1.0, text="a"),
+            MagicMock(avg_logprob=-0.2, start=1.0, end=2.0, text="b"),
+            MagicMock(avg_logprob=-0.15, start=2.0, end=3.0, text="c"),
         ]
         
         metrics = manager.get_quality_metrics(mock_segments)
@@ -399,8 +399,8 @@ class TestDistilWhisperSupport(unittest.TestCase):
         ModelManager._instance = None
         ModelManager._model = None
 
-    @patch('core.model_manager.WhisperModel')
-    @patch('core.model_manager.get_config_manager')
+    @patch('insightron.core.model_manager.WhisperModel')
+    @patch('insightron.core.model_manager.get_config_manager')
     def test_distil_whisper_model_loading(self, mock_get_config, mock_whisper):
         """Test that Distil-Whisper models can be loaded."""
         mock_config_manager = MagicMock()
@@ -433,8 +433,8 @@ class TestDistilWhisperSupport(unittest.TestCase):
         # Model size should include 'distil'
         self.assertIn('distil', manager.model_size.lower())
 
-    @patch('core.model_manager.WhisperModel')
-    @patch('core.model_manager.get_config_manager')
+    @patch('insightron.core.model_manager.WhisperModel')
+    @patch('insightron.core.model_manager.get_config_manager')
     def test_distil_large_v2_support(self, mock_get_config, mock_whisper):
         """Test that distil-large-v2 model is supported."""
         mock_config_manager = MagicMock()

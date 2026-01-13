@@ -304,14 +304,14 @@ def reset_singletons():
     """
     # Import here to avoid circular imports
     try:
-        from core.model_manager import ModelManager
+        from insightron.core.model_manager import ModelManager
         ModelManager._instance = None
         ModelManager._model = None
     except ImportError:
         pass
     
     try:
-        from core.config import ConfigManager
+        from insightron.core.config import ConfigManager
         ConfigManager._instance = None
     except ImportError:
         pass
@@ -320,7 +320,7 @@ def reset_singletons():
     
     # Cleanup after test
     try:
-        from core.model_manager import ModelManager
+        from insightron.core.model_manager import ModelManager
         ModelManager._instance = None
         ModelManager._model = None
     except ImportError:

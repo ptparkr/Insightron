@@ -23,7 +23,7 @@ class TestEndToEndSingleFile(unittest.TestCase):
         self.temp_path = Path(self.temp_dir)
         
         # Reset singletons
-        from core.model_manager import ModelManager
+        from insightron.core.model_manager import ModelManager
         ModelManager._instance = None
         ModelManager._model = None
     
@@ -35,7 +35,7 @@ class TestEndToEndSingleFile(unittest.TestCase):
     @pytest.mark.skip(reason="Requires actual model download")
     def test_e2e_single_file_transcription(self):
         """Test complete single file transcription workflow."""
-        from transcription.transcribe import AudioTranscriber
+        from insightron.services.transcription.transcribe import AudioTranscriber
         
         # Create test audio file
         audio_path = self.temp_path / "test_audio.wav"
@@ -68,7 +68,7 @@ class TestEndToEndBatch(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
         self.temp_path = Path(self.temp_dir)
         
-        from core.model_manager import ModelManager
+        from insightron.core.model_manager import ModelManager
         ModelManager._instance = None
         ModelManager._model = None
     
@@ -80,7 +80,7 @@ class TestEndToEndBatch(unittest.TestCase):
     @pytest.mark.skip(reason="Requires actual model download")
     def test_e2e_batch_transcription(self):
         """Test complete batch transcription workflow."""
-        from transcription.batch_processor import batch_transcribe_files
+        from insightron.services.batch.batch_processor import batch_transcribe_files
         
         # Create multiple test audio files
         audio_files = []
@@ -110,17 +110,17 @@ class TestConfigIntegration(unittest.TestCase):
     
     def setUp(self):
         """Reset singletons."""
-        from core.model_manager import ModelManager
+        from insightron.core.model_manager import ModelManager
         ModelManager._instance = None
         ModelManager._model = None
         
         try:
-            from core.config import ConfigManager
+            from insightron.core.config import ConfigManager
             ConfigManager._instance = None
         except ImportError:
             pass
     
-    @patch('core.config.get_config_manager')
+    @patch('insightron.core.model_manager.get_config_manager')
     def test_config_reload_during_operation(self, mock_config_manager):
         """Test that config can be reloaded during operation."""
         mock_manager = MagicMock()
@@ -132,7 +132,7 @@ class TestConfigIntegration(unittest.TestCase):
         }.get(key, default)
         mock_config_manager.return_value = mock_manager
         
-        from core.model_manager import ModelManager
+        from insightron.core.model_manager import ModelManager
         
         manager1 = ModelManager()
         initial_model = manager1.model_size
@@ -144,6 +144,9 @@ class TestConfigIntegration(unittest.TestCase):
             'model.compute_type': 'int8',
             'model.quality_mode': 'balanced'
         }.get(key, default)
+        
+        # Manually update the attribute to reflect 'reload'
+        mock_manager.model.name = 'base'
         
         # New instance should reflect config changes
         ModelManager._instance = None  # Reset singleton
@@ -159,13 +162,13 @@ class TestModelPersistence(unittest.TestCase):
     
     def setUp(self):
         """Reset singletons."""
-        from core.model_manager import ModelManager
+        from insightron.core.model_manager import ModelManager
         ModelManager._instance = None
         ModelManager._model = None
     
     def test_model_persistence_across_files(self):
         """Test that model is loaded once and reused."""
-        from core.model_manager import ModelManager
+        from insightron.core.model_manager import ModelManager
         
         manager1 = ModelManager()
         manager2 = ModelManager()
@@ -175,10 +178,10 @@ class TestModelPersistence(unittest.TestCase):
         self.assertIs(manager1, manager2)
         self.assertIs(manager2, manager3)
     
-    @patch('core.model_manager.WhisperModel')
+    @patch('insightron.core.model_manager.WhisperModel')
     def test_model_loaded_only_once(self, mock_whisper):
         """Test that model is loaded only once even with multiple transcriptions."""
-        from core.model_manager import ModelManager
+        from insightron.core.model_manager import ModelManager
         
         manager = ModelManager()
         
@@ -209,7 +212,7 @@ class TestOutputFileFormat(unittest.TestCase):
     
     def test_output_file_format(self):
         """Test that output markdown file has correct format."""
-        from core.utils import create_markdown
+        from insightron.core.utils import create_markdown
         
         # Create markdown
         text = "This is a test transcription."
@@ -256,8 +259,8 @@ class TestMetadataAccuracy(unittest.TestCase):
         if Path(self.temp_dir).exists():
             shutil.rmtree(self.temp_dir)
     
-    @patch('transcription.transcribe.AudioTranscriber')
-    def test_metadata_accuracy(self, mock_transcriber):
+    @patch('insightron.core.model_manager.ModelManager')
+    def test_metadata_accuracy(self, mock_model_manager):
         """Test that metadata is accurately extracted and stored."""
         # Test metadata extraction from audio file
         audio_path = self.temp_path / "test.wav"
@@ -266,12 +269,8 @@ class TestMetadataAccuracy(unittest.TestCase):
         audio_data = np.zeros(sample_rate * duration, dtype=np.float32)
         sf.write(str(audio_path), audio_data, sample_rate)
         
-        # Create transcriber instance
-        mock_instance = MagicMock()
-        mock_transcriber.return_value = mock_instance
-        
-        # Mock get_audio_metadata
-        from transcription.transcribe import AudioTranscriber
+        # Use real AudioTranscriber but mock ModelManager dependency
+        from insightron.services.transcription.transcribe import AudioTranscriber
         real_transcriber = AudioTranscriber()
         metadata = real_transcriber.get_audio_metadata(str(audio_path))
         

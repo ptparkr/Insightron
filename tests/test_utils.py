@@ -14,7 +14,7 @@ class TestCreateMarkdown(unittest.TestCase):
     
     def test_create_markdown_basic(self):
         """Test basic markdown creation."""
-        from core.utils import create_markdown
+        from insightron.core.utils import create_markdown
         
         result = create_markdown(
             filename="test_audio",
@@ -37,7 +37,7 @@ class TestCreateMarkdown(unittest.TestCase):
 
     def test_create_markdown_with_timestamps(self):
         """Test markdown creation with timestamp segments."""
-        from core.utils import create_markdown
+        from insightron.core.utils import create_markdown
         
         segments = [
             {'start': 0.0, 'end': 5.0, 'text': 'First segment'},
@@ -64,7 +64,7 @@ class TestCreateMarkdown(unittest.TestCase):
 
     def test_create_markdown_metadata_content(self):
         """Test that markdown contains all required metadata."""
-        from core.utils import create_markdown
+        from insightron.core.utils import create_markdown
         
         result = create_markdown(
             filename="test_audio",
@@ -92,7 +92,7 @@ class TestCreateRealtimeNote(unittest.TestCase):
     
     def test_create_realtime_note(self):
         """Test realtime note creation."""
-        from core.utils import create_realtime_note
+        from insightron.core.utils import create_realtime_note
         
         result = create_realtime_note(
             filename="realtime_note",
@@ -113,7 +113,7 @@ class TestCreateRealtimeNote(unittest.TestCase):
 
     def test_create_realtime_note_with_metadata(self):
         """Test realtime note with additional metadata."""
-        from core.utils import create_realtime_note
+        from insightron.core.utils import create_realtime_note
         
         result = create_realtime_note(
             filename="test_realtime",
@@ -137,7 +137,7 @@ class TestTimestampFormatting(unittest.TestCase):
     
     def test_timestamp_formatting_seconds(self):
         """Test formatting seconds to MM:SS format."""
-        from core.utils import format_timestamp
+        from insightron.core.utils import format_timestamp
         
         # Test various durations
         self.assertEqual(format_timestamp(65), "01:05")
@@ -147,7 +147,7 @@ class TestTimestampFormatting(unittest.TestCase):
 
     def test_timestamp_formatting_with_hours(self):
         """Test formatting with hours."""
-        from core.utils import format_timestamp
+        from insightron.core.utils import format_timestamp
         
         # Hours are automatically included when seconds >= 3600
         result = format_timestamp(3665)
@@ -182,7 +182,7 @@ class TestMetadataGeneration(unittest.TestCase):
 
     def test_frontmatter_generation(self):
         """Test YAML frontmatter generation for markdown."""
-        from core.utils import create_markdown
+        from insightron.core.utils import create_markdown
         
         result = create_markdown(
             filename="test",

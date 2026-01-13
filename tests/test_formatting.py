@@ -4,7 +4,7 @@ Tests all formatting modes, sentence splitting, and text cleaning.
 """
 import unittest
 import pytest
-from transcription.text_formatter import TextFormatter, format_transcript
+from insightron.services.transcription.text_formatter import TextFormatter, format_transcript
 
 
 @pytest.mark.unit

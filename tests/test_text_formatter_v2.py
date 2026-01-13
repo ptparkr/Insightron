@@ -5,7 +5,7 @@ import os
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from transcription.text_formatter import TextFormatter, format_transcript
+from insightron.services.transcription.text_formatter import TextFormatter, format_transcript
 
 class TestTextFormatterV2(unittest.TestCase):
     def setUp(self):

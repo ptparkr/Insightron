@@ -1,0 +1,86 @@
+"""
+Progress Panel component for Insightron GUI.
+
+Displays transcription progress and status.
+"""
+
+import customtkinter as ctk
+import tkinter as tk
+from insightron.ui.themes.theme_manager import ThemeManager
+
+
+class ProgressPanel:
+    """
+    Progress display panel.
+    Shows current status and progress bar.
+    """
+    
+    def __init__(self, parent: ctk.CTkFrame):
+        """
+        Initialize progress panel.
+        
+        Args:
+            parent: Parent frame
+        """
+        self.parent = parent
+        self.theme = ThemeManager.get_theme()
+        self.progress_var = tk.StringVar(value="Ready to transcribe")
+        self._create_panel()
+    
+    def _create_panel(self):
+        """Create the progress panel UI."""
+        # Card container
+        self.card = ctk.CTkFrame(
+            self.parent,
+            corner_radius=12,
+            border_width=1,
+            border_color=self.theme.border,
+            fg_color=self.theme.surface,
+        )
+        self.card.pack(fill="x", pady=(0, 15))
+        
+        # Inner container
+        inner = ctk.CTkFrame(self.card, fg_color="transparent")
+        inner.pack(fill="x", padx=25, pady=20)
+        
+        # Status label
+        self.status_label = ctk.CTkLabel(
+            inner,
+            textvariable=self.progress_var,
+            font=('Segoe UI', 15),
+            text_color=self.theme.text_primary
+        )
+        self.status_label.pack(anchor="w", pady=(0, 12))
+        
+        # Progress bar
+        self.progress_bar = ctk.CTkProgressBar(
+            inner,
+            height=8,
+            corner_radius=4,
+            progress_color=self.theme.primary
+        )
+        self.progress_bar.pack(fill="x")
+        self.progress_bar.set(0)
+    
+    def update_status(self, message: str):
+        """Update status message."""
+        self.progress_var.set(message)
+    
+    def set_progress(self, value: float):
+        """Set progress bar value (0.0 to 1.0)."""
+        self.progress_bar.set(value)
+    
+    def start_indeterminate(self):
+        """Start indeterminate progress animation."""
+        self.progress_bar.configure(mode="indeterminate")
+        self.progress_bar.start()
+    
+    def stop_indeterminate(self):
+        """Stop indeterminate progress and reset."""
+        self.progress_bar.stop()
+        self.progress_bar.configure(mode="determinate")
+        self.progress_bar.set(0)
+    
+    def get_widget(self) -> ctk.CTkFrame:
+        """Get the progress panel widget."""
+        return self.card
