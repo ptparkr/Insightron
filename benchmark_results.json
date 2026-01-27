@@ -1,0 +1,96 @@
+{
+  "system_info": {
+    "cpu_count": 12,
+    "memory_gb": 15.73,
+    "python_version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "win32"
+  },
+  "timestamp": "2026-01-27 12:33:58",
+  "text_formatter": {
+    "Small text": {
+      "text_length": 36,
+      "clean_time": 0.0,
+      "format_time": 0.0009801387786865234,
+      "custom_time": 0.0,
+      "total_time": 0.0009801387786865234,
+      "chars_per_second": 36729.492580880564
+    },
+    "Medium text": {
+      "text_length": 1850,
+      "clean_time": 0.0010437965393066406,
+      "format_time": 0.0026330947875976562,
+      "custom_time": 0.030253171920776367,
+      "total_time": 0.033930063247680664,
+      "chars_per_second": 54523.918405205426
+    },
+    "Large text": {
+      "text_length": 18500,
+      "clean_time": 0.015395402908325195,
+      "format_time": 0.02486276626586914,
+      "custom_time": 2.6973819732666016,
+      "total_time": 2.737640142440796,
+      "chars_per_second": 6757.644919505735
+    },
+    "Very large text": {
+      "text_length": 74000,
+      "clean_time": 0.05451536178588867,
+      "format_time": 0.09508681297302246,
+      "custom_time": 35.73697829246521,
+      "total_time": 35.88658046722412,
+      "chars_per_second": 2062.0521386144765
+    }
+  },
+  "markdown_creation": {
+    "Small transcript": {
+      "text_length": 27,
+      "markdown_length": 628,
+      "creation_time": 0.0,
+      "chars_per_second": 0
+    },
+    "Medium transcript": {
+      "text_length": 3600,
+      "markdown_length": 7805,
+      "creation_time": 0.0008738040924072266,
+      "chars_per_second": 4119916.616643929
+    },
+    "Large transcript": {
+      "text_length": 48000,
+      "markdown_length": 96905,
+      "creation_time": 0.00106048583984375,
+      "chars_per_second": 45262273.381294966
+    },
+    "Very large transcript": {
+      "text_length": 265000,
+      "markdown_length": 532238,
+      "creation_time": 0.004925966262817383,
+      "chars_per_second": 53796551.95779488
+    }
+  },
+  "memory_usage": {
+    "initial_memory_mb": 82.1328125,
+    "formatter_memory_mb": -0.83203125,
+    "markdown_memory_mb": 0.64453125,
+    "total_memory_mb": -0.1875
+  },
+  "single_file": {
+    "model": "small",
+    "load_time_seconds": 6.727862596511841,
+    "cached_load_time_seconds": 0.0,
+    "transcription_time_seconds": 2.5258772373199463,
+    "audio_duration_seconds": 10.0,
+    "real_time_factor": 0.2525877237319946
+  },
+  "batch_processing": {
+    "file_count": 4,
+    "total_time_seconds": 9.357543230056763,
+    "avg_time_per_file": 2.3393858075141907,
+    "successful": 4,
+    "failed": 0,
+    "throughput_files_per_min": 25.64775754699283
+  },
+  "realtime_simulation": {
+    "buffer_write_60s_time": 0.04827070236206055,
+    "buffer_read_snapshot_time": 0.03391695022583008,
+    "latency_overhead_ms": 34.72146193186442
+  }
+}

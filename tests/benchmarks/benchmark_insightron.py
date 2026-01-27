@@ -16,9 +16,15 @@ import json
 import shutil
 import numpy as np
 import argparse
+from unittest.mock import patch
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add project root to path
+# __file__ is tests/benchmarks/benchmark_insightron.py
+# parent is tests/benchmarks
+# parents[1] is tests
+# parents[2] is project root
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from insightron.services.transcription.transcribe import AudioTranscriber
 from insightron.services.transcription.text_formatter import TextFormatter, format_transcript
@@ -37,13 +43,20 @@ class PerformanceBenchmark:
         self.results = {}
         self.system_info = self._get_system_info()
         self.baseline = self._load_baseline(baseline_file) if baseline_file else None
-        self.test_audio_path = Path("benchmark_test.wav")
+        # Use absolute path relative to this script
+        self.test_audio_path = Path(__file__).parent / "benchmark_test.wav"
         
         # Ensure test audio exists
         if not self.test_audio_path.exists():
-            print("⚠️ Test audio not found. Generating...")
-            import generate_test_audio
-            generate_test_audio.generate_sine_wave(str(self.test_audio_path))
+            print(f"⚠️ Test audio not found at {self.test_audio_path}. Generating...")
+            # generate_test_audio might be missing, so use soundfile/numpy directly
+            import soundfile as sf
+            import numpy as np
+            sr = 16000
+            duration = 10
+            t = np.linspace(0, duration, sr * duration)
+            audio = np.sin(2 * np.pi * 440 * t) * 0.5
+            sf.write(str(self.test_audio_path), audio.astype(np.float32), sr)
     
     def _get_system_info(self) -> Dict:
         """Get system information for context."""
@@ -252,11 +265,15 @@ class PerformanceBenchmark:
             # Note: BatchProcessor defaults to cpu_count, we'll assume it uses multiprocessing
             
             print(f"  Running batch processing on {num_files} files...")
-            processor = BatchTranscriber()
             
-            start_time = time.time()
-            results = processor.transcribe_batch(files, formatting_style="auto")
-            total_time = time.time() - start_time
+            # Patch TRANSCRIPTION_FOLDER to usage temp_path to avoid writing to invalid D: drive
+            # And use single process so patch works
+            with patch('insightron.services.transcription.result_handler.TRANSCRIPTION_FOLDER', temp_path):
+                processor = BatchTranscriber(use_multiprocessing=False)
+                
+                start_time = time.time()
+                results = processor.transcribe_batch(files, formatting_style="auto")
+                total_time = time.time() - start_time
             
             successful = len(results['successful'])
             failed = len(results['failed'])

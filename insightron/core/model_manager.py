@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any, Tuple, Iterator
 from faster_whisper import WhisperModel
 from faster_whisper.transcribe import TranscriptionInfo, Segment
 from insightron.core.config import get_config_manager
-from insightron.services.transcription.quality_metrics import QualityMetricsCalculator
+# from insightron.services.transcription.quality_metrics import QualityMetricsCalculator  <-- Removed to avoid circular import
 import numpy as np
 import time
 
@@ -99,7 +99,8 @@ class ModelManager:
         self.enable_dynamic_beam = config.get('model.enable_dynamic_beam', True)
         self.audio_analysis_cache = {}  # Cache for audio characteristics
         
-        # Use QualityMetricsCalculator for consistency
+        # Use QualityMetricsCalculator for consistency - local import to avoid circular dependency
+        from insightron.services.transcription.quality_metrics import QualityMetricsCalculator
         self.quality_metrics_calculator = QualityMetricsCalculator()
         
         # Adjust parameters based on quality mode

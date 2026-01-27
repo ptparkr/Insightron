@@ -1,0 +1,22 @@
+{
+  "batch_id": "84c39225_20260127_123045",
+  "created_at": "2026-01-27T12:30:45.338841",
+  "files": {
+    "C:\\Users\\mshan\\Downloads\\Developer Mode\\Insightron\\debug_audio_batch\\debug_audio_0.wav": {
+      "path": "debug_audio_batch\\debug_audio_0.wav",
+      "status": "failed",
+      "attempts": 1,
+      "last_error": "Transcription failed: [WinError 3] The system cannot find the path specified: 'D:\\\\'",
+      "output_path": null,
+      "started_at": "2026-01-27T12:30:54.010935",
+      "completed_at": "2026-01-27T12:30:54.013049",
+      "updated_at": "2026-01-27T12:30:54.013049"
+    }
+  },
+  "statistics": {
+    "total": 1,
+    "completed": 0,
+    "failed": 1,
+    "skipped": 0
+  }
+}

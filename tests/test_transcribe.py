@@ -37,20 +37,26 @@ class TestAudioTranscriber(unittest.TestCase):
     def test_initialization(self):
         """Test that AudioTranscriber initializes with ModelManager."""
         self.mock_model_manager_class.assert_called_once()
-        self.assertEqual(self.transcriber.model_manager, self.mock_model_manager_instance)
+        # AudioTranscriber now uses TranscriptionEngine which holds the ModelManager
+        self.assertEqual(self.transcriber.engine.model_manager, self.mock_model_manager_instance)
         self.assertEqual(self.transcriber.model_size, "base")
 
     def test_transcribe_file_calls_model_manager(self):
         """Test that transcribe_file calls ModelManager.transcribe."""
-        # Mock validate_audio_file and get_audio_metadata to avoid file system operations
-        self.transcriber.validate_audio_file = MagicMock(return_value=True)
-        self.transcriber.get_audio_metadata = MagicMock(return_value={
+        # Mock loader methods to avoid file system operations
+        self.transcriber.loader = MagicMock()
+        self.transcriber.loader.validate_audio_file.return_value = True
+        self.transcriber.loader.get_audio_metadata.return_value = {
             'filename': 'test.wav',
             'file_size_mb': 1.0,
             'duration_seconds': 10.0,
             'duration_formatted': '0:10',
-            'file_extension': '.wav'
-        })
+            'file_extension': '.wav',
+            'sample_rate': 16000,
+            'channels': 1
+        }
+        # Also mock load_and_preprocess
+        self.transcriber.loader.load_and_preprocess.return_value = "dummy_audio_data"
         
         # Mock the return value of ModelManager.transcribe
         mock_segments = []
@@ -60,20 +66,21 @@ class TestAudioTranscriber(unittest.TestCase):
         mock_info.duration = 10.0
         self.mock_model_manager_instance.transcribe.return_value = (mock_segments, mock_info)
         
-        # Mock create_markdown and file operations to avoid writing to disk
-        with patch('insightron.services.transcription.transcribe.create_markdown', return_value="Mock Markdown"), \
-             patch('pathlib.Path.write_text'), \
-             patch('pathlib.Path.rename'), \
-             patch('pathlib.Path.exists', return_value=False), \
-             patch('insightron.services.transcription.transcribe.TRANSCRIPTION_FOLDER'):
+        # Mock handler to avoid file writing
+        self.transcriber.handler = MagicMock()
+        self.transcriber.handler.save_result.return_value = (MagicMock(), {})
+
+        # We don't need to patch create_markdown etc anymore as they are called by handler, which is mocked
+        # But we do need to ensure transcribe_file returns correctly
+        
+        self.transcriber.transcribe_file("dummy_path.wav")
             
-            self.transcriber.transcribe_file("dummy_path.wav")
-            
-            # Verify ModelManager.transcribe was called
-            self.mock_model_manager_instance.transcribe.assert_called_once()
-            args, kwargs = self.mock_model_manager_instance.transcribe.call_args
-            self.assertEqual(args[0], "dummy_path.wav")
-            self.assertEqual(kwargs['task'], "transcribe")
+        # Verify ModelManager.transcribe was called (via Engine)
+        self.mock_model_manager_instance.transcribe.assert_called_once()
+        args, kwargs = self.mock_model_manager_instance.transcribe.call_args
+        # Audio loader returns "dummy_audio_data", so that should be passed to model
+        self.assertEqual(args[0], "dummy_audio_data")
+        self.assertEqual(kwargs['task'], "transcribe")
 
 if __name__ == '__main__':
     unittest.main()
