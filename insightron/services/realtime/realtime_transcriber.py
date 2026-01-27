@@ -19,6 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from insightron.services.base_transcriber import BaseTranscriber
+from insightron.core.vad import EnergyVAD
 
 class RealtimeTranscriber(BaseTranscriber):
     """
@@ -75,6 +76,9 @@ class RealtimeTranscriber(BaseTranscriber):
         self.detected_language = None  # Store detected language
         
         self.detected_language = None  # Store detected language
+        
+        # Performance/Stability: VAD Pre-Processing
+        self.vad = EnergyVAD(sample_rate=self.sample_rate)
         
         # Model Manager is inherited from BaseTranscriber as self.model_manager
         
@@ -251,11 +255,12 @@ class RealtimeTranscriber(BaseTranscriber):
             part1 = self.ring_buffer[-(self.chunk_samples - len(part2)):]
             audio_chunk = np.concatenate((part1, part2))
             
-        # Check for silence
-        rms = np.sqrt(np.mean(audio_chunk**2))
-        if rms < self.silence_threshold:
-            # Too silent, skip inference to save compute
-            return
+        # Use EnergyVAD (Compute Efficiency)
+        is_speech = self.vad.is_speech(audio_chunk, adaptive=True)
+        if not is_speech:
+             # Too silent, skip heavy inference to save compute
+             logger.debug("VAD: Silence detected, skipping inference")
+             return
 
         try:
             # Transcribe with optimized parameters for real-time
@@ -303,6 +308,12 @@ class RealtimeTranscriber(BaseTranscriber):
                         similarity = len(set(text.lower().split()) & set(last_text.lower().split())) / max(len(text.split()), len(last_text.split()))
                         if similarity > 0.8 and len(text) < len(last_text) * 1.2:
                             return  # Skip duplicate/very similar text
+                
+                # Smart Resource Handling: Sliding Window for Segments
+                # Keep only last 100 segments (~10-20 min history) to prevent memory bloat
+                if len(self.transcribed_segments) > 100:
+                    self.transcribed_segments = self.transcribed_segments[-100:]
+                    logger.debug("Pruning transcribed segments buffer (sliding window)")
                 
                 # Send result
                 if self.result_callback:

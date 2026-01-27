@@ -7,6 +7,7 @@ import numpy as np
 from functools import lru_cache
 
 from insightron.core.config import get_config_manager
+from insightron.core.resource_manager import ResourceManager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class AudioLoader:
         self.enable_audio_preprocessing = config.get('insightron.services.transcription.enable_audio_preprocessing', True)
         
         self.supported_formats = {'.mp3', '.wav', '.m4a', '.flac', '.mp4', '.ogg', '.aac', '.wma'}
+        self.resource_manager = ResourceManager()
 
     def validate_audio_file(self, audio_path: str) -> bool:
         """Validate if the audio file is supported and accessible."""
@@ -96,6 +98,14 @@ class AudioLoader:
             return None
         
         try:
+            # Check file size against resource limits before loading
+            file_mb = Path(audio_path).stat().st_size / (1024*1024)
+            max_safe_mb = self.resource_manager.get_max_safe_file_load_size_mb()
+            
+            if file_mb > max_safe_mb:
+                logger.warning(f"File {Path(audio_path).name} size ({file_mb:.1f}MB) exceeds safe RAM limit ({max_safe_mb}MB). Skipping preprocessing (streaming mode).")
+                return None
+            
             # Optimization: Use soundfile for faster loading
             try:
                 audio, sr = soundfile.read(audio_path, dtype='float32')

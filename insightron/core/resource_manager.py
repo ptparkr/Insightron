@@ -116,6 +116,27 @@ class ResourceManager:
         
         return optimal
 
+    def get_max_safe_file_load_size_mb(self) -> int:
+        """
+        Calculate maximum file size (in MB) safe to load into RAM for preprocessing.
+        If file is larger, we should stream it instead.
+        """
+        mem_stats = self.get_memory_stats()
+        available_ram_gb = mem_stats.get("available_gb", 2.0)
+        
+        # Reserve RAM for model + OS
+        # Float32 audio: 1 min stereo @ 44.1k = ~20MB? 
+        # Actually 1 min mono @ 16k = 16000 * 60 * 4 bytes = ~3.8 MB.
+        # So 1GB RAM = ~260 mins of audio.
+        # But we need contiguous memory.
+        
+        if available_ram_gb < 4.0:
+            return 200  # ~50 mins
+        elif available_ram_gb < 8.0:
+            return 500  # ~2 hours
+        else:
+            return 2048 # Cap at 2GB to be safe
+
     def recommend_quantization(self) -> str:
         """
         Recommend computation type (quantization) based on available RAM.
