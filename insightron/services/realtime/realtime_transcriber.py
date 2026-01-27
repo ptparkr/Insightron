@@ -18,13 +18,20 @@ from insightron.core.config import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class RealtimeTranscriber:
+from insightron.services.base_transcriber import BaseTranscriber
+
+class RealtimeTranscriber(BaseTranscriber):
     """
     Realtime Audio Transcriber using sounddevice and faster-whisper.
     Uses a ring buffer and producer-consumer architecture for smooth transcription.
     """
     
     def __init__(self):
+        # Initialize BaseTranscriber (Load config via these getters)
+        model_size = get_config('model.name', 'medium')
+        language = get_config('insightron.services.transcription.language', DEFAULT_LANGUAGE)
+        super().__init__(model_size, language)
+        
         self.is_running = False
         self.result_callback = None
         self.audio_level_callback = None
@@ -67,8 +74,16 @@ class RealtimeTranscriber:
         self.transcribed_segments = []  # Store all transcribed segments
         self.detected_language = None  # Store detected language
         
-        # Model Manager
-        self.model_manager = ModelManager()
+        self.detected_language = None  # Store detected language
+        
+        # Model Manager is inherited from BaseTranscriber as self.model_manager
+        
+    def transcribe(self, audio_input, **kwargs):
+        """
+        Satisfy BaseTranscriber contract. 
+        For realtime, this might be used for single-shot buffer transcription.
+        """
+        return self.model_manager.transcribe(audio_input, **kwargs)
 
     def get_microphones(self) -> List[Dict[str, any]]:
         """Get list of available microphones."""
@@ -99,6 +114,9 @@ class RealtimeTranscriber:
         self.audio_level_callback = audio_level_callback
         self.is_running = True
         self.stop_event.clear()
+        
+        # Check resources (log warning if constrained)
+        self.validate_resources()
         
         # Reset buffers
         self.ring_buffer.fill(0)

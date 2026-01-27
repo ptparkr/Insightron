@@ -13,12 +13,13 @@ from insightron.core.config import (
 from insightron.services.transcription.audio_loader import AudioLoader
 from insightron.services.transcription.transcription_engine import TranscriptionEngine
 from insightron.services.transcription.result_handler import ResultHandler
+from insightron.services.base_transcriber import BaseTranscriber
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class AudioTranscriber:
+class AudioTranscriber(BaseTranscriber):
     """
     High-Performance Audio Transcriber using faster-whisper (CTranslate2).
     Refactored to use modular components:
@@ -31,6 +32,9 @@ class AudioTranscriber:
         """
         Initialize the transcriber facade.
         """
+        # Initialize BaseTranscriber (creates ModelManager and ResourceManager)
+        super().__init__(model_size, language)
+        
         # Initialize components
         self.loader = AudioLoader()
         self.engine = TranscriptionEngine()
@@ -86,6 +90,10 @@ class AudioTranscriber:
     def _calculate_quality_metrics(self, segments):
         return self.handler.calculate_quality_metrics(segments)
 
+    def transcribe(self, audio_path: str, **kwargs) -> tuple[Path, Dict[str, Any]]:
+        """Alias for transcribe_file to satisfy BaseTranscriber contract."""
+        return self.transcribe_file(audio_path, **kwargs)
+
     def transcribe_file(self, audio_path: str, progress_callback: Optional[Callable[[str], None]] = None, 
                        formatting_style: str = "auto", language: Optional[str] = None) -> tuple[Path, Dict[str, Any]]:
         """
@@ -94,6 +102,9 @@ class AudioTranscriber:
         start_time = datetime.now()
         
         try:
+            # 0. Resource Validation
+            self.validate_resources()
+
             # 1. Validation and Metadata (Loader)
             self.loader.validate_audio_file(audio_path)
             metadata = self.loader.get_audio_metadata(audio_path)

@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any, Tuple, Iterator
 from faster_whisper import WhisperModel
 from faster_whisper.transcribe import TranscriptionInfo, Segment
 from insightron.core.config import get_config_manager
+from insightron.core.resource_manager import ResourceManager
 # from insightron.services.transcription.quality_metrics import QualityMetricsCalculator  <-- Removed to avoid circular import
 import numpy as np
 import time
@@ -94,6 +95,17 @@ class ModelManager:
         self.adaptive_vad = config.get('model.adaptive_vad', False)
         self.batch_size = config.get('model.batch_size', 1)  # Batch inference support
         
+        
+        # Initialize ResourceManager
+        self.resource_manager = ResourceManager()
+        
+        # Override compute_type if resources are constrained
+        recommended_quantization = self.resource_manager.recommend_quantization()
+        
+        if self.compute_type not in ["int8", "int8_float16"] and recommended_quantization == "int8":
+             logger.warning(f"Low memory detected. Downgrading compute_type from {self.compute_type} to int8")
+             self.compute_type = "int8"
+
         # Performance optimizations
         self.enable_model_warmup = config.get('model.enable_warmup', True)
         self.enable_dynamic_beam = config.get('model.enable_dynamic_beam', True)
@@ -142,6 +154,13 @@ class ModelManager:
             # If model size changed, clear the old model
             if self._model is not None and ModelManager._loaded_model_size != current_model_size:
                 logger.info(f"Model size changed from '{ModelManager._loaded_model_size}' to '{current_model_size}'. Reloading model...")
+                
+                # Check system health before reloading
+                health = self.resource_manager.check_health()
+                if health['status'] == 'constrained':
+                     logger.warning(f"System constrained during model reload: {health['warnings']}")
+                     # We proceed but warn
+
                 # Clean up old model if possible
                 try:
                     del self._model

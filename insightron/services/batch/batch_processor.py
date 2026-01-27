@@ -24,6 +24,7 @@ if sys.platform == "win32":
         pass
 
 from insightron.services.transcription.transcribe import AudioTranscriber
+from insightron.services.base_transcriber import BaseTranscriber
 from insightron.services.batch.batch_state_manager import BatchState, FileStatus
 from insightron.core.config import WHISPER_MODEL, DEFAULT_LANGUAGE, get_config
 import uuid
@@ -63,7 +64,7 @@ def transcribe_single_file_worker(audio_file: str, model_size: str, language: st
             'status': 'failed'
         }
 
-class BatchTranscriber:
+class BatchTranscriber(BaseTranscriber):
     """
     Batch transcription processor with optimized concurrency support.
     """
@@ -76,33 +77,20 @@ class BatchTranscriber:
         use_multiprocessing: bool = True, # Default to True for better CPU utilization
         transcriber: Optional[AudioTranscriber] = None
     ):
-        self.model_size = model_size
-        self.language = language
+        # Initialize BaseTranscriber (creates ResourceManager)
+        super().__init__(model_size, language)
+        
         self.use_multiprocessing = use_multiprocessing
         
-        # Determine optimal worker count from config or defaults (optimized)
+        # Determine optimal worker count from config or defaults (optimized using ResourceManager)
         if max_workers is None:
             # Try to get worker_count from config first
             worker_count_config = get_config('runtime.worker_count')
             if worker_count_config is not None:
                 self.max_workers = worker_count_config
             else:
-                # Auto-detect based on CPU and device (improved algorithm)
-                cpu_count = os.cpu_count() or 1
-                try:
-                    import torch
-                    has_gpu = torch.cuda.is_available()
-                except ImportError:
-                    has_gpu = False
-                
-                if has_gpu:
-                    # GPU: More conservative to avoid memory issues
-                    # Use 2-4 workers depending on CPU cores
-                    self.max_workers = max(1, min(4, cpu_count // 2))
-                else:
-                    # CPU: Use more workers but leave one core free for system
-                    # Use 75% of cores, minimum 2, maximum 8 for stability
-                    self.max_workers = max(2, min(8, int(cpu_count * 0.75)))
+                # Use ResourceManager calculation
+                self.max_workers = self.resource_manager.get_optimal_worker_count(model_size)
         else:
             self.max_workers = max_workers
             
@@ -114,6 +102,10 @@ class BatchTranscriber:
         
         logger.info(f"BatchTranscriber initialized: model={model_size}, workers={self.max_workers}, "
                    f"multiprocessing={use_multiprocessing}")
+
+    def transcribe(self, audio_files: List[str], **kwargs):
+        """Satisfy BaseTranscriber contract."""
+        return self.transcribe_batch(audio_files, **kwargs)
     
     def transcribe_batch(
         self,
@@ -134,6 +126,9 @@ class BatchTranscriber:
             max_retries: Maximum retry attempts per file
         """
         start_time = datetime.now()
+        
+        # Check resources before starting batch
+        self.validate_resources()
         
         # Initialize or use provided batch state
         if batch_state is None:
