@@ -1,4 +1,4 @@
-# 🎤 Insightron v2.2.0 - Next-Gen AI Transcriber
+# 🎤 Insightron v3.0.0 - Experience the Future of AI Transcription
 
 **Transform audio into beautifully structured insights with lightning-fast precision.**
 
@@ -23,6 +23,14 @@ Insightron is a next-generation transcription application powered by **faster-wh
 - 🔄 **Batch Resume & Recovery**: Resume failed batches from where they left off with state persistence
 - 📈 **Event-Driven Progress**: Milestone-based progress tracking with segment-level events
 - 💾 **Memory Monitoring**: Real-time memory tracking to prevent OOM conditions during batch processing
+- ⚡ **Efficiency Layer**: Dedicated resource management for optimal CPU/RAM usage
+- 🎯 **Dynamic Chunking**: Smart audio processing that adapts to hardware capabilities 
+
+### 🧠 **Intelligent Efficiency**
+- **Smart Resource Management**: Sliding window buffering for handling large files on any hardware
+- **Advanced VAD**: Adaptive Voice Activity Detection with silence pruning
+- **Quantization Support**: INT8/INT4 optimization for reduced memory footprint
+- **Metric Tracking**: Real-time performance monitoring (Audio/Cycle)
 
 ### 🎨 **Modern Dark-Black Theme** ✨
 - **Pure Black Background**: Material Dark theme perfect for OLED screens
@@ -439,17 +447,16 @@ black *.py
 
 *Transform audio into structured wisdom — locally, beautifully, intelligently.*
 
-**Insightron v2.2.0** - Enterprise-Grade Intelligence
+**Insightron v3.0.0** - Adaptive Intelligence
 
-## 🆕 What's New in v2.2.0
+## 🆕 What's New in v3.0.0
 
-### **🚀 Enterprise-Grade Improvements**
-- ✅ **Adaptive Segment Merging**: Machine-learned gap thresholds that adapt to speaker cadence (fast/slow/normal speech patterns)
-- ✅ **Enhanced Quality Metrics**: Weighted confidence scoring, percentile analysis, and quality degradation detection
-- ✅ **Batch Resume & Recovery**: Resume failed batches from where they left off with JSON state persistence
-- ✅ **Event-Driven Progress**: Milestone-based progress tracking (25%, 50%, 75%, 100%) with segment-level events
-- ✅ **Memory Monitoring**: Real-time memory tracking with OOM prevention for large batch operations
-- ✅ **Code Quality**: Reduced duplication by centralizing quality metrics calculation
+### **🚀 Core Evolution**
+- ✅ **New Efficiency Layer**: Dedicated optimization layer managing CPU/RAM usage dynamically for consistent performance.
+- ✅ **Advanced VAD System**: Interactive Voice Activity Detection with adaptive parameters and improved silence pruning.
+- ✅ **Dynamic Resource Management**: Smart sliding window buffering and dynamic chunking to handle massive audio files on low-spec systems.
+- ✅ **Responsive UI 2.0**: Brand new responsive design system ensuring perfect scaling across all displays.
+- ✅ **Modular Architecture**: Complete codebase refactor for superior stability and maintainability.
 
 ### **Previous Updates (v2.2.0)**
 

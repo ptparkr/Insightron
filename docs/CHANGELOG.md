@@ -7,6 +7,29 @@ All notable changes to Insightron will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-01-27
+
+### 🚀 Major Features
+- ✅ **New Efficiency Layer**: Implemented a dedicated layer for optimized resource management, handling CPU/RAM usage dynamically.
+- ✅ **Advanced VAD System**: Enhanced Voice Activity Detection with adaptive parameters and improved silence pruning for cleaner transcripts.
+- ✅ **Dynamic Resource Management**: Introduced sliding window buffering and dynamic chunking to handle large audio streams efficiently on low-spec hardware.
+- ✅ **Responsive UI 2.0**: Completely redesigned GUI with a new responsive design system ensuring perfect scaling across all window sizes and resolutions.
+- ✅ **Modular Architecture**: Complete refactor of the `AudioTranscriber` service into modular components (`AudioLoader`, `TranscriptionEngine`, `ResultHandler`) for better maintainability.
+
+### Added
+- ✅ **Quantization Optimization**: Improved support for INT8/INT4 quantization with significantly reduced memory footprint.
+- ✅ **Performance Metrics**: Added `Seconds of Audio processed per CPU Cycle` metric tracking for deeper performance insights.
+- ✅ **Extended Documentation**: Comprehensive updates to documentation including new architecture details.
+
+### Changed
+- 🔄 **Refactoring**: Massive code cleanup and modularization across the `insightron` package.
+- 🔄 **Testing**: Complete overhaul of the test suite with 100% pass rate on the new modular architecture.
+- 🔄 **Configuration**: Centralized configuration handling for better consistency across modules.
+
+### Fixed
+- 🐛 **Memory Leaks**: Resolved memory leak issues in long-running batch processes.
+- 🐛 **Import Paths**: Corrected all import path issues resulting from the restructuring.
+
 ## [2.2.0] - 2025-12-05
 
 ### Added

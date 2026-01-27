@@ -92,7 +92,25 @@ This document outlines the comprehensive performance and accuracy improvements m
 - `transcription.enable_audio_normalization`: Enable audio normalization (default: true)
 - `transcription.enable_audio_preprocessing`: Enable audio preprocessing (default: true)
 - `transcription.segment_cache_size`: Cache size for segment metadata (default: 1000)
+- `transcription.segment_cache_size`: Cache size for segment metadata (default: 1000)
 - `transcription.enable_parallel_segments`: Enable parallel segment processing (default: false, experimental)
+
+### 6. Efficiency Layer (v3.0.0) (`core/resource_manager.py`)
+
+#### Dynamic Resource Management
+- **Feature**: Sliding window audio buffering
+- **Benefit**: Processes infinitely long audio files without RAM spikes
+- **Implementation**: Loads audio in overlapping chunks (default 30s)
+- **Config**: `runtime.enable_efficiency_layer` (default: true)
+
+#### Quantization Optimization
+- **Feature**: Enhanced INT8/INT4 support
+- **Benefit**: Reduces model memory footprint by up to 50%
+- **Config**: `model.compute_type` (default: int8)
+
+#### Performance Metrics
+- **Feature**: Real-time tracking of `Audio/Cycle` ratio
+- **Benefit**: Helps users understand their hardware limits
 
 ## Performance Metrics
 
@@ -213,6 +231,6 @@ These upgrades significantly improve Insightron's performance and accuracy while
 
 ---
 
-*Upgrade Date: 2025-01-27*  
-*Version: 2.2.0*
+*Upgrade Date: 2026-01-27*  
+*Version: 3.0.0*
 

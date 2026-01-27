@@ -54,10 +54,11 @@ Insightron/
 
 ## ✨ Features
 
-- ⚡ **Lightning Fast**: Up to 6x faster with Distil-Whisper
-- 🎨 **Modern GUI**: Professional dark-themed interface
-- 📦 **Batch Processing**: Process multiple files efficiently
-- 🔴 **Real-time**: Live audio transcription
+- ⚡ **Adaptive & Fast**: Up to 6x faster with Distil-Whisper & Dynamic Chunking
+- 🎨 **Responsive GUI**: Professional dark-themed interface that scales perfectly
+- 🧠 **Efficiency Layer**: Optimized for low-spec hardware & massive files
+- 📦 **Batch Processing**: Process multiple files efficiently with resume capability
+- 🔴 **Real-time**: Live audio transcription with VAD
 - 🌍 **100+ Languages**: Multi-language support
 - 💾 **Obsidian Integration**: Direct save to your vault
 

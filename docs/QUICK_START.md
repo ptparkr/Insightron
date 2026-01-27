@@ -1,20 +1,18 @@
-# Insightron v2.2.0 - Quick Start Guide
+# Insightron v3.0.0 - Quick Start Guide
 
-## 🚀 What's New in v2.2.0
+## 🚀 What's New in v3.0.0
 
-Insightron v2.2.0 introduces **enterprise-grade improvements** with adaptive algorithms, enhanced reliability, and better monitoring capabilities.
+Insightron v3.0.0 introduces **adaptive intelligence** with a new efficiency layer, dynamic resource management, and a fully responsive UI.
 
 ### Key Improvements
 
-✅ **Adaptive Segment Merging** - Machine-learned gap thresholds that adapt to speaker cadence  
-✅ **Enhanced Quality Metrics** - Weighted confidence scoring with degradation detection  
-✅ **Batch Resume & Recovery** - Resume failed batches from where they left off  
-✅ **Event-Driven Progress** - Milestone-based progress tracking with segment-level events  
-✅ **Memory Monitoring** - Real-time memory tracking to prevent OOM conditions  
-✅ **Batch Processing** - Process multiple files efficiently with parallel workers  
-✅ **Thread Pool Support** - Better resource management for I/O-bound tasks  
-✅ **Process Pool Support** - Bypass Python's GIL for CPU-bound tasks  
-✅ **Auto Worker Detection** - Automatically uses optimal number of workers based on your CPU  
+✅ **New Efficiency Layer** - Dedicated resource management for optimal CPU/RAM usage
+✅ **Advanced VAD System** - Interactive Voice Activity Detection with adaptive parameters
+✅ **Dynamic Chunking** - Smart audio processing that adapts to hardware capabilities
+✅ **Responsive UI 2.0** - Brand new responsive design system
+✅ **Modular Architecture** - Complete refactor for superior stability 
+✅ **Quantization Optimization** - improved INT8/INT4 support
+✅ **Performance Metrics** - Real-time tracking of audio processing efficiency  
 
 ---
 
@@ -272,29 +270,24 @@ python cli.py *.mp3 -b -w 4  # Use fewer workers
 
 ## ✅ Summary
 
-**Before (v2.1.0):**
-- Single file processing only
-- Manual threading with limited benefits
-- No multi-core utilization
-- Static segment merging thresholds
-- Basic quality metrics
+**Before (v2.2.0):**
+- Adaptive segment merging
+- Batch processing with auto worker detection
+- Event-driven progress tracking
 
-**After (v2.2.0):**
-- ✅ Batch processing with auto worker detection
-- ✅ Thread pool for I/O-bound tasks
-- ✅ Process pool for CPU-bound tasks
-- ✅ 2-3x faster for multiple files
-- ✅ Adaptive segment merging based on speech patterns
-- ✅ Enhanced quality metrics with degradation detection
-- ✅ Batch resume & recovery from failures
-- ✅ Event-driven progress tracking
-- ✅ Memory monitoring to prevent OOM
-- ✅ Easy CLI interface: `python cli.py *.mp3 -b`
+**After (v3.0.0):**
+- ✅ **Everything in v2.2.0 plus:**
+- ✅ **New Efficiency Layer**: Optimal resource usage on any hardware
+- ✅ **Dynamic Chunking**: Process massive files without memory issues
+- ✅ **Advanced VAD**: Cleaner audio segmentation
+- ✅ **Responsive UI 2.0**: Perfect experience on any screen
+- ✅ **Modular Architecture**: Easier maintenance and extensions
+- ✅ **Quantization**: Even lower memory footprint
 
 **Get Started:**
 ```bash
 # Try it now!
-python cli.py *.mp3 -b -w 8
+python cli.py *.mp3 -b --enable-resume
 ```
 
-Enjoy faster transcriptions! 🚀
+Enjoy smarter transcriptions! 🚀

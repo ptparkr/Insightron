@@ -20,7 +20,7 @@ Insightron/
 
 ```
 Insightron/
-├── src/                   # Main source code
+├── insightron/            # Main source code (formerly src)
 ├── docs/                  # All documentation
 │   ├── README.md
 │   ├── STRUCTURE.md

@@ -13,7 +13,7 @@ The new `BatchTranscriber` class provides optimized batch processing with suppor
 #### Basic Usage
 
 ```python
-from batch_processor import batch_transcribe_files
+from insightron.services.batch.batch_processor import batch_transcribe_files
 
 # List of audio files to transcribe
 audio_files = [
@@ -41,7 +41,7 @@ print(f"Throughput: {results['statistics']['throughput']:.2f} files/sec")
 #### Advanced Usage with BatchTranscriber
 
 ```python
-from batch_processor import BatchTranscriber
+from insightron.services.batch.batch_processor import BatchTranscriber
 
 # Create batch transcriber with custom configuration
 batch_transcriber = BatchTranscriber(
@@ -71,7 +71,7 @@ for failure in results['failed']:
 For very large transcripts, use `OptimizedTextProcessor` to process text in parallel chunks:
 
 ```python
-from batch_processor import OptimizedTextProcessor
+from insightron.services.batch.batch_processor import OptimizedTextProcessor
 
 processor = OptimizedTextProcessor(max_workers=4)
 
@@ -156,7 +156,7 @@ If `max_workers` is not specified:
 ### Example 1: Batch Transcribe with Progress Bar
 
 ```python
-from batch_processor import batch_transcribe_files
+from insightron.services.batch.batch_processor import batch_transcribe_files
 from pathlib import Path
 
 # Find all MP3 files in a directory
@@ -187,7 +187,7 @@ print(f"Average time: {results['statistics']['average_time_per_file']:.1f}s per 
 ### Example 2: Process Pool for Large Batch
 
 ```python
-from batch_processor import BatchTranscriber
+from insightron.services.batch.batch_processor import BatchTranscriber
 
 # For CPU-intensive workloads, use process pool
 transcriber = BatchTranscriber(

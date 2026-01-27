@@ -20,10 +20,15 @@ Insightron/
 │   │   ├── model_manager.py      # Whisper model management
 │   │   ├── settings_manager.py   # User settings persistence
 │   │   ├── utils.py              # Utility functions
-│   │   └── memory_monitor.py     # Memory monitoring
+│   │   ├── memory_monitor.py     # Memory monitoring
+│   │   ├── resource_manager.py   # Efficiency Layer (CPU/RAM management)
+│   │   └── vad.py                # Voice Activity Detection
 │   ├── services/                 # Business logic services
 │   │   ├── transcription/        # Transcription services
-│   │   │   ├── transcribe.py     # Main transcript engine
+│   │   │   ├── transcribe.py     # Legacy wrapper (for backward compat)
+│   │   │   ├── audio_loader.py   # Audio loading & preprocessing
+│   │   │   ├── transcription_engine.py # Core inference engine
+│   │   │   ├── result_handler.py # Result formatting & saving
 │   │   │   ├── text_formatter.py
 │   │   │   ├── quality_metrics.py
 │   │   │   └── segment_analyzer.py
@@ -58,10 +63,15 @@ Insightron/
 **Purpose**: Core functionality and foundational components.
 - **`config.py`**: Typesafe configuration management using `ConfigManager`.
 - **`model_manager.py`**: Central singleton for model loading and inference.
+- **`resource_manager.py`**: Handles dynamic resource allocation and constraints.
+- **`vad.py`**: Configurable Voice Activity Detection logic.
 
 ### `insightron/services/`
 **Purpose**: Pure business logic, independent of UI.
-- **`transcription/`**: Handles single-file audio processing.
+- **`transcription/`**:
+    - **`audio_loader.py`**: Robust audio loading with format conversion.
+    - **`transcription_engine.py`**: Wraps ModelManager for high-level transcription tasks.
+    - **`result_handler.py`**: Manages output generation (MD, JSON, etc.).
 - **`batch/`**: Manages multi-processing/threading for bulk files.
 - **`realtime/`**: Audio stream capturing and live transcription.
 

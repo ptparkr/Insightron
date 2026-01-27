@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains the comprehensive test suite for Insightron v2.2.0. The tests cover all major components including core modules, transcription functionality, realtime processing, batch operations, and text formatting.
+This directory contains the comprehensive test suite for Insightron v3.0.0. The tests cover all major components including core modules, efficiency layer, transcription functionality, realtime processing, batch operations, and text formatting.
 
 ## Test Organization
 
@@ -16,9 +16,18 @@ This directory contains the comprehensive test suite for Insightron v2.2.0. The 
   - Retry mechanism with fallback strategies
   - Quality metrics calculation
   - Distil-Whisper model support
+- **`test_efficiency_layer.py`** - Performance and resource management tests (v3.0.0)
+  - Energy-based VAD logic
+  - Sliding window buffer pruning
+  - Dynamic file size limits
+- **`test_resource_manager.py`** - Static and dynamic resource constraint tests
+- **`test_vad.py`** - Dedicated VAD logic verification
 
-#### Transcription Tests
-- **`test_transcribe.py`** - Audio transcription functionality
+#### Transcription Tests (Modular v3.0.0)
+- **`test_audio_loader.py`** - Audio loading and preprocessing tests
+- **`test_transcription_engine.py`** - Inference engine orchestration tests
+- **`test_result_handler.py`** - Output generation and formatting tests
+- **`test_transcribe.py`** - Legacy wrapper integration tests
 - **`test_batch_processor_v2.py`** - Enhanced batch processing tests
   - ProcessPoolExecutor and ThreadPoolExecutor
   - Worker configuration
@@ -305,6 +314,6 @@ For questions about the test suite:
 
 ---
 
-**Test Suite Version**: 2.2.0  
-**Last Updated**: 2024-12-03  
+**Test Suite Version**: 3.0.0  
+**Last Updated**: 2026-01-27  
 **Maintained by**: Insightron Development Team

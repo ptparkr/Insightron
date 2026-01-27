@@ -18,23 +18,26 @@ The Insightron codebase has been successfully restructured into a modern, profes
 
 ```
 Insightron/
-├── src/                          # Main source code
+├── insightron/                   # Main source code (formerly src)
 │   ├── app/                      # Application entry points
-│   │   ├── main.py              # Main entry point
-│   │   └── gui/                 # GUI application
-│   ├── core/                    # Core functionality
-│   ├── services/                # Business logic
-│   │   ├── transcription/      # Transcription services
-│   │   ├── batch/              # Batch processing
-│   │   └── realtime/           # Real-time transcription
-│   ├── ui/                      # UI components
-│   │   ├── components/         # Reusable components
-│   │   └── themes/             # Theme management
-│   └── utils/                   # Utilities
+│   │   ├── main.py               # Main entry point (GUI + CLI logic)
+│   │   ├── gui/                  # GUI application
+│   │   └── cli/                  # CLI components
+│   ├── core/                     # Core functionality
+│   │   ├── resource_manager.py   # Efficiency Layer
+│   │   └── vad.py                # Voice Activity Detection
+│   ├── services/                 # Business logic
+│   │   ├── transcription/        # Transcription services (Modular v3.0)
+│   │   ├── batch/                # Batch processing
+│   │   └── realtime/             # Real-time transcription
+│   ├── ui/                       # UI components
+│   │   ├── components/           # Responsive components
+│   │   └── themes/               # Theme management
+│   └── utils/                   # Utilities (under core/)
 ├── docs/                        # Documentation
 ├── tests/                       # Test suite
-├── setup/                       # Installation
-├── scripts/                     # Utility scripts
+├── setup/                       # Installation (under automation/)
+├── scripts/                     # Utility scripts (under automation/)
 └── insightron.py               # Legacy entry (backward compatible)
 ```
 
@@ -67,7 +70,7 @@ Insightron/
 
 ### New Way (Recommended)
 ```bash
-python src/app/main.py
+python insightron/app/main.py
 ```
 
 ### Legacy Way (Still Works)
@@ -83,28 +86,30 @@ Both work identically - the new structure is backward compatible!
 - **`docs/QUICK_START.md`**: Quick start guide for developers
 - **Module docstrings**: Each file has clear documentation
 
-## 🔄 Migration Notes
+## 🔄 Migration Notes (v3.0.0)
 
-- ✅ **Backward Compatible**: Old entry point still works
-- ✅ **No Breaking Changes**: All functionality preserved
-- ✅ **Clean Imports**: Updated to use new structure
-- ✅ **Documentation**: Comprehensive docs for new structure
+- ✅ **Package Renaming**: The `src` directory has been renamed to `insightron` to follow standard Python package conventions.
+- ✅ **New Efficiency Layer**: Added `core/resource_manager.py` for optimized performance on low-spec systems.
+- ✅ **Modular Transcription**: Refactored `AudioTranscriber` into smaller, specialized modules in `services/transcription/`.
+- ✅ **Responsive UI**: Updated `ui/components/` to support dynamic resizing.
+- ✅ **Backward Compatible**: Old entry points and config formats still work.
 
 ## 💡 Benefits
 
-1. **Clarity**: Easy to understand what each file does
-2. **Maintainability**: Changes are isolated to specific modules
-3. **Testability**: Each component can be tested independently
-4. **Scalability**: Easy to add new features
-5. **Professional**: Follows modern Python best practices
-6. **Beginner-Friendly**: Clear organization helps new developers
+1. **Efficiency**: Better resource management and faster startup.
+2. **Clarity**: Easy to understand what each file does.
+3. **Maintainability**: Changes are isolated to specific modules.
+4. **Testability**: Each component can be tested independently.
+5. **Scalability**: Easy to add new features.
+6. **Professional**: Follows modern Python best practices.
+7. **Beginner-Friendly**: Clear organization helps new developers.
 
 ## 📝 Next Steps
 
-1. Test the new structure: `python src/app/main.py`
+1. Test the new structure: `python insightron/app/main.py`
 2. Review documentation: `docs/STRUCTURE.md`
-3. Explore components: `src/ui/components/`
-4. Customize themes: `src/ui/themes/theme_manager.py`
+3. Explore components: `insightron/ui/components/`
+4. Customize themes: `insightron/ui/themes/theme_manager.py`
 
 ## 🎉 Result
 
