@@ -1,4 +1,4 @@
-# Insightron v2.2.0 - Enhanced Whisper AI Transcription Project Requirements
+# Insightron v3.1.0 - Enhanced Whisper AI Transcription Project Requirements
 # Optimized for performance, reliability, and cross-platform compatibility
 
 # Core Whisper AI (faster-whisper with CTranslate2)
@@ -51,3 +51,11 @@ psutil>=5.9.0
 
 # Configuration file parsing
 PyYAML>=6.0,<7.0
+
+# LLM & Multi-Pass Dependencies
+# Required for contextual restoration pass
+transformers>=4.40.0
+torch>=2.0.0
+accelerate>=0.28.0
+bitsandbytes>=0.43.0
+openai>=1.0.0

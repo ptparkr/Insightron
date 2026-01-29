@@ -1,4 +1,4 @@
-# Insightron v2.2.0 - Minimal Requirements
+# Insightron v3.1.0 - Minimal Requirements
 # Use this if the main requirements.txt fails
 # Optimized for compatibility and faster installation
 
@@ -22,3 +22,8 @@ scipy>=1.7.0
 
 # Enhanced error handling
 colorama>=0.4.6
+
+# Basic LLM support
+transformers>=4.40.0
+torch>=2.0.0
+openai>=1.0.0

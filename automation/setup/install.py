@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Insightron v2.2.0 - Universal Cross-Platform Installer
+Insightron v3.1.0 - Universal Cross-Platform Installer
 Enhanced dependency installer that works on Windows, macOS, and Linux
 with intelligent error handling and compatibility checks.
 """
@@ -148,7 +148,7 @@ def install_dependencies():
         print(f"⚠️  Could not change to script directory: {e}")
         print("   Continuing with current directory...")
     
-    print("\n🎤 Insightron v2.2.0 - Universal Cross-Platform Installer")
+    print("\n🎤 Insightron v3.1.0 - Universal Cross-Platform Installer")
     print("=" * 60)
     print(f"Platform: {platform.system()} {platform.release()}")
     print(f"Architecture: {platform.machine()}")
@@ -269,14 +269,18 @@ def install_dependencies():
     # Verify installation
     print("\n🔍 Step 4/4: Verifying installation...")
     try:
-        import numpy
-        import faster_whisper
-        import librosa
-        import soundfile
-        import pydub
-        import customtkinter
         import sounddevice
+        import transformers
+        import torch
         print("✅ All core dependencies are working!")
+        
+        # Verify optional LLM libraries
+        try:
+            import openai
+            import accelerate
+            print("✅ LLM-specific libraries (openai, accelerate) are working!")
+        except ImportError:
+            print("⚠️  Optional LLM libraries (openai, accelerate) not found.")
         
         # Test basic functionality
         print("\n🧪 Testing basic functionality...")

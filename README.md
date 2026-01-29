@@ -29,6 +29,7 @@ automation/setup/install_windows.bat    # Windows
 All documentation is in the `docs/` folder:
 
 - **[README.md](docs/README.md)** - Full documentation and features
+- **[LLM_USAGE.md](docs/LLM_USAGE.md)** - Guide for LLM integration & setup
 - **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history (see v3.1.0!)
 - **[QUICK_START.md](docs/QUICK_START.md)** - Quick start for developers
 - **[STRUCTURE.md](docs/STRUCTURE.md)** - Codebase structure guide

@@ -11,7 +11,7 @@ model:
   # Smaller models are faster but less accurate. Larger models are slower but more accurate.
   # distil-* models are optimized for speed with minimal accuracy loss.
   # Default: small (faster for slower machines, still multilingual)
-  name: "small"
+  name: "medium"
   
   # Compute type: Precision/quantization for model inference
   # Options: float16, int8_float16, int8, float32
@@ -88,18 +88,18 @@ model:
 runtime:
   # Transcription folder: Where transcription text files (.md) are saved
   # Use absolute path. Backslashes must be doubled (\\) or use forward slashes (/)
-  # Default: D:\2. Areas\IdeaVerse\Areas\Inner Library\Notes
-  transcription_folder: "D:\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Notes"
+  # Default: C:\\Users\\mshan\\Downloads\\Librarian Mode\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Notes
+  transcription_folder: "C:\\Users\\mshan\\Downloads\\Librarian Mode\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Notes"
   
   # Recordings folder: Where audio recordings are saved
   # Use absolute path. Backslashes must be doubled (\\) or use forward slashes (/)
-  # Default: D:\2. Areas\IdeaVerse\Areas\Inner Library\Recordings
-  recordings_folder: "D:\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Recordings"
+  # Default: C:\\Users\\mshan\\Downloads\\Librarian Mode\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Recordings
+  recordings_folder: "C:\\Users\\mshan\\Downloads\\Librarian Mode\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Recordings"
   
   # Processed audio folder: Where processed audio files are saved after transcription
   # Use absolute path. Backslashes must be doubled (\\) or use forward slashes (/)
-  # Default: D:\2. Areas\IdeaVerse\Areas\Inner Library\Processed
-  processed_audio_folder: "D:\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Processed"
+  # Default: C:\\Users\\mshan\\Downloads\\Librarian Mode\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Processed
+  processed_audio_folder: "C:\\Users\\mshan\\Downloads\\Librarian Mode\\2. Areas\\IdeaVerse\\Areas\\Inner Library\\Processed"
   
   # Maximum file size: Maximum audio file size to process (in megabytes)
   # Files larger than this will be rejected with an error

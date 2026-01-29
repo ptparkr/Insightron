@@ -16,8 +16,9 @@ Insightron is a next-generation transcription application powered by **faster-wh
   - **Local**: Qwen2.5-3B-Instruct (recommended), Phi-3-mini, Gemma-2B with 4-bit quantization
   - **Cloud**: OpenAI GPT-3.5/4, with support for Anthropic Claude and Google Gemini coming soon
 - **Emotion Markers**: Automatic detection of [Cheerful], [Urgent], [Calm], [Excited], [Serious] tones
-- **Configurable**: Granular control over each pass, LLM selection, and emotion thresholds
+- **Granular Control**: 131 lines of config options for complete customization
 - **Opt-In Design**: Multi-pass is disabled by default for complete backward compatibility
+- **Detailed Guide**: See **[LLM_USAGE.md](LLM_USAGE.md)** for setup and configuration details
 
 ### 🚀 **Performance & Reliability**
 - **⚡ faster-whisper Engine**: Up to **4x faster** transcription using CTranslate2 optimization

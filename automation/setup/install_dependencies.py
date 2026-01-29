@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Insightron v2.2.0 - Enhanced Dependency Installer
+Insightron v3.1.0 - Enhanced Dependency Installer
 Cross-platform installer with Windows optimization, better error handling,
 and comprehensive dependency management for the Whisper AI transcription tool.
 """
@@ -54,7 +54,7 @@ def run_command(command, description, exit_on_fail=False):
 
 def main():
     """Main installation process"""
-    print("🎤 Insightron v2.2.0 - Enhanced Dependency Installer")
+    print("🎤 Insightron v3.1.0 - Enhanced Dependency Installer")
     print("=" * 60)
     
     # Display platform information
@@ -149,13 +149,18 @@ def main():
     print("\n🔍 Verifying installation...")
     try:
         import numpy
-        import faster_whisper
-        import librosa
-        import soundfile
-        import pydub
-        import customtkinter
         import sounddevice
+        import transformers
+        import torch
         print("✅ All core dependencies are working!")
+        
+        # Optional LLM-specific dependencies
+        try:
+            import accelerate
+            import bitsandbytes
+            print("✅ LLM-specific optimizations (accelerate, bitsandbytes) are working!")
+        except ImportError:
+            print("⚠️  LLM optimizations (accelerate/bitsandbytes) not found. Local LLMs may be slower.")
         
         # Test basic functionality
         print("\n🧪 Testing basic functionality...")
