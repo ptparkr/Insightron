@@ -276,10 +276,10 @@ multi_pass:
     # Local model settings (used when provider: local)
     local_model:
       # Model name from HuggingFace
-      # Recommended: microsoft/phi-3-mini-4k-instruct (lightweight, high quality)
-      # Alternative: google/gemma-2-2b-it
-      # Default: microsoft/phi-3-mini-4k-instruct
-      model_name: "microsoft/phi-3-mini-4k-instruct"
+      # Recommended: Qwen/Qwen2.5-3B-Instruct (optimized for instructions, high quality)
+      # Alternative: microsoft/phi-3-mini-4k-instruct, google/gemma-2-2b-it
+      # Default: Qwen/Qwen2.5-3B-Instruct
+      model_name: "Qwen/Qwen2.5-3B-Instruct"
       
       # Device: auto, cpu, cuda
       # auto = automatically use GPU if available

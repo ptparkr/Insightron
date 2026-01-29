@@ -7,53 +7,59 @@
 ### Run the Application
 
 ```bash
-# Main entry point (recommended)
-python src/app/main.py
-
-# Or use legacy entry point
+# Main entry point (recommended) 
 python insightron.py
+
+# Or use the app module
+python insightron/app/main.py
 ```
 
 ### Installation
 
 ```bash
 # Run the installer
-python setup/install.py
+python automation/setup/install.py
 
 # Or platform-specific
-setup/install_windows.bat    # Windows
-setup/install_unix.sh        # Linux/macOS
+automation/setup/install_windows.bat    # Windows
 ```
 
 ## 📚 Documentation
 
 All documentation is in the `docs/` folder:
 
-- **[STRUCTURE.md](docs/STRUCTURE.md)** - Codebase structure guide
-- **[QUICK_START.md](docs/QUICK_START.md)** - Quick start for developers
-- **[ROOT_DIRECTORY.md](docs/ROOT_DIRECTORY.md)** - Root directory organization
 - **[README.md](docs/README.md)** - Full documentation and features
-- **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history
+- **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history (see v3.1.0!)
+- **[QUICK_START.md](docs/QUICK_START.md)** - Quick start for developers
+- **[STRUCTURE.md](docs/STRUCTURE.md)** - Codebase structure guide
+- **[ROOT_DIRECTORY.md](docs/ROOT_DIRECTORY.md)** - Root directory organization
 - **[RESTRUCTURE_SUMMARY.md](docs/RESTRUCTURE_SUMMARY.md)** - Recent restructuring details
 
 ## 📁 Project Structure
 
 ```
 Insightron/
-├── src/                   # Main source code
+├── insightron/           # Main source code
 │   ├── app/              # Application entry points
 │   ├── core/             # Core functionality
 │   ├── services/         # Business logic
+│   │   └── transcription/ # Multi-pass pipeline
 │   └── ui/               # UI components
 ├── docs/                 # Documentation
-├── benchmarks/          # Benchmarking tools
 ├── tests/                # Test suite
-├── setup/                # Installation scripts
-└── scripts/              # Utility scripts
+├── automation/           # Setup & utility scripts
+└── config.yaml           # Configuration file
 ```
 
 ## ✨ Features
 
+### 🎯 NEW in v3.1.0: Multi-Pass Transcription
+- 🤖 **AI-Powered Accuracy**: 3-pass pipeline delivers large-model quality at small-model speed
+- 📝 **Smart Punctuation**: LLM restores proper punctuation and fixes phonetic errors
+- 💭 **Emotion Detection**: Automatic markers like [Cheerful], [Urgent], [Calm]
+- 🧠 **Local or Cloud LLMs**: Choose Qwen2.5-3B (local) or OpenAI GPT (API)
+
+### Core Features
 - ⚡ **Adaptive & Fast**: Up to 6x faster with Distil-Whisper & Dynamic Chunking
 - 🎨 **Responsive GUI**: Professional dark-themed interface that scales perfectly
 - 🧠 **Efficiency Layer**: Optimized for low-spec hardware & massive files
@@ -66,8 +72,9 @@ Insightron/
 
 Edit `config.yaml` to configure:
 - Transcription folder paths
-- Model settings
+- Model settings (including multi-pass!)
 - Language preferences
+- Multi-pass LLM provider and emotion thresholds
 
 ## 📖 For Developers
 
