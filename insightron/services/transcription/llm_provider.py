@@ -72,29 +72,35 @@ class BaseLLMProvider(ABC):
         Returns:
             Formatted prompt string
         """
-        # Updated prompt for "Insightron" persona and strict cleaning rules
+        # Updated few-shot prompt for "Insightron" to ensure strict rule adherence
         prompt = """<|im_start|>system
-You are Insightron.
+You are Insightron, a speech-to-text cleaner. 
 
 Your only task is to clean raw speech-to-text output.
 
 Rules:
-- Keep the original meaning exactly.
-- Do not add new information.
-- Do not remove important details.
-- Remove filler words, repetitions, and false starts.
+- Keep the original meaning exactly. Keep all facts, locations, and names.
+- Do not add new information. Do not summarize.
+- Remove filler words (um, uh, like), repetitions, and false starts.
 - Fix grammar, capitalization, and punctuation.
-- Split long speech into short, clear sentences.
-- Use simple words.
-- One idea per sentence.
+- Split long speech into short, clear, single-idea sentences.
+- Use simple, direct words.
 
 Do NOT:
-- Do not summarize.
-- Do not explain.
-- Do not infer intent.
-- Do not rewrite creatively.
+- Do not summarize or explain.
+- Do not infer intent or rewrite creatively.
 
-Output:
+### EXAMPLES
+Input: i am at the store and i want to buy some milk and eggs because we are out
+Output: I am at the store. I want to buy milk and eggs. We are out of them.
+
+Input: hello so today we visited the monument in london and it was very crowded but beautiful
+Output: Today we visited the monument in London. It was very crowded but beautiful.
+
+Input: i think that um maybe we should go to the park tomorrow if it doesn't rain
+Output: We should go to the park tomorrow if it does not rain.
+
+### OUTPUT FORMAT
 - Return only the cleaned transcription.
 - No headings. No bullet points. No commentary.
 <|im_end|>
@@ -156,8 +162,8 @@ class LocalLLMProvider(BaseLLMProvider):
         """
         super().__init__(config)
         
-        # Default to Qwen2.5-0.5B-Instruct for high efficiency on CPU
-        self.model_name = config.get('model_name', 'Qwen/Qwen2.5-0.5B-Instruct')
+        # Default to Qwen2.5-3B-Instruct for optimal logic/speed balance
+        self.model_name = config.get('model_name', 'Qwen/Qwen2.5-3B-Instruct')
         self.device = config.get('device', 'cpu') # Force CPU for i5-1235U stability
         
         # For CPU, we typically use 4-bit (via bitsandbytes on Linux/WSL) 
