@@ -294,9 +294,9 @@ multi_pass:
       quantization: "none"
       
       # Maximum new tokens to generate
-      # Recommended for 0.5B models: 512-1024 to prevent cut-offs
-      # Default: 1024
-      max_tokens: 1024
+      # Recommended: 512-4096 for long-form contextual restoration
+      # Default: 4096
+      max_tokens: 4096
       
       # Temperature (0.0 - 1.0)
       # Lower = more deterministic, higher = more creative

@@ -72,14 +72,31 @@ class BaseLLMProvider(ABC):
         Returns:
             Formatted prompt string
         """
-        # Qwen2.5 models respond well to clear, formatted instructions
+        # Updated prompt for "Insightron" persona and strict cleaning rules
         prompt = """<|im_start|>system
-You are a text restoration assistant. Your task is to polish raw transcribed audio text by:
-1. Adding proper punctuation (periods, commas, question marks, exclamation points).
-2. Fixing phonetic errors (homophones, mishearings).
-3. Injecting emotional markers (e.g., [happy], [serious], [laughing]) if clearly implied by the tone or context.
-4. Preserving the original meaning and word order.
-Do NOT add, remove, or rearrange words unless fixing clear errors.
+You are Insightron.
+
+Your only task is to clean raw speech-to-text output.
+
+Rules:
+- Keep the original meaning exactly.
+- Do not add new information.
+- Do not remove important details.
+- Remove filler words, repetitions, and false starts.
+- Fix grammar, capitalization, and punctuation.
+- Split long speech into short, clear sentences.
+- Use simple words.
+- One idea per sentence.
+
+Do NOT:
+- Do not summarize.
+- Do not explain.
+- Do not infer intent.
+- Do not rewrite creatively.
+
+Output:
+- Return only the cleaned transcription.
+- No headings. No bullet points. No commentary.
 <|im_end|>
 """
         
@@ -151,8 +168,8 @@ class LocalLLMProvider(BaseLLMProvider):
         # Token Management Question: How does max_new_tokens affect transcript quality?
         # Answer: If set too low (e.g. < 256), the model may cut off mid-sentence, 
         # making the transcript look broken. For 0.5B models on i5, 
-        # a window of 512-1024 is recommended to capture full paragraphs.
-        self.max_tokens = config.get('max_tokens', 1024) 
+        # a window of 512-4096 is recommended for long-form contextual restoration.
+        self.max_tokens = config.get('max_tokens', 4096) 
         self.temperature = config.get('temperature', 0.2)
         
         self.model = None
@@ -335,7 +352,7 @@ class OpenAIProvider(BaseLLMProvider):
         
         self.api_key = config.get('api_key') or os.environ.get('OPENAI_API_KEY')
         self.model = config.get('model', 'gpt-3.5-turbo')
-        self.max_tokens = config.get('max_tokens', 1024)
+        self.max_tokens = config.get('max_tokens', 2000)
         self.temperature = config.get('temperature', 0.3)
         
         self.client = None
