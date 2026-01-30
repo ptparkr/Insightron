@@ -276,10 +276,10 @@ multi_pass:
     # Local model settings (used when provider: local)
     local_model:
       # Model name from HuggingFace
-      # Recommended: Qwen/Qwen2.5-3B-Instruct (Best logic/speed balance)
-      # Alternative: Qwen/Qwen2.5-0.5B-Instruct, google/gemma-2-2b-it
-      # Default: Qwen/Qwen2.5-3B-Instruct
-      model_name: "Qwen/Qwen2.5-3B-Instruct"
+      # Recommended: Qwen/Qwen2.5-7B-Instruct (High logic capabilities)
+      # Alternative: Qwen/Qwen2.5-1.5B-Instruct, google/gemma-2-2b-it
+      # Default: Qwen/Qwen2.5-7B-Instruct
+      model_name: "Qwen/Qwen2.5-7B-Instruct"
       
       # Device: auto, cpu, cuda
       # auto = automatically use GPU if available
@@ -291,7 +291,7 @@ multi_pass:
       # 8bit = balanced memory and quality
       # none = full precision, highest memory usage
       # 4bit and 8bit require bitsandbytes and a CUDA GPU
-      quantization: "none"
+      quantization: "4bit"
       
       # Maximum new tokens to generate
       # Recommended: 512-4096 for long-form contextual restoration

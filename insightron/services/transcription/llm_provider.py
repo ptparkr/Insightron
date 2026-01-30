@@ -72,50 +72,66 @@ class BaseLLMProvider(ABC):
         Returns:
             Formatted prompt string
         """
-        # Updated few-shot prompt for "Insightron" to ensure strict rule adherence
-        prompt = """<|im_start|>system
-You are Insightron, a speech-to-text cleaner. 
+        # Strict rules for "Insightron" cleaning pass
+        system_content = """You are a professional transcription editor. Your job is to clean messy speech-to-text output into polished, readable text.
 
-Your only task is to clean raw speech-to-text output.
+CORE TASK:
+Take raw voice transcription and output clean, grammatically correct text while keeping every detail exactly as spoken.
 
-Rules:
-- Keep the original meaning exactly. Keep all facts, locations, and names.
-- Do not add new information. Do not summarize.
-- Remove filler words (um, uh, like), repetitions, and false starts.
-- Fix grammar, capitalization, and punctuation.
-- Split long speech into short, clear, single-idea sentences.
-- Use simple, direct words.
+CLEANING RULES:
+- Remove filler words: um, uh, like, you know, I mean, sort of, kind of, actually, basically, literally
+- Remove stutters and false starts: "I I I think" → "I think"
+- Remove repetitions: "and and and" → "and"
+- Fix capitalization and punctuation
+- Break long run-on sentences into clear, focused sentences
+- Use natural contractions: do not → don't, it is → it's
 
-Do NOT:
-- Do not summarize or explain.
-- Do not infer intent or rewrite creatively.
+PRESERVATION RULES (CRITICAL):
+- Keep ALL facts, numbers, dates, times, and amounts exactly as stated
+- Keep ALL names, places, and proper nouns exactly as stated
+- Keep the original meaning 100% - never summarize or paraphrase
+- If the speaker corrects themselves, use only the correction
+- Never add information that wasn't spoken
 
-### EXAMPLES
-Input: i am at the store and i want to buy some milk and eggs because we are out
-Output: I am at the store. I want to buy milk and eggs. We are out of them.
+EXAMPLES:
 
-Input: hello so today we visited the monument in london and it was very crowded but beautiful
-Output: Today we visited the monument in London. It was very crowded but beautiful.
+Input: "hello i am here at the office today and i want to see if this thing is working or not because it is very important for the meeting tomorrow we need to discuss the budget"
+Output: "Hello, I am here at the office today. I want to see if this thing is working or not. It's very important for the meeting tomorrow. We need to discuss the budget."
 
-Input: i think that um maybe we should go to the park tomorrow if it doesn't rain
-Output: We should go to the park tomorrow if it does not rain.
+Input: "um so i think maybe we should like go to the uh the new restaurant on fifth street you know the one that opened last week"
+Output: "I think we should go to the new restaurant on Fifth Street, the one that opened last week."
 
-### OUTPUT FORMAT
-- Return only the cleaned transcription.
-- No headings. No bullet points. No commentary.
-<|im_end|>
-"""
+Input: "the meeting is at 3 pm 3 pm tomorrow no wait actually it's at 2:30 pm sorry"
+Output: "The meeting is at 2:30 PM tomorrow."
+
+Input: "i need to buy um milk and and eggs and also bread from the store because we're we're out of everything"
+Output: "I need to buy milk, eggs, and bread from the store because we're out of everything."
+
+Input: "she said the project deadline is is december 15th and we need like at least 5 people working on it"
+Output: "She said the project deadline is December 15th and we need at least 5 people working on it."
+
+OUTPUT FORMAT:
+Return ONLY the cleaned text. No labels like "Output:" or "Cleaned:". No explanations. No commentary. Just the cleaned transcription."""
         
-        if context:
-            prompt += f"<|im_start|>user\nContext from previous text:\n{context}\n\n"
+        # Detect model type for template selection
+        is_llama = "llama" in self.config.get('model_name', '').lower() if hasattr(self, 'config') else False
+        
+        if is_llama:
+            # Llama 3.2 template
+            prompt = f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_content}<|eot_id|>"
+            if context:
+                prompt += f"<|start_header_id|>user<|end_header_id|>\n\nContext from previous text:\n{context}\n\nRaw transcribed text to restore:\n{text}<|eot_id|>"
+            else:
+                prompt += f"<|start_header_id|>user<|end_header_id|>\n\nRaw transcribed text to restore:\n{text}<|eot_id|>"
+            prompt += "<|start_header_id|>assistant<|end_header_id|>\n\n"
         else:
-            prompt += "<|im_start|>user\n"
-            
-        prompt += f"""Raw transcribed text to restore:
-{text}
-<|im_end|>
-<|im_start|>assistant
-"""
+            # Default Qwen/ChatML template
+            prompt = f"<|im_start|>system\n{system_content}\n<|im_end|>\n"
+            if context:
+                prompt += f"<|im_start|>user\nContext from previous text:\n{context}\n\nRaw transcribed text to restore:\n{text}\n<|im_end|>\n"
+            else:
+                prompt += f"<|im_start|>user\nRaw transcribed text to restore:\n{text}\n<|im_end|>\n"
+            prompt += "<|im_start|>assistant\n"
         
         return prompt
     
@@ -162,8 +178,8 @@ class LocalLLMProvider(BaseLLMProvider):
         """
         super().__init__(config)
         
-        # Default to Qwen2.5-3B-Instruct for optimal logic/speed balance
-        self.model_name = config.get('model_name', 'Qwen/Qwen2.5-3B-Instruct')
+        # Default to Qwen2.5-7B-Instruct for high-quality logic
+        self.model_name = config.get('model_name', 'Qwen/Qwen2.5-7B-Instruct')
         self.device = config.get('device', 'cpu') # Force CPU for i5-1235U stability
         
         # For CPU, we typically use 4-bit (via bitsandbytes on Linux/WSL) 
@@ -235,9 +251,31 @@ class LocalLLMProvider(BaseLLMProvider):
                  model_kwargs['torch_dtype'] = torch.float16
                  model_kwargs['device_map'] = 'auto'
             else:
-                 # CPU optimization: bfloat16 is often faster on modern Intel CPUs (AVX-512/AMX)
-                 # but i5-1235U is mobile, so we'll check availability or stick to float32
+                 # CPU optimization: float32 for maximum stability on Windows
                  model_kwargs['torch_dtype'] = torch.float32 
+            
+            # Configuration for quantization if requested
+            if self.quantization == '4bit':
+                logger.info("Enabling 4-bit quantization...")
+                bnb_config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_use_double_quant=True,
+                    llm_int8_enable_fp32_cpu_offload=not torch.cuda.is_available()
+                )
+                model_kwargs['quantization_config'] = bnb_config
+            elif self.quantization == '8bit':
+                logger.info("Enabling 8-bit quantization...")
+                bnb_config = BitsAndBytesConfig(
+                    load_in_8bit=True,
+                    llm_int8_enable_fp32_cpu_offload=not torch.cuda.is_available()
+                )
+                model_kwargs['quantization_config'] = bnb_config
+            
+            # Note for i5-1235U: bitsandbytes often requires a CUDA GPU or WSL.
+            # On native Windows CPU, we primarily rely on standard torch loading
+            # unless using a quantized model format like GGUF/ONNX.
             
             self.model = AutoModelForCausalLM.from_pretrained(**model_kwargs)
             
