@@ -77,13 +77,57 @@ class InsightronGUI:
         self.is_recording = False
         self.realtime_transcriber: Optional[RealtimeTranscriber] = None
         
+        # Initialize Status Bar early so it's available for _setup_ui
+        self.status_bar = ctk.CTkLabel(
+            self.root,
+            text="Initializing GUI...",
+            fg_color=self.theme.background,
+            text_color=self.theme.text_secondary,
+            height=25,
+            font=('Segoe UI', 10)
+        )
+        self.status_bar.grid(row=1, column=0, sticky="ew")
+        self.root.grid_rowconfigure(1, weight=0)
+        
         # Setup UI
         self._setup_responsive()
         self._setup_ui()
         self._center_window()
         self._load_settings()
         
+        # Start asynchronous service initialization
+        self.root.after(100, self._init_services_async)
+        
         logger.info("Insightron GUI initialized")
+    
+    def _init_services_async(self):
+        """Initialize heavy services in a background thread."""
+        def run_init():
+            try:
+                # Thread-safe UI updates using root.after
+                self.root.after(0, lambda: self.results_panel.append("🚀 Initializing AI engines..."))
+                self.root.after(0, lambda: self.progress_panel.update_status("🔄 Loading Model Manager..."))
+                
+                # Pre-load ModelManager (this can be slow)
+                from insightron.core.model_manager import ModelManager
+                model_manager = ModelManager()
+                
+                self.root.after(0, lambda: self.progress_panel.update_status("🔄 Initializing Realtime Engine..."))
+                # Re-run refresh mics and init internal state
+                self.root.after(0, self._init_realtime)
+                
+                self.root.after(0, lambda: self.progress_panel.update_status("✅ Systems Ready"))
+                self.root.after(0, lambda: self.results_panel.append("✅ All AI systems loaded and ready."))
+                self.root.after(0, lambda: self.status_bar.configure(text="Systems Ready"))
+                logger.info("Async service initialization complete")
+            except Exception as e:
+                logger.error(f"Async init failed: {e}")
+                self.root.after(0, lambda: self.results_panel.append(f"❌ Failed to initialize some services: {e}"))
+                self.root.after(0, lambda: self.progress_panel.update_status("⚠️ System Warning"))
+
+        thread = threading.Thread(target=run_init, daemon=True)
+        thread.start()
+        logger.info("Async init thread started")
     
     def _setup_responsive(self):
         """Initialize responsive layout management."""
@@ -95,30 +139,39 @@ class InsightronGUI:
         self.root.bind("<Configure>", self._on_window_resize)
     
     def _on_window_resize(self, event=None):
-        """Handle window resize events to dynamically update grid padding."""
-        # Only process root window resize events (if event provided)
+        """Handle window resize events to dynamically update grid padding and max-width centering."""
+        # Only process root window resize events
         if event and event.widget != self.root:
             return
         
-        # Update grid padding dynamically when height changes
         if hasattr(self, 'content'):
-            pad_md = self.responsive.get_spacing('md')
-            pad_sm = self.responsive.get_spacing('sm')
-            
-            # Update grid padding for content container
-            self.content.grid_configure(padx=pad_md, pady=pad_md)
-            
-            # Update padding for all grid children
-            if hasattr(self, 'header_component'):
-                self.header_component.get_widget().grid_configure(
-                    pady=(0, pad_md)
-                )
-            if hasattr(self, 'tab_view'):
-                self.tab_view.grid_configure(pady=(0, pad_md))
-            if hasattr(self, 'config_container'):
-                self.config_container.grid_configure(pady=(0, pad_md))
-            if hasattr(self, 'output_container'):
-                self.output_container.grid_configure(pady=(0, pad_sm))
+            try:
+                pad_md = self.responsive.get_spacing('md')
+                pad_sm = self.responsive.get_spacing('sm')
+                max_content_width = 1200
+                
+                current_width = self.root.winfo_width()
+                
+                # Apply max-width centering
+                if current_width > max_content_width + (pad_md * 2):
+                    side_pad = (current_width - max_content_width) // 2
+                    self.content.grid_configure(padx=side_pad, pady=pad_md)
+                    self.content.configure(width=max_content_width)
+                else:
+                    self.content.grid_configure(padx=pad_md, pady=pad_md)
+                    self.content.configure(width=0)
+                
+                # Update padding for all grid children
+                if hasattr(self, 'header_component'):
+                    self.header_component.get_widget().grid_configure(pady=(0, pad_md))
+                if hasattr(self, 'tab_view'):
+                    self.tab_view.grid_configure(pady=(0, pad_md))
+                if hasattr(self, 'config_container'):
+                    self.config_container.grid_configure(pady=(0, pad_md))
+                if hasattr(self, 'output_container'):
+                    self.output_container.grid_configure(pady=(0, pad_sm))
+            except Exception as e:
+                logger.debug(f"Resize handler error (safe during init): {e}")
     
     def _on_layout_change(self, mode: LayoutMode):
         """Handle layout mode changes from ResponsiveManager."""
@@ -128,7 +181,7 @@ class InsightronGUI:
         self._current_layout_mode = mode
         ThemeManager.set_layout_mode(mode)
         
-        # Trigger resize handler to update spacing (no event needed)
+        # Trigger resize handler to update spacing and max-width
         self._on_window_resize()
         logger.debug(f"Layout mode changed to: {mode.name}")
     
@@ -149,168 +202,120 @@ class InsightronGUI:
         )
         # CRITICAL: Configure scrollable container to expand fully
         self.scrollable_container.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
-        self.scrollable_container.grid_columnconfigure(0, weight=1)  # Single column expands
-        self.scrollable_container.grid_rowconfigure(0, weight=1)
+        self.scrollable_container.grid_columnconfigure(0, weight=1)
+        # For a scrollable frame, we don't usually want to weight the inner row
+        # unless we want the content to be forced to fill the canvas.
+        # We'll leave it at weight 0 to allow natural height expansion.
         
-        # Inner content container - seamless, no borders
-        # This is the actual content that will be centered with max-width constraint
-        self.content = ctk.CTkFrame(
+        # INNER CONTENT WRAPPER: Centers content with max-width constraint
+        self.content_wrapper = ctk.CTkFrame(
             self.scrollable_container,
             fg_color=self.theme.background,
-            border_width=0,  # Seamless look - no border gaps
+            border_width=0,
         )
-        # CRITICAL: Use sticky="ew" to force horizontal expansion
-        self.content.grid(row=0, column=0, sticky="ew", padx=pad_md, pady=pad_md)
-        
-        # CRITICAL: Apply max-width constraint to prevent over-stretching on wide screens
-        # This keeps content centered and prevents it from looking stretched on 4K monitors
-        max_content_width = 1200  # Maximum width for content
-        def enforce_max_width(event=None):
-            if hasattr(self, 'content'):
-                try:
-                    current_width = self.root.winfo_width()
-                    if current_width > max_content_width + (pad_md * 2):
-                        self.content.configure(width=max_content_width)
-                    else:
-                        self.content.configure(width=0)  # 0 = use natural size, expand to fill
-                except:
-                    pass  # Window might not be fully initialized
-        
-        self.root.bind("<Configure>", enforce_max_width)
-        self.root.after(100, enforce_max_width)  # Initial check
+        self.content_wrapper.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
+        self.content_wrapper.grid_columnconfigure(0, weight=1)
+        logger.info("Content wrapper initialized")
+
+        # Content container
+        self.content = ctk.CTkFrame(
+            self.content_wrapper,
+            fg_color=self.theme.background,
+            border_width=0,
+        )
+        # CRITICAL: Use nsew to allow content to fill wrapper correctly
+        self.content.grid(row=0, column=0, sticky="nsew", padx=pad_md, pady=pad_md)
         
         # Configure CSS-grid-like macro layout within content container:
-        # Row 0: Header (auto, weight=0)
-        # Row 1: Tabs / Upload + Controls (auto, weight=0)
-        # Row 2: Configuration Panel (auto, weight=0)
-        # Row 3: Output Log Panel (expands, weight=1)
-        self.content.grid_columnconfigure(0, weight=1)  # CRITICAL: Allow column to expand
-        self.content.grid_rowconfigure(0, weight=0)  # Header: auto
-        self.content.grid_rowconfigure(1, weight=0)  # Tabs: auto
-        self.content.grid_rowconfigure(2, weight=0)  # Configuration: auto
-        self.content.grid_rowconfigure(3, weight=1, minsize=200)  # Output Log: expands
+        self.content.grid_columnconfigure(0, weight=1)
+        self.content.grid_rowconfigure(0, weight=0)
+        self.content.grid_rowconfigure(1, weight=0)
+        self.content.grid_rowconfigure(2, weight=0)
+        self.content.grid_rowconfigure(3, weight=1, minsize=400) 
         
-        # CRITICAL: Apply max-width constraint to content wrapper
-        # This prevents over-stretching on very wide screens while keeping it centered
-        def enforce_max_width(event=None):
-            if hasattr(self, 'content_wrapper'):
-                current_width = self.root.winfo_width()
-                if current_width > max_content_width + (pad_md * 2):
-                    self.content_wrapper.configure(width=max_content_width)
-                else:
-                    self.content_wrapper.configure(width=0)  # 0 = use natural size
+        # 1. Output Log Panel Container (Initialize early for error logging)
+        self.output_container = ctk.CTkFrame(
+            self.content, 
+            fg_color=self.theme.surface,
+            corner_radius=ThemeManager.get_radius('lg')
+        )
+        self.output_container.grid(
+            row=3, column=0, sticky="nsew", 
+            pady=(0, 0), padx=pad_lg
+        )
+        self.output_container.grid_columnconfigure(0, weight=1)
+        self.output_container.grid_rowconfigure(0, weight=1)
         
-        self.root.bind("<Configure>", enforce_max_width)
-        self.root.after(100, enforce_max_width)  # Initial check
+        self.results_panel = ResultsPanel(
+            self.output_container,
+            responsive_manager=self.responsive
+        )
+        self.results_panel.get_widget().grid(row=0, column=0, sticky="nsew", padx=pad_md, pady=pad_md)
         
-        # Header - CRITICAL: Use sticky="ew" to force horizontal expansion
+        self.progress_panel = ProgressPanel(
+            self.results_panel.progress_container,
+            responsive_manager=self.responsive
+        )
+        self.progress_panel.get_widget().grid(row=0, column=0, sticky="ew", padx=0, pady=0)
+        logger.info("Output and Progress panels initialized")
+        
+        # 2. Header
         self.header_component = Header(self.content, responsive_manager=self.responsive)
         self.header_component.get_widget().grid(
-            row=0,
-            column=0,
-            sticky="ew",  # Force horizontal expansion
-            pady=(0, pad_md),
-            padx=0
+            row=0, column=0, sticky="ew", pady=(0, pad_md)
         )
+        logger.info("Header gridded")
         
-        # Tab view - CRITICAL: Use sticky="ew" to force horizontal expansion
+        # 3. Tab View (Row 1)
         self.tab_view = ctk.CTkTabview(
             self.content,
             corner_radius=ThemeManager.get_radius('lg'),
-            fg_color=self.theme.background,  # Match background for seamless look
+            fg_color=self.theme.background,
             segmented_button_fg_color=self.theme.surface_light,
             segmented_button_selected_color=self.theme.primary,
             segmented_button_selected_hover_color=self.theme.primary_hover,
             text_color=self.theme.text_secondary,
             segmented_button_unselected_hover_color=self.theme.border,
-            border_width=0,  # Seamless - no border
+            border_width=0,
         )
         self.tab_view.grid(row=1, column=0, sticky="ew", pady=(0, pad_md), padx=0)
         
-        # Create tabs
-        self.tab_single = self.tab_view.add("Single File")
-        self.tab_batch = self.tab_view.add("Batch Mode")
-        self.tab_realtime = self.tab_view.add("Realtime")
-        
-        # Configure tab colors and ensure tabs expand horizontally
+        try:
+            self.tab_single = self.tab_view.add("Single File")
+            self.tab_batch = self.tab_view.add("Batch Mode")
+            self.tab_realtime = self.tab_view.add("Realtime")
+            
+            self._setup_single_file_tab()
+            self._setup_batch_tab()
+            self._setup_realtime_tab()
+            logger.info("Tabs initialized")
+        except Exception as e:
+            logger.error(f"Tab init failed: {e}")
+            self.results_panel.append(f"❌ UI Error: {e}")
+
         for tab in [self.tab_single, self.tab_batch, self.tab_realtime]:
             tab.configure(fg_color=self.theme.background)
-            # CRITICAL: Configure tab grid to allow horizontal expansion
             tab.grid_columnconfigure(0, weight=1)
         
-        # Setup tabs
-        self._setup_single_file_tab()
-        self._setup_batch_tab()
-        self._setup_realtime_tab()
-        
-        # Configuration Panel - separate gray container with reduced width
+        # 4. Settings Panel (Row 2)
         self.config_container = ctk.CTkFrame(
             self.content,
             corner_radius=ThemeManager.get_radius('lg'),
-            border_width=0,  # Seamless - no border
-            fg_color=self.theme.surface,  # Gray color for visibility
+            fg_color=self.theme.surface,
+            border_width=0
         )
-        self.config_container.grid(
-            row=2,
-            column=0,
-            sticky="ew",  # Horizontal expansion only
-            pady=(0, pad_md),
-            padx=pad_lg  # Increased horizontal padding to reduce width
-        )
+        self.config_container.grid(row=2, column=0, sticky="ew", pady=(0, pad_md), padx=pad_lg)
         self.config_container.grid_columnconfigure(0, weight=1)
         
-        # Settings Panel - inside Configuration gray container
         self.settings_panel = SettingsPanel(
             self.config_container,
-            on_change=self._save_settings,
+            on_change=self._save_settings, # Fix: Save settings on change
             responsive_manager=self.responsive
         )
-        self.settings_panel.get_widget().grid(
-            row=0,
-            column=0,
-            sticky="ew",  # Force horizontal expansion
-            padx=pad_md,
-            pady=pad_md
-        )
+        self.settings_panel.get_widget().grid(row=0, column=0, sticky="ew", padx=pad_md, pady=pad_md)
         
-        # Output Log Panel - separate gray container below Configuration with reduced width
-        self.output_container = ctk.CTkFrame(
-            self.content,
-            corner_radius=ThemeManager.get_radius('lg'),
-            border_width=0,  # Seamless - no border
-            fg_color=self.theme.surface,  # Gray color for visibility
-        )
-        self.output_container.grid(
-            row=3,
-            column=0,
-            sticky="nsew",  # Full expansion (both horizontal and vertical)
-            pady=(0, pad_sm),
-            padx=pad_lg  # Increased horizontal padding to reduce width
-        )
-        self.output_container.grid_columnconfigure(0, weight=1)
-        self.output_container.grid_rowconfigure(0, weight=1)  # Results panel expands
-        
-        # Results Panel (Output Log) - inside Output Log gray container
-        self.results_panel = ResultsPanel(
-            self.output_container,
-            responsive_manager=self.responsive
-        )
-        self.results_panel.get_widget().grid(
-            row=0,
-            column=0,
-            sticky="nsew",  # Full expansion (both horizontal and vertical)
-            padx=pad_md,
-            pady=pad_md
-        )
-        
-        # Progress Panel - inside Output Log (ResultsPanel)
-        # Add progress panel to the progress_container inside ResultsPanel
-        self.progress_panel = ProgressPanel(
-            self.results_panel.progress_container,
-            responsive_manager=self.responsive
-        )
-        # Progress panel widget should expand horizontally using grid
-        self.progress_panel.get_widget().grid(row=0, column=0, sticky="ew", padx=0, pady=0)
+        logger.info("Main UI setup completed")
+        self.status_bar.configure(text="UI Ready - Initializing Engines...")
     
     def _setup_single_file_tab(self):
         """Setup single file transcription tab."""
@@ -470,8 +475,7 @@ class InsightronGUI:
         # CRITICAL: Use grid with sticky="ew" to force horizontal expansion
         self.record_btn.grid(row=1, column=0, sticky="ew", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
         
-        # Initialize realtime transcriber
-        self.root.after(100, self._init_realtime)
+        # Realtime init is now part of _init_services_async
     
     def _init_realtime(self):
         """Initialize realtime transcriber."""
@@ -738,11 +742,16 @@ class InsightronGUI:
     def _load_settings(self):
         """Load saved settings."""
         try:
+            # Set updating flag to prevent redundant save calls during initial load
+            self.settings_panel._updating = True
             self.settings_panel.set_model(self.settings_manager.get("model", WHISPER_MODEL))
             self.settings_panel.set_language(self.settings_manager.get("language", DEFAULT_LANGUAGE))
             self.settings_panel.set_formatting(self.settings_manager.get("formatting", "auto"))
+            self.settings_panel._updating = False
         except Exception as e:
             logger.error(f"Error loading settings: {e}")
+            if hasattr(self, 'settings_panel'):
+                self.settings_panel._updating = False
     
     def _save_settings(self):
         """Save current settings."""

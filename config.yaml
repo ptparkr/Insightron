@@ -243,7 +243,7 @@ multi_pass:
   # Pass 2: Contextual restoration with LLM
   # Pass 3: Emotion mapping with sentiment analysis
   # Default: false (single-pass mode for backward compatibility)
-  enabled: false
+  enabled: true
   
   # Chunk duration for batch processing (in seconds)
   # Audio is split into chunks to maintain context and prevent memory issues
@@ -276,10 +276,10 @@ multi_pass:
     # Local model settings (used when provider: local)
     local_model:
       # Model name from HuggingFace
-      # Recommended: Qwen/Qwen2.5-3B-Instruct (optimized for instructions, high quality)
-      # Alternative: microsoft/phi-3-mini-4k-instruct, google/gemma-2-2b-it
-      # Default: Qwen/Qwen2.5-3B-Instruct
-      model_name: "Qwen/Qwen2.5-3B-Instruct"
+      # Recommended: Qwen/Qwen2.5-0.5B-Instruct (fastest on CPU)
+      # Alternative: Qwen/Qwen2.5-1.5B-Instruct, google/gemma-2-2b-it
+      # Default: Qwen/Qwen2.5-0.5B-Instruct
+      model_name: "Qwen/Qwen2.5-0.5B-Instruct"
       
       # Device: auto, cpu, cuda
       # auto = automatically use GPU if available
@@ -290,17 +290,18 @@ multi_pass:
       # 4bit = lowest memory, slight quality loss (recommended)
       # 8bit = balanced memory and quality
       # none = full precision, highest memory usage
-      # Default: 4bit
-      quantization: "4bit"
+      # 4bit and 8bit require bitsandbytes and a CUDA GPU
+      quantization: "none"
       
       # Maximum new tokens to generate
-      # Default: 2000
-      max_tokens: 2000
+      # Recommended for 0.5B models: 512-1024 to prevent cut-offs
+      # Default: 1024
+      max_tokens: 1024
       
       # Temperature (0.0 - 1.0)
       # Lower = more deterministic, higher = more creative
-      # Default: 0.3
-      temperature: 0.3
+      # Default: 0.2
+      temperature: 0.2
     
     # API settings (used when provider: openai, anthropic, google)
     api_settings:

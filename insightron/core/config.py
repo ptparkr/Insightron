@@ -349,7 +349,7 @@ FORMATTING_STYLES = {
 
 # Application metadata
 APP_NAME = "Insightron"
-APP_VERSION = "2.2.0"
+APP_VERSION = "3.1.0"
 APP_DESCRIPTION = "AI-powered audio transcription with Whisper - Multi-language support"
 
 # Maximum file size (in MB)

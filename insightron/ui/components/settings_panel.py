@@ -47,6 +47,7 @@ class SettingsPanel:
         self.on_change = on_change
         self.responsive = responsive_manager
         self._current_mode = LayoutMode.STANDARD
+        self._updating = False # Flag to prevent redundant save calls during batch updates
         
         # Variables
         self.model_var = tk.StringVar(value=WHISPER_MODEL)
@@ -55,9 +56,13 @@ class SettingsPanel:
         
         # Setup callbacks
         if self.on_change:
-            self.model_var.trace_add("write", lambda *args: self.on_change())
-            self.language_var.trace_add("write", lambda *args: self.on_change())
-            self.formatting_var.trace_add("write", lambda *args: self.on_change())
+            def _trigger_change(*args):
+                if not self._updating:
+                    self.on_change()
+                    
+            self.model_var.trace_add("write", _trigger_change)
+            self.language_var.trace_add("write", _trigger_change)
+            self.formatting_var.trace_add("write", _trigger_change)
         
         self._create_panel()
         
@@ -95,10 +100,13 @@ class SettingsPanel:
         self.settings_container = ctk.CTkFrame(self.card, fg_color="transparent", border_width=0)
         self.settings_container.pack(fill="x", padx=SPACING.lg, pady=(SPACING.sm, pad_y))  # Small top padding
         
-        # Create selector frames (these will be reorganized in _update_grid_layout)
+        # Selector frames
         self.model_frame = self._create_model_selector()
         self.language_frame = self._create_language_selector()
         self.formatting_frame = self._create_formatting_selector()
+        
+        # Persistent container for 2-column layout (STANDARD mode)
+        self.standard_row1 = ctk.CTkFrame(self.settings_container, fg_color="transparent")
         
         # Initial layout
         self._update_grid_layout(self._current_mode)
@@ -232,8 +240,8 @@ class SettingsPanel:
     
     def _update_grid_layout(self, mode: LayoutMode):
         """Reorganize selector frames based on layout mode."""
-        # Remove all frames from grid
-        for frame in [self.model_frame, self.language_frame, self.formatting_frame]:
+        # Remove all frames from grid/pack
+        for frame in [self.model_frame, self.language_frame, self.formatting_frame, self.standard_row1]:
             frame.pack_forget()
         
         gap = SPACING.sm
@@ -245,10 +253,9 @@ class SettingsPanel:
             self.formatting_frame.pack(fill="x")
         elif mode == LayoutMode.STANDARD:
             # 2 columns + 1 below
-            row1 = ctk.CTkFrame(self.settings_container, fg_color="transparent")
-            row1.pack(fill="x", pady=(0, gap))
-            self.model_frame.pack(in_=row1, side="left", fill="both", expand=True, padx=(0, gap))
-            self.language_frame.pack(in_=row1, side="left", fill="both", expand=True)
+            self.standard_row1.pack(fill="x", pady=(0, gap))
+            self.model_frame.pack(in_=self.standard_row1, side="left", fill="both", expand=True, padx=(0, gap))
+            self.language_frame.pack(in_=self.standard_row1, side="left", fill="both", expand=True)
             self.formatting_frame.pack(fill="x")
         else:  # EXPANDED
             # 3 columns side-by-side

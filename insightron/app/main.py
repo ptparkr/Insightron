@@ -11,9 +11,12 @@ import sys
 import argparse
 from pathlib import Path
 
-# Fix for MKL memory allocation error
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 os.environ['OMP_NUM_THREADS'] = '1'
+
+# Suppress deprecated pkg_resources warnings from ctranslate2
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="ctranslate2")
 
 # Force UTF-8 output on Windows
 if sys.platform == "win32":

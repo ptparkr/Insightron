@@ -72,21 +72,27 @@ class BaseLLMProvider(ABC):
         Returns:
             Formatted prompt string
         """
-        prompt = """You are a text restoration assistant. Your task is to:
-1. Add proper punctuation (periods, commas, question marks, exclamation points)
-2. Fix phonetic errors (homophones, mishearings)
-3. Preserve the original meaning and word order
-4. Do NOT add, remove, or rearrange words unless fixing clear errors
-
+        # Qwen2.5 models respond well to clear, formatted instructions
+        prompt = """<|im_start|>system
+You are a text restoration assistant. Your task is to polish raw transcribed audio text by:
+1. Adding proper punctuation (periods, commas, question marks, exclamation points).
+2. Fixing phonetic errors (homophones, mishearings).
+3. Injecting emotional markers (e.g., [happy], [serious], [laughing]) if clearly implied by the tone or context.
+4. Preserving the original meaning and word order.
+Do NOT add, remove, or rearrange words unless fixing clear errors.
+<|im_end|>
 """
         
         if context:
-            prompt += f"Context from previous text:\n{context}\n\n"
-        
+            prompt += f"<|im_start|>user\nContext from previous text:\n{context}\n\n"
+        else:
+            prompt += "<|im_start|>user\n"
+            
         prompt += f"""Raw transcribed text to restore:
 {text}
-
-Restored text:"""
+<|im_end|>
+<|im_start|>assistant
+"""
         
         return prompt
     
@@ -119,7 +125,10 @@ Restored text:"""
 
 
 class LocalLLMProvider(BaseLLMProvider):
-    """Provider for local LLMs using transformers library"""
+    """
+    Provider for local LLMs using transformers library.
+    Optimized for Intel i5-1235U (CPU inference).
+    """
     
     def __init__(self, config: Dict[str, Any]):
         """
@@ -130,16 +139,36 @@ class LocalLLMProvider(BaseLLMProvider):
         """
         super().__init__(config)
         
-        self.model_name = config.get('model_name', 'microsoft/phi-3-mini-4k-instruct')
-        self.device = config.get('device', 'auto')
-        self.quantization = config.get('quantization', '4bit')
-        self.max_tokens = config.get('max_tokens', 2000)
-        self.temperature = config.get('temperature', 0.3)
+        # Default to Qwen2.5-0.5B-Instruct for high efficiency on CPU
+        self.model_name = config.get('model_name', 'Qwen/Qwen2.5-0.5B-Instruct')
+        self.device = config.get('device', 'cpu') # Force CPU for i5-1235U stability
+        
+        # For CPU, we typically use 4-bit (via bitsandbytes on Linux/WSL) 
+        # or just half-precision torch if available.
+        # On Windows i5-1235U, float32 is most stable, but we'll try torch.bfloat16 or float16 if supported.
+        self.quantization = config.get('quantization', None) 
+        
+        # Token Management Question: How does max_new_tokens affect transcript quality?
+        # Answer: If set too low (e.g. < 256), the model may cut off mid-sentence, 
+        # making the transcript look broken. For 0.5B models on i5, 
+        # a window of 512-1024 is recommended to capture full paragraphs.
+        self.max_tokens = config.get('max_tokens', 1024) 
+        self.temperature = config.get('temperature', 0.2)
         
         self.model = None
         self.tokenizer = None
         self._initialized = False
     
+    def _check_connectivity(self) -> bool:
+        """Check for internet connectivity for model download"""
+        import socket
+        try:
+            # Try to connect to a reliable host (HuggingFace or Google)
+            socket.create_connection(("8.8.8.8", 53), timeout=3)
+            return True
+        except (socket.timeout, socket.error):
+            return False
+
     def _lazy_load_model(self):
         """Lazy load the model when first needed"""
         if self._initialized:
@@ -148,39 +177,44 @@ class LocalLLMProvider(BaseLLMProvider):
         try:
             from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
             import torch
+            from huggingface_hub import scan_cache_dir
             
             logger.info(f"Loading local LLM: {self.model_name}")
             
-            # Configure quantization if requested
-            quantization_config = None
-            if self.quantization == '4bit':
-                quantization_config = BitsAndBytesConfig(
-                    load_in_4bit=True,
-                    bnb_4bit_compute_dtype=torch.float16,
-                    bnb_4bit_use_double_quant=True,
-                    bnb_4bit_quant_type="nf4"
-                )
-            elif self.quantization == '8bit':
-                quantization_config = BitsAndBytesConfig(
-                    load_in_8bit=True
-                )
+            # 1. Validate local files or check connectivity
+            is_cached = any(repo.repo_id == self.model_name for repo in scan_cache_dir().repos)
+            if not is_cached:
+                logger.info(f"Model {self.model_name} not found in cache. Checking connectivity...")
+                if not self._check_connectivity():
+                    raise ConnectionError(f"Internet connection unavailable and model '{self.model_name}' not cached.")
+                logger.info("Connectivity confirmed. Starting download...")
+            
+            # i5-1235U specific optimization: use CPU inference with appropriate precision
+            # Note: bitsandbytes 4-bit/8-bit is primarily for CUDA. 
+            # For CPU, we rely on torch's default or quantized weights if provided in gguf/onnx.
+            # Here we follow conventional transformers loading.
             
             # Load tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            logger.info("Loading tokenizer...")
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
             
             # Load model
+            logger.info(f"Loading model weights (device={self.device})...")
+            
             model_kwargs = {
                 'pretrained_model_name_or_path': self.model_name,
-                'trust_remote_code': True
+                'trust_remote_code': True,
+                'device_map': self.device,
             }
             
-            if quantization_config:
-                model_kwargs['quantization_config'] = quantization_config
-                model_kwargs['device_map'] = 'auto'
-            elif self.device != 'auto':
-                model_kwargs['device_map'] = self.device
+            # Use bfloat16 for i5 if supported, otherwise float32 for maximum CPU stability
+            if torch.cuda.is_available(): # Backwards compatibility if user has GPU
+                 model_kwargs['torch_dtype'] = torch.float16
+                 model_kwargs['device_map'] = 'auto'
             else:
-                model_kwargs['device_map'] = 'auto'
+                 # CPU optimization: bfloat16 is often faster on modern Intel CPUs (AVX-512/AMX)
+                 # but i5-1235U is mobile, so we'll check availability or stick to float32
+                 model_kwargs['torch_dtype'] = torch.float32 
             
             self.model = AutoModelForCausalLM.from_pretrained(**model_kwargs)
             
@@ -189,7 +223,6 @@ class LocalLLMProvider(BaseLLMProvider):
             
         except ImportError as e:
             logger.error(f"Failed to import transformers: {e}")
-            logger.error("Install with: pip install transformers torch accelerate bitsandbytes")
             self._initialized = False
         except Exception as e:
             logger.error(f"Failed to load model {self.model_name}: {e}")
@@ -230,15 +263,19 @@ class LocalLLMProvider(BaseLLMProvider):
             )
         
         try:
+            import torch
             # Build prompt
+            logger.info("Building restoration prompt...")
             prompt = self._build_restoration_prompt(text, context)
             
             # Tokenize
+            logger.info("Tokenizing input...")
             inputs = self.tokenizer(prompt, return_tensors="pt")
             if self.device not in ['auto', 'cpu']:
                 inputs = inputs.to(self.device)
             
             # Generate
+            logger.info(f"Generating restoration (max_new_tokens={self.max_tokens})...")
             with torch.no_grad():
                 outputs = self.model.generate(
                     **inputs,
@@ -247,6 +284,7 @@ class LocalLLMProvider(BaseLLMProvider):
                     do_sample=True,
                     pad_token_id=self.tokenizer.eos_token_id
                 )
+            logger.info("Generation complete, decoding...")
             
             # Decode
             full_response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
@@ -297,7 +335,7 @@ class OpenAIProvider(BaseLLMProvider):
         
         self.api_key = config.get('api_key') or os.environ.get('OPENAI_API_KEY')
         self.model = config.get('model', 'gpt-3.5-turbo')
-        self.max_tokens = config.get('max_tokens', 2000)
+        self.max_tokens = config.get('max_tokens', 1024)
         self.temperature = config.get('temperature', 0.3)
         
         self.client = None

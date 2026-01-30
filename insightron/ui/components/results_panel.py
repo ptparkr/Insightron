@@ -108,35 +108,31 @@ class ResultsPanel:
         )
         self.clear_btn.grid(row=0, column=1, sticky="e")
         
-        # Results text area - REMOVED (black box above progress bar)
-        # The text area is hidden/removed as per design requirements
-        # Only progress panel will be shown
-        
-        # Configure card grid - no text area, just progress panel
-        self.card.grid_rowconfigure(0, weight=0)  # Header: auto
-        self.card.grid_rowconfigure(1, weight=0)  # Progress panel: auto
-        self.card.grid_columnconfigure(0, weight=1)
-        
-        # Progress panel container - will be populated by main_window
-        # This creates a placeholder row for the progress panel
-        self.progress_container = ctk.CTkFrame(self.card, fg_color="transparent", border_width=0)
-        self.progress_container.grid(row=1, column=0, sticky="ew", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
-        self.progress_container.grid_columnconfigure(0, weight=1)
-        
-        # Create a hidden textbox for append() method compatibility
-        # This allows the code to still work but the textbox won't be visible
+        # Results text area - RESTORED
+        # This area displays the transcription output log.
         mono_size = ThemeManager.get_font_size('mono')
         self.results_text = ctk.CTkTextbox(
             self.card,
             font=('Consolas', mono_size),
-            corner_radius=0,
+            corner_radius=ThemeManager.get_radius('md'),
             fg_color=self.theme.background,
-            border_width=0,
+            border_width=1,
+            border_color=self.theme.border,
             wrap="word",
-            height=1,  # Minimal height - effectively hidden
         )
-        self.results_text.grid_remove()  # Hide the textbox
+        self.results_text.grid(row=1, column=0, sticky="nsew", padx=SPACING.lg, pady=(SPACING.sm, SPACING.sm))
         self.results_text.configure(state="disabled")
+        
+        # Configure card grid 
+        self.card.grid_rowconfigure(0, weight=0)  # Header: auto
+        self.card.grid_rowconfigure(1, weight=1)  # Results text area: expands
+        self.card.grid_rowconfigure(2, weight=0)  # Progress panel: auto
+        self.card.grid_columnconfigure(0, weight=1)
+        
+        # Progress panel container - will be populated by main_window
+        self.progress_container = ctk.CTkFrame(self.card, fg_color="transparent", border_width=0)
+        self.progress_container.grid(row=2, column=0, sticky="ew", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
+        self.progress_container.grid_columnconfigure(0, weight=1)
     
     def append(self, message: str):
         """Append message with timestamp."""
