@@ -191,7 +191,7 @@ class LocalLLMProvider(BaseLLMProvider):
         # Answer: If set too low (e.g. < 256), the model may cut off mid-sentence, 
         # making the transcript look broken. For 0.5B models on i5, 
         # a window of 512-4096 is recommended for long-form contextual restoration.
-        self.max_tokens = config.get('max_tokens', 4096) 
+        self.max_tokens = config.get('max_tokens', 2048) 
         self.temperature = config.get('temperature', 0.2)
         
         self.model = None
