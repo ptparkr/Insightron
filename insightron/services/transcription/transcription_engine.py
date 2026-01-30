@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Iterator, Dict, Any, Callable
+from typing import Optional, Iterator, Dict, Any, Callable, List
+import numpy as np
 from faster_whisper.transcribe import TranscriptionInfo, Segment
 
 from insightron.core.model_manager import ModelManager
@@ -8,80 +9,93 @@ from insightron.core.config import get_config_manager
 # Configure logging
 logger = logging.getLogger(__name__)
 
+from insightron.services.base_transcriber import BaseTranscriber
+
 class TranscriptionEngine:
     """
-    Manages the transcription process, interacting with ModelManager
-    and handling the segment generation loop.
+    Single-Pass Brain for Insightron.
+    Mental model: first draft that must be usable.
+    
+    Responsibilities:
+    - Resolve obvious ASR errors
+    - Fix boundary breaks
+    - Apply light normalization
+    
+    You may NOT:
+    - Look ahead multiple times
+    - Rewrite stylistically
+    - Summarize
     """
 
     def __init__(self):
-        self.model_manager = ModelManager()
-        
+        self.literal_transcriber = BaseTranscriber()
         config = get_config_manager()
-        self.min_segment_duration = config.get('insightron.services.transcription.min_segment_duration', 0.1)
-        self.progress_update_frequency = config.get('insightron.services.transcription.progress_update_frequency', 5)
-        self.enable_segment_filtering = config.get('insightron.services.transcription.enable_segment_filtering', True)
-        self.segment_merge_threshold = config.get('insightron.services.transcription.segment_merge_threshold', -0.5)
+        self.min_confidence_threshold = config.get('insightron.services.transcription.min_confidence', -1.0)
 
-    @property
-    def model_size(self):
-        return self.model_manager.model_size
-
-    def transcribe(
+    def process_signal_single_pass(
         self,
-        audio_input: Any,
+        signal: np.ndarray,
         language: Optional[str] = None,
-        beam_size: int = 5,
-        progress_callback: Optional[Callable[[str], None]] = None
-    ) -> tuple[list[Dict[str, Any]], TranscriptionInfo]:
+        offset_time: float = 0.0
+    ) -> List[Dict[str, Any]]:
         """
-        Run the transcription and return raw segments and info.
-        Handles segment filtering and progress updates.
+        Process audio signal in a single forward pass.
+        Refines literal output into a stable first draft.
         """
+        refined_segments = []
         
-        # 1. Call ModelManager
-        # Note: ModelManager.transcribe returns (Iterator[Segment], TranscriptionInfo)
-        segments_iter, info = self.model_manager.transcribe(
-            audio_input,
-            beam_size=beam_size,
-            language=language,
-            task="transcribe"
-        )
+        # 1. Get Literal Ground Truth
+        # We iterate over the literal stream and refine on-the-fly
+        literal_stream = self.literal_transcriber.transcribe_literal(signal, language)
         
-        if progress_callback:
-            progress_callback(f"Detected language: {info.language} (probability: {info.language_probability:.2f})")
+        for lit_seg in literal_stream:
+            # 2. Light Normalization & Correction
+            # - Fix obvious boundary whitespace
+            # - Adjust timestamps by chunk offset
+            # - Filter extreme low-confidence artifacts
             
-        # 2. Process segments loop
-        transcribed_segments = []
-        total_duration = info.duration
-        last_progress_percent = -1
-        
-        for segment in segments_iter:
-            # Smart segment filtering
-            segment_duration = segment.end - segment.start
-            if self.enable_segment_filtering:
-                if segment_duration < self.min_segment_duration:
-                    if hasattr(segment, 'avg_logprob') and segment.avg_logprob < self.segment_merge_threshold:
-                        logger.debug(f"Filtered micro-segment: {segment.text} ({segment_duration:.2f}s)")
-                        continue
+            text = lit_seg["text"].strip()
+            if not text:
+                continue
+                
+            # Basic ASR Error Resolution (e.g., repeated characters/words from model artifacts)
+            # This is a 'brain' function to make the literal truth usable.
+            text = self._resolve_obvious_errors(text)
             
-            # Convert to dict
-            segment_data = {
-                "id": segment.id,
-                "start": segment.start,
-                "end": segment.end,
-                "text": segment.text.strip()
+            # 3. Create Refined Segment
+            refined_seg = {
+                "start": lit_seg["start"] + offset_time,
+                "end": lit_seg["end"] + offset_time,
+                "text": text,
+                "confidence": lit_seg["avg_logprob"],
+                "words": [
+                    {
+                        "word": w["word"],
+                        "start": w["start"] + offset_time,
+                        "end": w["end"] + offset_time,
+                        "probability": w["probability"]
+                    } for w in lit_seg["words"]
+                ]
             }
-            if hasattr(segment, 'avg_logprob'):
-                segment_data["confidence"] = float(segment.avg_logprob)
             
-            transcribed_segments.append(segment_data)
+            refined_segments.append(refined_seg)
             
-            # Progress updates
-            if progress_callback and total_duration > 0:
-                current_percent = int((segment.end / total_duration) * 100)
-                if current_percent - last_progress_percent >= self.progress_update_frequency:
-                    progress_callback(f"Transcribing: {current_percent}% ({int(segment.end)}s/{int(total_duration)}s)")
-                    last_progress_percent = current_percent
+        return refined_segments
+
+    def _resolve_obvious_errors(self, text: str) -> str:
+        """Fix obvious ASR artifacts without changing meaning."""
+        # Example: Whisper sometimes repeats the same word infinitely in silence
+        words = text.split()
+        if not words:
+            return text
+            
+        # Very simple deduplication of extreme repeats
+        if len(words) > 10:
+            # If the same 2-word phrase repeats 3+ times, it's likely an artifact
+            for i in range(len(words) - 5):
+                phrase = words[i:i+2]
+                if words[i+2:i+4] == phrase and words[i+4:i+6] == phrase:
+                    logger.warning(f"Detected potential ASR artifact: '{phrase}' repeating. Truncating.")
+                    return " ".join(words[:i+2]) + " [ARTIFACT DETECTED]"
                     
-        return transcribed_segments, info
+        return text

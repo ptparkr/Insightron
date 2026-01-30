@@ -26,6 +26,12 @@ class RestorationResult:
     model_name: str = ""
     success: bool = True
     error: Optional[str] = None
+    flags: List[str] = None
+    stitched: bool = False
+
+    def __post_init__(self):
+        if self.flags is None:
+            self.flags = []
 
 
 class BaseLLMProvider(ABC):
@@ -43,13 +49,14 @@ class BaseLLMProvider(ABC):
         self.retry_delay = config.get('retry_delay', 1.0)
     
     @abstractmethod
-    def restore_text(self, text: str, context: Optional[str] = None) -> RestorationResult:
+    def restore_text(self, text: str, prev_clean: Optional[str] = None, next_raw: Optional[str] = None) -> RestorationResult:
         """
-        Restore punctuation and fix phonetic errors in text.
+        Restore punctuation and fix phonetic errors in text using v2 philosophy.
         
         Args:
-            text: Raw transcribed text
-            context: Optional context from previous chunks
+            text: Raw transcribed text (current chunk)
+            prev_clean: Optional cleaned text from previous chunk
+            next_raw: Optional raw text from next chunk (lookahead)
             
         Returns:
             RestorationResult object
@@ -61,76 +68,65 @@ class BaseLLMProvider(ABC):
         """Check if the provider is available and configured correctly"""
         pass
     
-    def _build_restoration_prompt(self, text: str, context: Optional[str] = None) -> str:
+    def _build_restoration_prompt(self, text: str, prev_clean: Optional[str] = None, next_raw: Optional[str] = None) -> str:
         """
-        Build the prompt for text restoration.
-        
-        Args:
-            text: Text to restore
-            context: Optional context
-            
-        Returns:
-            Formatted prompt string
+        Build the prompt for text restoration based on 5-stage philosophy.
         """
-        # Strict rules for "Insightron" cleaning pass
-        system_content = """You are a professional transcription editor. Your job is to clean messy speech-to-text output into polished, readable text.
+        system_content = """You are the Post-Transcription Quality Engine for Insightron.
+Your job is to REPAIR, ALIGN, and CLARIFY messy speech-to-text output from ~30-second chunks.
 
-CORE TASK:
-Take raw voice transcription and output clean, grammatically correct text while keeping every detail exactly as spoken.
+NORTH STAR: Same meaning. Fewer errors. Zero hallucinations.
 
-CLEANING RULES:
-- Remove filler words: um, uh, like, you know, I mean, sort of, kind of, actually, basically, literally
-- Remove stutters and false starts: "I I I think" → "I think"
-- Remove repetitions: "and and and" → "and"
-- Fix capitalization and punctuation
-- Break long run-on sentences into clear, focused sentences
-- Use natural contractions: do not → don't, it is → it's
+STAGE 1 — Mechanical Cleanup (Deterministic)
+- Remove filler noise (uh, um, ah, you know)
+- Collapse repeated words/phrases caused by overlap
+- Fix casing, spacing, punctuation
+- Normalize numbers and symbols: "ten power minus three" → 10⁻³, "square root of x" → √x
 
-PRESERVATION RULES (CRITICAL):
-- Keep ALL facts, numbers, dates, times, and amounts exactly as stated
-- Keep ALL names, places, and proper nouns exactly as stated
-- Keep the original meaning 100% - never summarize or paraphrase
-- If the speaker corrects themselves, use only the correction
-- Never add information that wasn't spoken
+STAGE 2 — Boundary Intelligence (High ROI)
+- If a sentence starts mid-thought → stitch with prev_clean_chunk
+- If a sentence cuts off → allow completion using next_raw_chunk
+- Remove duplicated fragments across chunk boundaries
+- Never merge if confidence is low
 
-EXAMPLES:
+STAGE 3 — Semantic Repair (JEE-oriented Context)
+- Correct obvious ASR errors using local context: physics, chemistry, math
+- Phrases like "take this as zero", "consider the case"
+- Replace nonsense with best-fit domain words
+- If unsure, LEAVE IT UNCHANGED and flag it.
 
-Input: "hello i am here at the office today and i want to see if this thing is working or not because it is very important for the meeting tomorrow we need to discuss the budget"
-Output: "Hello, I am here at the office today. I want to see if this thing is working or not. It's very important for the meeting tomorrow. We need to discuss the budget."
+STAGE 4 — Structure Detection
+- Convert spoken lists → bullet points
+- Detect formulas → LaTeX inline: "x minus b plus minus root" → x = (-b ± √(b² − 4ac)) / 2a
+- Detect topic shift → add minimal heading
 
-Input: "um so i think maybe we should like go to the uh the new restaurant on fifth street you know the one that opened last week"
-Output: "I think we should go to the new restaurant on Fifth Street, the one that opened last week."
+STAGE 5 — Confidence Signaling
+- Attach flags: low_audio_confidence, uncertain_term, possible_domain_error
 
-Input: "the meeting is at 3 pm 3 pm tomorrow no wait actually it's at 2:30 pm sorry"
-Output: "The meeting is at 2:30 PM tomorrow."
-
-Input: "i need to buy um milk and and eggs and also bread from the store because we're we're out of everything"
-Output: "I need to buy milk, eggs, and bread from the store because we're out of everything."
-
-Input: "she said the project deadline is is december 15th and we need like at least 5 people working on it"
-Output: "She said the project deadline is December 15th and we need at least 5 people working on it."
-
-OUTPUT FORMAT:
-Return ONLY the cleaned text. No labels like "Output:" or "Cleaned:". No explanations. No commentary. Just the cleaned transcription."""
+OUTPUT FORMAT (JSON ONLY):
+Return EXACTLY this JSON format and nothing else:
+{
+  "clean_text": "...",
+  "flags": ["..."],
+  "stitched": true/false
+}"""
         
-        # Detect model type for template selection
+        user_content = f"raw_chunk: {text}\n"
+        if prev_clean:
+            user_content = f"prev_clean_chunk: {prev_clean}\n" + user_content
+        if next_raw:
+            user_content += f"next_raw_chunk: {next_raw}\n"
+
+        # Detect model type
         is_llama = "llama" in self.config.get('model_name', '').lower() if hasattr(self, 'config') else False
         
         if is_llama:
-            # Llama 3.2 template
             prompt = f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_content}<|eot_id|>"
-            if context:
-                prompt += f"<|start_header_id|>user<|end_header_id|>\n\nContext from previous text:\n{context}\n\nRaw transcribed text to restore:\n{text}<|eot_id|>"
-            else:
-                prompt += f"<|start_header_id|>user<|end_header_id|>\n\nRaw transcribed text to restore:\n{text}<|eot_id|>"
+            prompt += f"<|start_header_id|>user<|end_header_id|>\n\n{user_content}<|eot_id|>"
             prompt += "<|start_header_id|>assistant<|end_header_id|>\n\n"
         else:
-            # Default Qwen/ChatML template
             prompt = f"<|im_start|>system\n{system_content}\n<|im_end|>\n"
-            if context:
-                prompt += f"<|im_start|>user\nContext from previous text:\n{context}\n\nRaw transcribed text to restore:\n{text}\n<|im_end|>\n"
-            else:
-                prompt += f"<|im_start|>user\nRaw transcribed text to restore:\n{text}\n<|im_end|>\n"
+            prompt += f"<|im_start|>user\n{user_content}\n<|im_end|>\n"
             prompt += "<|im_start|>assistant\n"
         
         return prompt
@@ -138,13 +134,6 @@ Return ONLY the cleaned text. No labels like "Output:" or "Cleaned:". No explana
     def _retry_with_backoff(self, func, *args, **kwargs):
         """
         Execute function with exponential backoff retry.
-        
-        Args:
-            func: Function to execute
-            *args, **kwargs: Arguments for the function
-            
-        Returns:
-            Function result or raises last exception
         """
         last_exception = None
         
@@ -161,6 +150,44 @@ Return ONLY the cleaned text. No labels like "Output:" or "Cleaned:". No explana
                     logger.error(f"All {self.max_retries} attempts failed: {e}")
         
         raise last_exception
+
+    def _parse_json_response(self, response_text: str) -> Dict[str, Any]:
+        """
+        Parse JSON from LLM response, handling potential formatting issues.
+        """
+        import json
+        import re
+        
+        # Try direct parse first
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError:
+            pass
+            
+        # Try extracting from code blocks
+        json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1))
+            except json.JSONDecodeError:
+                pass
+        
+        # Try finding the first '{' and last '}'
+        start_idx = response_text.find('{')
+        end_idx = response_text.rfind('}')
+        if start_idx != -1 and end_idx != -1:
+            try:
+                return json.loads(response_text[start_idx:end_idx+1])
+            except json.JSONDecodeError:
+                pass
+                
+        # Fallback: return a dummy structure if parsing fails
+        logger.warning(f"Failed to parse JSON from response: {response_text[:100]}...")
+        return {
+            "clean_text": response_text,
+            "flags": ["parsing_error"],
+            "stitched": False
+        }
 
 
 class LocalLLMProvider(BaseLLMProvider):
@@ -298,16 +325,9 @@ class LocalLLMProvider(BaseLLMProvider):
         except ImportError:
             return False
     
-    def restore_text(self, text: str, context: Optional[str] = None) -> RestorationResult:
+    def restore_text(self, text: str, prev_clean: Optional[str] = None, next_raw: Optional[str] = None) -> RestorationResult:
         """
-        Restore text using local LLM.
-        
-        Args:
-            text: Raw text to restore
-            context: Optional context from previous chunks
-            
-        Returns:
-            RestorationResult object
+        Restore text using local LLM with v2 philosophy.
         """
         start_time = time.time()
         
@@ -326,8 +346,8 @@ class LocalLLMProvider(BaseLLMProvider):
         try:
             import torch
             # Build prompt
-            logger.info("Building restoration prompt...")
-            prompt = self._build_restoration_prompt(text, context)
+            logger.info("Building v2 restoration prompt...")
+            prompt = self._build_restoration_prompt(text, prev_clean, next_raw)
             
             # Tokenize
             logger.info("Tokenizing input...")
@@ -336,7 +356,7 @@ class LocalLLMProvider(BaseLLMProvider):
                 inputs = inputs.to(self.device)
             
             # Generate
-            logger.info(f"Generating restoration (max_new_tokens={self.max_tokens})...")
+            logger.info(f"Generating v2 restoration (max_new_tokens={self.max_tokens})...")
             with torch.no_grad():
                 outputs = self.model.generate(
                     **inputs,
@@ -350,12 +370,11 @@ class LocalLLMProvider(BaseLLMProvider):
             # Decode
             full_response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             
-            # Extract only the restored text (after the prompt)
-            restored_text = full_response[len(prompt):].strip()
+            # Extract content after prompt
+            actual_response = full_response[len(prompt):].strip() if full_response.startswith(prompt) else full_response
             
-            # Clean up any artifacts
-            if not restored_text:
-                restored_text = text
+            # Parse JSON
+            parsed = self._parse_json_response(actual_response)
             
             processing_time = time.time() - start_time
             tokens_used = outputs.shape[1]
@@ -364,11 +383,13 @@ class LocalLLMProvider(BaseLLMProvider):
             
             return RestorationResult(
                 original_text=text,
-                restored_text=restored_text,
+                restored_text=parsed.get('clean_text', text),
                 processing_time=processing_time,
                 tokens_used=tokens_used,
                 model_name=self.model_name,
-                success=True
+                success=True,
+                flags=parsed.get('flags', []),
+                stitched=parsed.get('stitched', False)
             )
             
         except Exception as e:
@@ -425,16 +446,9 @@ class OpenAIProvider(BaseLLMProvider):
         except ImportError:
             return False
     
-    def restore_text(self, text: str, context: Optional[str] = None) -> RestorationResult:
+    def restore_text(self, text: str, prev_clean: Optional[str] = None, next_raw: Optional[str] = None) -> RestorationResult:
         """
-        Restore text using OpenAI API.
-        
-        Args:
-            text: Raw text to restore
-            context: Optional context
-            
-        Returns:
-            RestorationResult object
+        Restore text using OpenAI API with v2 philosophy.
         """
         start_time = time.time()
         
@@ -450,7 +464,7 @@ class OpenAIProvider(BaseLLMProvider):
             )
         
         try:
-            prompt = self._build_restoration_prompt(text, context)
+            prompt = self._build_restoration_prompt(text, prev_clean, next_raw)
             
             response = self._retry_with_backoff(
                 self.client.chat.completions.create,
@@ -463,7 +477,9 @@ class OpenAIProvider(BaseLLMProvider):
                 temperature=self.temperature
             )
             
-            restored_text = response.choices[0].message.content.strip()
+            raw_response = response.choices[0].message.content.strip()
+            parsed = self._parse_json_response(raw_response)
+            
             tokens_used = response.usage.total_tokens
             processing_time = time.time() - start_time
             
@@ -471,11 +487,13 @@ class OpenAIProvider(BaseLLMProvider):
             
             return RestorationResult(
                 original_text=text,
-                restored_text=restored_text,
+                restored_text=parsed.get('clean_text', text),
                 processing_time=processing_time,
                 tokens_used=tokens_used,
                 model_name=self.model,
-                success=True
+                success=True,
+                flags=parsed.get('flags', []),
+                stitched=parsed.get('stitched', False)
             )
             
         except Exception as e:

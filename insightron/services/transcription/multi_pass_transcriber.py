@@ -230,23 +230,16 @@ class MultiPassTranscriber:
         progress_callback: Optional[Callable[[str], None]] = None
     ) -> List[Dict]:
         """
-        Pass 2: Restore punctuation and fix errors using LLM.
-        
-        Args:
-            segments: Segments from Pass 1
-            progress_callback: Optional progress callback
-            
-        Returns:
-            Segments with restored text
+        Pass 2: Restore punctuation and fix errors using LLM with v2 philosophy.
         """
         if not self.pass2_enabled:
             logger.info("Pass 2 disabled, skipping restoration")
             return segments
         
         if progress_callback:
-            progress_callback("Pass 2/3: Restoring punctuation with LLM...")
+            progress_callback("Pass 2/3: Restoring text with v2 Quality Engine...")
         
-        logger.info("=== Pass 2: Contextual Restoration ===")
+        logger.info("=== Pass 2: Contextual Restoration (v2) ===")
         
         self._init_llm_provider()
         
@@ -259,27 +252,37 @@ class MultiPassTranscriber:
         chunk_groups = self.chunker.create_chunks_from_segments(segments, total_duration)
         
         restored_segments = []
-        context = None
+        prev_clean = None
         
+        num_chunks = len(chunk_groups)
         for i, chunk in enumerate(chunk_groups):
             if progress_callback:
-                progress_callback(f"Pass 2/3: Restoring chunk {i+1}/{len(chunk_groups)}...")
+                progress_callback(f"Pass 2/3: Restoring chunk {i+1}/{num_chunks}...")
             
-            # Combine chunk text
+            # Combine current chunk text
             chunk_text = " ".join(seg.get('text', '') for seg in chunk)
             
-            # Restore with LLM
-            result = self.llm_provider.restore_text(chunk_text, context)
+            # Lookahead: get next chunk text if available
+            next_raw = None
+            if i + 1 < num_chunks:
+                next_raw = " ".join(seg.get('text', '') for seg in chunk_groups[i+1])
+            
+            # Restore with LLM using v2 philosophy
+            result = self.llm_provider.restore_text(chunk_text, prev_clean, next_raw)
             
             if result.success:
                 # Distribute restored text back to segments
-                # For simplicity, we'll update the chunk as a whole
-                # In a more sophisticated version, we'd align word-by-word
                 restored_chunk = self._distribute_restored_text(chunk, result.restored_text)
+                
+                # Add flags and stitched status to segments for tracking
+                for seg in restored_chunk:
+                    seg['quality_flags'] = result.flags
+                    seg['stitched'] = result.stitched
+                
                 restored_segments.extend(restored_chunk)
                 
-                # Save context for next chunk
-                context = result.restored_text[-200:] if len(result.restored_text) > 200 else result.restored_text
+                # Update prev_clean for next iteration
+                prev_clean = result.restored_text
             else:
                 logger.warning(f"Restoration failed for chunk {i+1}: {result.error}")
                 restored_segments.extend(chunk)

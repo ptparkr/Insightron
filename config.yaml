@@ -243,7 +243,7 @@ multi_pass:
   # Pass 2: Contextual restoration with LLM
   # Pass 3: Emotion mapping with sentiment analysis
   # Default: false (single-pass mode for backward compatibility)
-  enabled: false
+  enabled: true
   
   # Chunk duration for batch processing (in seconds)
   # Audio is split into chunks to maintain context and prevent memory issues

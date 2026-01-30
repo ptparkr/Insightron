@@ -13,6 +13,8 @@ from insightron.core.config import (
 )
 from insightron.services.transcription.segment_analyzer import SegmentAnalyzer
 from insightron.services.transcription.quality_metrics import QualityMetricsCalculator
+from insightron.services.transcription.text_formatter import TextFormatter
+from insightron.core.config import get_config
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -87,85 +89,86 @@ class ResultHandler:
     def calculate_quality_metrics(self, segments: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate quality metrics for transcribed segments."""
         metrics = self.quality_metrics_calculator.calculate_metrics(segments)
-        
-        # Return backward-compatible format + new metrics
-        confidences = [seg.get('confidence', 0.0) for seg in segments if 'confidence' in seg]
-        return {
-            "avg_confidence": metrics['confidence_simple_avg'],
-            "low_confidence_count": sum(1 for c in confidences if c < self.segment_merge_threshold),
-            "total_segments": metrics['segment_count'],
-            "min_confidence": min(confidences) if confidences else 0.0,
-            "max_confidence": max(confidences) if confidences else 0.0,
-            "quality_tier": metrics['quality_tier'],
-            "degradation_detected": metrics['degradation_detected'],
-            "confidence_weighted_avg": metrics['confidence_weighted_avg']
-        }
+        self.formatter = TextFormatter()
+        self.quality_calc = QualityMetricsCalculator()
+        self.output_dir = Path(get_config('insightron.paths.output_dir', 'output'))
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def save_result(self, 
-                   audio_path: str, 
-                   segments: List[Dict[str, Any]], 
-                   info: Any,
-                   metadata: Dict[str, Any],
-                   processing_time: float,
-                   formatting_style: str = "auto") -> tuple[Path, Dict[str, Any]]:
+    def save_result(
+        self,
+        audio_path: str,
+        segments: List[Dict[str, Any]],
+        metadata: Dict[str, Any],
+        processing_time: float,
+        model_size: str,
+        language: str,
+        formatting_style: str = "auto"
+    ) -> tuple[Path, Dict[str, Any]]:
         """
-        Format results to Markdown and save to file.
+        Execute the final contract: format, analyze risk, and save.
         """
-        # 1. Merge segments
-        final_segments = self.merge_segments(segments)
+        # 1. Human Readability (Text Formatting)
+        final_text = self.formatter.format_structure(segments, style=formatting_style)
         
-        # 2. Build final text
-        # Efficient join
-        final_text = " ".join([seg['text'] for seg in final_segments]).strip()
+        # 2. Truth Scoring (Quality/Risk)
+        quality_analysis = self.quality_calc.calculate_risk_metrics(segments)
         
-        # 3. Calculate metrics
-        quality_metrics = self.calculate_quality_metrics(final_segments)
-        
-        # 4. Prepare data dictionary
-        now = datetime.now()
-        data = {
-            'filename': Path(audio_path).stem,
-            'text': final_text,
-            'date': now.strftime("%Y-%m-%d %H:%M:%S"),
-            'duration': metadata['duration_formatted'],
-            'duration_seconds': metadata['duration_seconds'],
-            'file_size_mb': metadata['file_size_mb'],
-            'model': info.model_size if hasattr(info, 'model_size') else "unknown", 
-            # Note: TranscriptionInfo from faster-whisper doesn't strictly have model_size, needs passing or standardizing
-            # We'll handle this in the facade to pass model name correctly if needed, or rely on info having it if we hacked it.
-            # Actually standard TranscriptionInfo has: language, language_probability, duration.
-            # We should pass model name into this method or add it to info object wrapper.
-            # For now let's assume 'model' is passed in 'info' or we add it to data map outside.
-            'language': info.language,
-            'segments': final_segments,
-            'formatting_style': formatting_style,
-            'processing_time_seconds': processing_time,
-            'characters_per_second': len(final_text) / processing_time if processing_time > 0 else 0,
-            'quality_metrics': quality_metrics
+        # 3. Standardized Result Schema
+        result_data = {
+            "version": "3.0.0-antigravity",
+            "metadata": metadata,
+            "transcription": {
+                "full_text": final_text,
+                "segments": segments,
+                "language": language,
+                "model": model_size
+            },
+            "quality": quality_analysis,
+            "stats": {
+                "processing_time": processing_time,
+                "rtf": processing_time / metadata.get('duration_seconds', 1.0) if metadata.get('duration_seconds', 1.0) > 0 else 0
+            }
         }
         
-        # 5. Create Markdown
-        markdown_text = create_markdown(**data)
+        # 4. Deterministic Persistence
+        output_filename = f"{Path(audio_path).stem}_transcription.md"
+        output_path = self.output_dir / output_filename
         
-        # 6. Save File
-        TRANSCRIPTION_FOLDER.mkdir(parents=True, exist_ok=True)
-        output_path = TRANSCRIPTION_FOLDER / f"{Path(audio_path).stem}.md"
+        # Generate Markdown with clear uncertainty exposure
+        self._write_markdown(output_path, result_data)
         
-        temp_path = output_path.with_suffix('.tmp')
-        encoding = OUTPUT_ENCODING if ENSURE_UTF8_ENCODING else "utf-8"
-        try:
-            temp_path.write_text(markdown_text, encoding=encoding)
-            if output_path.exists():
-                output_path.unlink()
-            temp_path.rename(output_path)
-        except Exception as e:
-            logger.error(f"Failed to write output file: {e}")
-            raise
-
         # 7. Save Processed Audio (optional, but good practice to keep together)
         try:
             save_processed_audio(audio_path, PROCESSED_AUDIO_FOLDER)
         except Exception as e:
             logger.warning(f"Failed to save processed audio: {e}")
-            
-        return output_path, data
+
+        return output_path, result_data
+
+    def _write_markdown(self, path: Path, data: Dict[str, Any]):
+        """Write a standardized, human-readable report."""
+        risk = data["quality"]
+        action = risk["action_recommendation"]
+        
+        # Color indicator for risk
+        color = "🟢" if action == "Accept" else "🟡" if action == "Flag" else "🔴"
+        
+        lines = [
+            f"# Insightron Transcription: {data['metadata']['filename']}",
+            f"\n## Quality Report {color}",
+            f"- **Status**: {action}",
+            f"- **Risk Score**: {risk['risk_score']:.2f}",
+            f"- **Audio Confidence**: {risk['metrics']['average_confidence']:.2f}",
+            f"- **Consistency**: {risk['metrics']['language_consistency_score']:.2f}",
+            "\n---",
+            "\n## Transcript",
+            f"\n{data['transcription']['full_text']}",
+            "\n---",
+            "\n## Metadata",
+            f"- **Model**: {data['transcription']['model']}",
+            f"- **Processing Time**: {data['stats']['processing_time']:.1f}s",
+            f"- **RTF**: {data['stats']['rtf']:.3f}"
+        ]
+        
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))

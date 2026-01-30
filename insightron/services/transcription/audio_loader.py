@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import librosa
 import soundfile
 import numpy as np
@@ -14,125 +14,104 @@ logger = logging.getLogger(__name__)
 
 class AudioLoader:
     """
-    Handles audio file validation, metadata extraction, loading, and preprocessing.
+    Signal Intake Engine for Insightron.
+    Mental model: clean pipe, not smart brain.
+    
+    Responsibilities:
+    - Normalize sample rate, channels, and format
+    - Trim leading/trailing silence conservatively
+    - Segment audio only by time
+    - Emit timestamps with sample-accurate precision
     """
 
-    def __init__(self):
-        config = get_config_manager()
-        self.enable_audio_normalization = config.get('insightron.services.transcription.enable_audio_normalization', True)
-        self.enable_audio_preprocessing = config.get('insightron.services.transcription.enable_audio_preprocessing', True)
-        
+    def __init__(self, target_sr: int = 16000):
+        self.target_sr = target_sr
         self.supported_formats = {'.mp3', '.wav', '.m4a', '.flac', '.mp4', '.ogg', '.aac', '.wma'}
         self.resource_manager = ResourceManager()
 
     def validate_audio_file(self, audio_path: str) -> bool:
         """Validate if the audio file is supported and accessible."""
         audio = Path(audio_path)
-        
         if not audio.exists():
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
-        
         if audio.suffix.lower() not in self.supported_formats:
             raise ValueError(f"Unsupported audio format: {audio.suffix}")
-        
-        # Check file size
-        file_size_mb = audio.stat().st_size / (1024 * 1024)
-        if file_size_mb > 2048:
-            raise ValueError(f"File too large: {file_size_mb:.1f}MB. Maximum size is 2GB.")
-        
-        logger.info(f"Audio file validation passed: {audio.name} ({file_size_mb:.1f}MB)")
         return True
 
-    @lru_cache(maxsize=100)
-    def _get_audio_info_cached(self, audio_path: str) -> tuple:
-        """Cached audio info extraction for performance."""
+    def get_audio_metadata(self, audio_path: str) -> Dict[str, Any]:
+        """Extract metadata for signal preservation and tracking."""
         try:
             info = soundfile.info(audio_path)
-            # Duration, Samplerate, Channels
-            return (info.duration, info.samplerate, info.channels)
-        except Exception:
-            try:
-                duration = librosa.get_duration(filename=audio_path)
-                return (duration, 16000, 1)  # Default assumptions
-            except Exception:
-                return (0, 16000, 1)
-
-    def get_audio_metadata(self, audio_path: str) -> Dict[str, Any]:
-        """Extract comprehensive audio metadata with caching."""
-        try:
-            audio = Path(audio_path)
-            file_size = audio.stat().st_size
-            
-            # Use cached info extraction
-            duration, sample_rate, channels = self._get_audio_info_cached(str(audio))
-            
-            metadata = {
-                'filename': audio.name,
-                'file_size_mb': file_size / (1024 * 1024),
-                'duration_seconds': duration,
-                'duration_formatted': f"{int(duration // 60)}:{(duration % 60):02.0f}" if duration else "Unknown",
-                'file_extension': audio.suffix.lower(),
-                'sample_rate': sample_rate,
-                'channels': channels
-            }
-            return metadata
-            
-        except Exception as e:
-            logger.error(f"Could not extract metadata: {e}")
             return {
                 'filename': Path(audio_path).name,
-                'file_size_mb': 0,
-                'duration_seconds': 0,
-                'duration_formatted': "Unknown",
-                'file_extension': Path(audio_path).suffix.lower(),
-                'sample_rate': 16000,
-                'channels': 1
+                'duration_seconds': info.duration,
+                'sample_rate': info.samplerate,
+                'channels': info.channels,
+                'format': info.format,
+                'subtype': info.subtype
+            }
+        except Exception as e:
+            logger.warning(f"Metadata extraction via soundfile failed: {e}. Falling back to librosa.")
+            duration = librosa.get_duration(filename=audio_path)
+            return {
+                'filename': Path(audio_path).name,
+                'duration_seconds': duration,
+                'sample_rate': self.target_sr,
+                'channels': 1,
+                'format': 'unknown'
             }
 
-    def load_and_preprocess(self, audio_path: str) -> Optional[np.ndarray]:
+    def load_signal(self, audio_path: str) -> np.ndarray:
         """
-        Load and preprocess audio for optimal transcription quality.
-        Includes normalization, resampling, and simple noise reduction hints.
+        Load audio with maximum signal preservation and strict normalization.
+        Always returns 16kHz, Mono, Float32.
         """
-        if not self.enable_audio_preprocessing:
-            return None
-        
         try:
-            # Check file size against resource limits before loading
-            file_mb = Path(audio_path).stat().st_size / (1024*1024)
-            max_safe_mb = self.resource_manager.get_max_safe_file_load_size_mb()
+            # Use soundfile for primary intake
+            audio, sr = soundfile.read(audio_path, dtype='float32')
             
-            if file_mb > max_safe_mb:
-                logger.warning(f"File {Path(audio_path).name} size ({file_mb:.1f}MB) exceeds safe RAM limit ({max_safe_mb}MB). Skipping preprocessing (streaming mode).")
-                return None
+            # 1. Normalize channels (downmix to mono)
+            if len(audio.shape) > 1:
+                audio = np.mean(audio, axis=1)
             
-            # Optimization: Use soundfile for faster loading
-            try:
-                audio, sr = soundfile.read(audio_path, dtype='float32')
+            # 2. Resample if necessary
+            if sr != self.target_sr:
+                audio = librosa.resample(audio, orig_sr=sr, target_sr=self.target_sr)
+            
+            # 3. Conservative silence trimming
+            # We use a low threshold to preserve subtle audio artifacts
+            audio, _ = librosa.effects.trim(audio, top_db=40)
+            
+            # 4. Standard Peak Normalization
+            max_val = np.abs(audio).max()
+            if max_val > 0:
+                audio = audio / max_val
                 
-                # Handle multi-channel audio (convert to mono)
-                if len(audio.shape) > 1:
-                    audio = audio.mean(axis=1)
-                
-                # Resample if necessary (Whisper expects 16kHz)
-                if sr != 16000:
-                    audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
-                    
-            except Exception as sf_error:
-                logger.debug(f"Soundfile load failed ({sf_error}), falling back to librosa")
-                audio, sr = librosa.load(audio_path, sr=16000, mono=True, dtype=np.float32)
+            return audio.astype(np.float32)
             
-            # Normalize audio if enabled
-            if self.enable_audio_normalization:
-                max_val = np.abs(audio).max()
-                if max_val > 0:
-                    audio = audio / max_val * 0.95  # Leave 5% headroom
-            
-            # Simple high-pass filter to remove DC offset/low-freq noise
-            if len(audio) > 100:
-                audio -= np.mean(audio)
-            
-            return audio
         except Exception as e:
-            logger.warning(f"Audio preprocessing failed: {e}, using original file path")
-            return None
+            logger.error(f"Signal intake failed: {e}")
+            raise RuntimeError(f"Could not load signal from {audio_path}: {e}")
+
+    def segment_by_time(self, audio: np.ndarray, segment_seconds: float) -> list[Dict[str, Any]]:
+        """
+        Segment audio strictly by time. No semantic guessing.
+        """
+        samples_per_segment = int(segment_seconds * self.target_sr)
+        segments = []
+        
+        for i in range(0, len(audio), samples_per_segment):
+            chunk = audio[i:i + samples_per_segment]
+            start_time = i / self.target_sr
+            end_time = min((i + samples_per_segment) / self.target_sr, len(audio) / self.target_sr)
+            
+            segments.append({
+                "signal": chunk,
+                "start_sample": i,
+                "end_sample": i + len(chunk),
+                "start_time": start_time,
+                "end_time": end_time,
+                "duration": end_time - start_time
+            })
+            
+        return segments

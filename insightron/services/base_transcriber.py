@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Any, Callable, Iterator, List
 import logging
 from pathlib import Path
 from insightron.core.model_manager import ModelManager
@@ -7,57 +7,70 @@ from insightron.core.resource_manager import ResourceManager
 
 logger = logging.getLogger(__name__)
 
-class BaseTranscriber(ABC):
+class BaseTranscriber:
     """
-    Abstract Base Class for all transcription services (Normal, Batch, Real-time).
-    Provides common validation, resource checking, and error handling.
+    Ground Truth Layer for Insightron.
+    Mental model: camera, not editor.
+    
+    Lowest-level transcription interface. Converts audio -> text literally.
+    
+    Rules:
+    - No cleanup, no formatting, no guessing
+    - Preserve hesitations, repetitions, and uncertainty
     """
     
-    def __init__(self, model_size: str = "medium", language: Optional[str] = None):
+    def __init__(self, model_size: str = "medium"):
         self.model_manager = ModelManager()
         self.resource_manager = ResourceManager()
         self.model_size = model_size
-        self.language = language
-        self.status = "idle"
-        
-    @abstractmethod
-    def transcribe(self, *args, **kwargs):
-        """Core transcription method to be implemented by subclasses."""
-        pass
-    
-    def validate_resources(self) -> bool:
-        """
-        Check if system resources are sufficient for operation.
-        Returns:
-            bool: True if safe to proceed, False if critical resource shortage.
-        """
-        health = self.resource_manager.check_health()
-        if health["status"] == "constrained":
-            logger.warning(f"System resource warning: {health['warnings']}")
-            # In severe cases we might return False, but mostly just warn
-        return True
 
-    def validate_audio_file(self, audio_path: str) -> bool:
+    def transcribe_literal(
+        self, 
+        audio: Any, 
+        language: Optional[str] = None
+    ) -> Iterator[Dict[str, Any]]:
         """
-        Common audio file validation.
+        Execute raw, literal transcription.
+        Preserves all verbal artifacts and uncertainty.
         """
-        path = Path(audio_path)
-        if not path.exists():
-            logger.error(f"Audio file not found: {audio_path}")
-            return False
-            
-        if path.suffix.lower() not in ['.wav', '.mp3', '.m4a', '.flac', '.ogg']:
-            logger.warning(f"Unsupported or unknown file extension: {path.suffix}")
-            # We might still try to process it, but warn
-            
-        return True
+        # 1. Resource Validation
+        health = self.resource_manager.check_health()
+        if health["status"] == "critical":
+            raise RuntimeError(f"Critical resource shortage: {health['warnings']}")
+
+        # 2. Call ModelManager with 'literal' parameters
+        # condition_on_previous_text=False prevents the model from "smoothing" the text
+        # beam_size=1 (greedy) can sometimes be more literal, but beam_size=5 is standard for accuracy.
+        # We'll use beam_size=5 but disable text conditioning for truth preservation.
+        segments_iter, info = self.model_manager.transcribe(
+            audio,
+            language=language,
+            condition_on_previous_text=False,
+            # We want RAW output, so we don't suppress any tokens if possible
+            # suppress_tokens=None, 
+            word_timestamps=True # Crucial for literal ground truth
+        )
+
+        logger.info(f"Literal transcription started: {info.language} (p={info.language_probability:.4f})")
+        
+        for segment in segments_iter:
+            # Yield raw segment data
+            yield {
+                "start": segment.start,
+                "end": segment.end,
+                "text": segment.text, # Raw text including fillers
+                "avg_logprob": segment.avg_logprob,
+                "words": [
+                    {
+                        "word": w.word,
+                        "start": w.start,
+                        "end": w.end,
+                        "probability": w.probability
+                    } for w in (segment.words or [])
+                ]
+            }
 
     def _handle_error(self, e: Exception, context: str = ""):
-        """
-        Standardized error handling and logging.
-        """
-        error_msg = f"Error in {context}: {str(e)}"
+        error_msg = f"Ground Truth Error in {context}: {str(e)}"
         logger.error(error_msg)
-        self.status = "error"
-        # Could add telemetry or user notification hooks here
         return error_msg
