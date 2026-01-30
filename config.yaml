@@ -243,7 +243,7 @@ multi_pass:
   # Pass 2: Contextual restoration with LLM
   # Pass 3: Emotion mapping with sentiment analysis
   # Default: false (single-pass mode for backward compatibility)
-  enabled: true
+  enabled: false
   
   # Chunk duration for batch processing (in seconds)
   # Audio is split into chunks to maintain context and prevent memory issues
@@ -279,7 +279,7 @@ multi_pass:
       # Recommended: Qwen/Qwen2.5-7B-Instruct (High logic capabilities)
       # Alternative: Qwen/Qwen2.5-1.5B-Instruct, google/gemma-2-2b-it
       # Default: Qwen/Qwen2.5-7B-Instruct
-      model_name: "Qwen/Qwen2.5-7B-Instruct"
+      model_name: "Qwen/Qwen2.5-3B-Instruct"
       
       # Device: auto, cpu, cuda
       # auto = automatically use GPU if available
@@ -331,7 +331,7 @@ multi_pass:
     # Enable Pass 3 (emotion marker injection)
     # Analyzes speech patterns to add emotional context
     # Default: true (when multi_pass.enabled is true)
-    enabled: true
+    enabled: false
     
     # Emotion markers to detect
     # Options: cheerful, urgent, calm, excited, serious
