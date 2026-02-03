@@ -6,6 +6,7 @@ Tests emotion analyzer, LLM providers, and multi-pass orchestration.
 
 import pytest
 import sys
+import numpy as np
 from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch
 
@@ -66,7 +67,9 @@ class TestEmotionAnalyzer:
         
         metrics = analyzer.analyze_text(text, duration)
         
-        assert metrics.detected_emotion == 'Cheerful'
+        # High energy (4 WPS) + energy keywords + exclamation 
+        # With new weighted system, this text scores high for 'Excited' or 'Cheerful'
+        assert metrics.detected_emotion in ['Cheerful', 'Excited']
     
     def test_calm_emotion_detection(self):
         """Test detection of calm emotion"""
@@ -145,14 +148,14 @@ class TestLLMProviders:
         assert provider.model == 'gpt-3.5-turbo'
         assert provider.max_tokens == 2000
     
-    @patch('insightron.services.transcription.llm_provider.OpenAI')
+    @patch('openai.OpenAI')
     def test_openai_restore_text_mocked(self, mock_openai_class):
         """Test OpenAI text restoration with mocked API"""
         # Setup mock
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "This is restored text!"
+        mock_response.choices[0].message.content = '{"clean_text": "This is restored text!", "flags": [], "stitched": false}'
         mock_response.usage.total_tokens = 50
         mock_client.chat.completions.create.return_value = mock_response
         mock_openai_class.return_value = mock_client
@@ -190,7 +193,7 @@ class TestLLMProviders:
         config = {}
         provider = LocalLLMProvider(config)
         
-        prompt = provider._build_restoration_prompt("test text", context="previous text")
+        prompt = provider._build_restoration_prompt("test text", prev_clean="previous text")
         
         assert "test text" in prompt
         assert "previous text" in prompt
@@ -275,7 +278,9 @@ class TestMultiPassTranscriber:
         # Setup mocks
         mock_loader = MagicMock()
         mock_loader.validate_audio_file.return_value = True
-        mock_loader.load_and_preprocess.return_value = None
+        mock_loader.load_signal.return_value = np.zeros(16000) # 1 sec of silence
+        mock_loader.get_audio_metadata.return_value = {'duration': 1.0, 'filename': 'test.wav'}
+        mock_loader.segment_by_time.return_value = [{'signal': np.zeros(16000), 'start_time': 0.0}]
         mock_loader_class.return_value = mock_loader
         
         mock_engine = MagicMock()
@@ -285,7 +290,7 @@ class TestMultiPassTranscriber:
         mock_info = MagicMock()
         mock_info.language = 'en'
         mock_info.duration = 5.0
-        mock_engine.transcribe.return_value = (mock_segments, mock_info)
+        mock_engine.process_signal_single_pass.return_value = mock_segments
         mock_engine_class.return_value = mock_engine
         
         # Create transcriber

@@ -153,52 +153,64 @@ class EmotionAnalyzer:
     
     def _classify_emotion(self, metrics: EmotionMetrics) -> Optional[str]:
         """
-        Classify emotion based on metrics.
-        
-        Priority order: Excited > Urgent > Cheerful > Serious > Calm
-        
-        Args:
-            metrics: EmotionMetrics object
-            
-        Returns:
-            Emotion label or None
+        Classify emotion based on a weighted scoring system.
+        Calculates confidence scores for each emotion and returns the strongest one.
         """
-        # Excited: Very high energy with multiple exclamations
+        scores = {}
+        
+        # 1. Excited Score
         if 'excited' in self.enabled_emotions:
-            if (metrics.exclamation_count >= self.min_exclamations and 
-                metrics.word_density >= self.high_energy_wps and
-                metrics.energy_keywords >= 3):
-                return 'Excited'
-        
-        # Urgent: Fast-paced with imperative/urgent keywords
+            score = 0
+            if metrics.word_density >= self.high_energy_wps: score += 40
+            score += min(metrics.exclamation_count * 20, 40)
+            score += min(metrics.energy_keywords * 15, 30)
+            if metrics.question_count > 0: score += 10
+            scores['Excited'] = score
+            
+        # 2. Urgent Score
         if 'urgent' in self.enabled_emotions:
-            urgent_indicators = metrics.energy_keywords >= 2
-            fast_pace = metrics.word_density >= self.high_energy_wps
-            if urgent_indicators and fast_pace:
-                return 'Urgent'
-        
-        # Cheerful: High energy, positive tone
+            score = 0
+            if metrics.word_density >= self.high_energy_wps: score += 30
+            score += min(metrics.energy_keywords * 25, 50)
+            if metrics.avg_sentence_length < 10: score += 20 # Short, punchy sentences
+            scores['Urgent'] = score
+            
+        # 3. Cheerful Score
         if 'cheerful' in self.enabled_emotions:
-            if (metrics.word_density >= self.high_energy_wps and 
-                metrics.energy_keywords >= 1 and
-                metrics.exclamation_count >= 1):
-                return 'Cheerful'
-        
-        # Serious: Formal, measured, longer sentences
+            score = 0
+            if metrics.word_density >= self.high_energy_wps: score += 20
+            score += min(metrics.energy_keywords * 20, 40)
+            if metrics.exclamation_count >= 1: score += 20
+            if metrics.sentence_length_variance > 5: score += 20 # Varied, lively speech
+            scores['Cheerful'] = score
+            
+        # 4. Serious Score
         if 'serious' in self.enabled_emotions:
-            if (metrics.avg_sentence_length >= self.serious_sentence_length and
-                metrics.word_density < self.high_energy_wps and
-                metrics.exclamation_count == 0):
-                return 'Serious'
-        
-        # Calm: Low energy, thoughtful keywords
+            score = 0
+            if metrics.avg_sentence_length >= self.serious_sentence_length: score += 40
+            if metrics.word_density < self.high_energy_wps: score += 20
+            if metrics.exclamation_count == 0: score += 30
+            if metrics.calm_keywords >= 1: score += 10
+            scores['Serious'] = score
+            
+        # 5. Calm Score
         if 'calm' in self.enabled_emotions:
-            if (metrics.word_density <= self.low_energy_wps and
-                metrics.calm_keywords >= 1 and
-                metrics.exclamation_count == 0):
-                return 'Calm'
+            score = 0
+            if metrics.word_density <= self.low_energy_wps: score += 40
+            score += min(metrics.calm_keywords * 25, 40)
+            if metrics.exclamation_count == 0: score += 20
+            scores['Calm'] = score
+            
+        # Select best emotion if it exceeds threshold (e.g., 60)
+        best_emotion = None
+        max_score = 60 # Minimum confidence threshold
         
-        return None
+        for emotion, score in scores.items():
+            if score >= max_score:
+                max_score = score
+                best_emotion = emotion
+                
+        return best_emotion
     
     def inject_emotion_marker(self, text: str, emotion: str) -> str:
         """

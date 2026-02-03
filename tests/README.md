@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains the comprehensive test suite for Insightron v3.0.0. The tests cover all major components including core modules, efficiency layer, transcription functionality, realtime processing, batch operations, and text formatting.
+This directory contains the comprehensive test suite for Insightron v3.1.0. The tests cover all major components including core modules, efficiency layer, transcription functionality, realtime processing, batch operations, and text formatting.
 
 ## Test Organization
 
@@ -23,7 +23,7 @@ This directory contains the comprehensive test suite for Insightron v3.0.0. The 
 - **`test_resource_manager.py`** - Static and dynamic resource constraint tests
 - **`test_vad.py`** - Dedicated VAD logic verification
 
-#### Transcription Tests (Modular v3.0.0)
+#### Transcription Tests (Modular v3.1.0)
 - **`test_audio_loader.py`** - Audio loading and preprocessing tests
 - **`test_transcription_engine.py`** - Inference engine orchestration tests
 - **`test_result_handler.py`** - Output generation and formatting tests
@@ -314,6 +314,6 @@ For questions about the test suite:
 
 ---
 
-**Test Suite Version**: 3.0.0  
+**Test Suite Version**: 3.1.0  
 **Last Updated**: 2026-01-27  
 **Maintained by**: Insightron Development Team

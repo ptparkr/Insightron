@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 
 echo ================================================
-echo    Insightron v2.2.0 - Windows Installer
+echo    Insightron v3.1.0 - Windows Installer
 echo    Enhanced Whisper AI Transcription Tool
 echo ================================================
 echo.

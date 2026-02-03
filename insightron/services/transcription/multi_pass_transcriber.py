@@ -208,21 +208,43 @@ class MultiPassTranscriber:
         
         logger.info("=== Pass 1: Detection ===")
         
-        # Validate and load audio
+        # 1. Resource Validation
+        self.transcription_engine.literal_transcriber.validate_resources()
+        
+        # 2. Signal Intake
         self.audio_loader.validate_audio_file(audio_path)
-        preprocessed_audio = self.audio_loader.load_and_preprocess(audio_path)
-        audio_input = preprocessed_audio if preprocessed_audio is not None else str(audio_path)
+        metadata = self.audio_loader.get_audio_metadata(audio_path)
+        signal = self.audio_loader.load_signal(audio_path)
         
-        # Transcribe
-        segments, info = self.transcription_engine.transcribe(
-            audio_input,
-            language=language,
-            beam_size=5,
-            progress_callback=progress_callback
-        )
+        # 3. Deterministic Chunking (aligning with AudioTranscriber)
+        chunks = self.audio_loader.segment_by_time(signal, segment_seconds=30.0)
         
-        logger.info(f"Pass 1 complete: {len(segments)} segments detected")
-        return segments, info
+        all_segments = []
+        num_chunks = len(chunks)
+        
+        # 4. Transcribe Loop
+        for i, chunk in enumerate(chunks):
+            if progress_callback:
+                progress_callback(f"Pass 1/3: Processing chunk {i+1}/{num_chunks}...")
+            
+            chunk_segments = self.transcription_engine.process_signal_single_pass(
+                chunk["signal"],
+                language=language,
+                offset_time=chunk["start_time"]
+            )
+            all_segments.extend(chunk_segments)
+        
+        # Build a dummy info object for compatibility
+        from dataclasses import dataclass
+        @dataclass
+        class Info:
+            language: str
+            duration: float
+        
+        info = Info(language=language or "auto", duration=metadata.get('duration', 0))
+        
+        logger.info(f"Pass 1 complete: {len(all_segments)} segments detected")
+        return all_segments, info
     
     def pass2_restore(
         self,

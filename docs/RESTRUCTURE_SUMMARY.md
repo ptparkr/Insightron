@@ -27,7 +27,7 @@ Insightron/
 │   │   ├── resource_manager.py   # Efficiency Layer
 │   │   └── vad.py                # Voice Activity Detection
 │   ├── services/                 # Business logic
-│   │   ├── transcription/        # Transcription services (Modular v3.0)
+│   │   ├── transcription/        # Transcription services (Modular v3.1)
 │   │   ├── batch/                # Batch processing
 │   │   └── realtime/             # Real-time transcription
 │   ├── ui/                       # UI components
@@ -86,7 +86,7 @@ Both work identically - the new structure is backward compatible!
 - **`docs/QUICK_START.md`**: Quick start guide for developers
 - **Module docstrings**: Each file has clear documentation
 
-## 🔄 Migration Notes (v3.0.0)
+## 🔄 Migration Notes (v3.1.0)
 
 - ✅ **Package Renaming**: The `src` directory has been renamed to `insightron` to follow standard Python package conventions.
 - ✅ **New Efficiency Layer**: Added `core/resource_manager.py` for optimized performance on low-spec systems.

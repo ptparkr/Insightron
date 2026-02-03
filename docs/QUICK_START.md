@@ -1,8 +1,8 @@
-# Insightron v3.0.0 - Quick Start Guide
+# Insightron v3.1.0 - Quick Start Guide
 
-## 🚀 What's New in v3.0.0
+## 🚀 What's New in v3.1.0
 
-Insightron v3.0.0 introduces **adaptive intelligence** with a new efficiency layer, dynamic resource management, and a fully responsive UI.
+Insightron v3.1.0 introduces **adaptive intelligence** with a new efficiency layer, dynamic resource management, and a fully responsive UI.
 
 ### Key Improvements
 
@@ -275,7 +275,7 @@ python cli.py *.mp3 -b -w 4  # Use fewer workers
 - Batch processing with auto worker detection
 - Event-driven progress tracking
 
-**After (v3.0.0):**
+**After (v3.1.0):**
 - ✅ **Everything in v2.2.0 plus:**
 - ✅ **New Efficiency Layer**: Optimal resource usage on any hardware
 - ✅ **Dynamic Chunking**: Process massive files without memory issues
