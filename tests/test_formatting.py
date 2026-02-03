@@ -123,8 +123,8 @@ class TestParagraphDetection(unittest.TestCase):
         # It looks for patterns like "however", "and", "but", etc.
         paragraph_starters = [
             "However, this is different.",  # "however" is in pattern
-            "And this is also new.",  # "and" is in pattern
-            "But there is more.",  # "but" is in pattern
+            "Furthermore, we proceed.",
+            "In conclusion, we wrap up."
         ]
         
         for text in paragraph_starters:
@@ -132,6 +132,16 @@ class TestParagraphDetection(unittest.TestCase):
             result = self.formatter._indicates_long_pause(text)
             # All of these contain pause indicators from the regex patterns
             self.assertTrue(result, f"Failed for: {text}")
+
+        # Verify that "And" and "But" are NO LONGER treated as paragraph starters
+        # per the fix for Bug 2
+        non_starters = [
+             "And this is also new.",
+             "But there is more."
+        ]
+        for text in non_starters:
+             result = self.formatter._indicates_long_pause(text)
+             self.assertFalse(result, f"Should not be a starter: {text}")
 
 
 @pytest.mark.unit

@@ -24,7 +24,7 @@ from insightron.services.transcription.multi_pass_transcriber import MultiPassTr
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class AudioTranscriber:
+class AudioTranscriber(BaseTranscriber):
     """
     Execution Orchestrator for Insightron.
     Mental model: conductor, not musician.
@@ -37,10 +37,10 @@ class AudioTranscriber:
     """
     
     def __init__(self, model_size: str = WHISPER_MODEL, language: str = DEFAULT_LANGUAGE):
+        super().__init__(model_size=model_size)
         self.loader = AudioLoader()
         self.engine = TranscriptionEngine()
         self.handler = ResultHandler()
-        self.model_size = model_size
         self.language = language
         self.max_retries = 3
 
@@ -57,6 +57,9 @@ class AudioTranscriber:
         target_language = language or self.language
         
         try:
+            # 0. Resource Validation
+            self.validate_resources()
+
             # 1. Signal Intake
             self.loader.validate_audio_file(audio_path)
             metadata = self.loader.get_audio_metadata(audio_path)

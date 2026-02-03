@@ -24,6 +24,15 @@ class BaseTranscriber:
         self.resource_manager = ResourceManager()
         self.model_size = model_size
 
+    def validate_resources(self):
+        """
+        Check if system resources are sufficient.
+        """
+        health = self.resource_manager.check_health()
+        if health["status"] == "critical":
+            logger.warning(f"Resource Low: {health['warnings']}")
+        return health
+
     def transcribe_literal(
         self, 
         audio: Any, 
