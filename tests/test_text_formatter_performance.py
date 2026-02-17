@@ -21,10 +21,11 @@ class TestTextFormatterPerformance(unittest.TestCase):
         """Set up test fixtures"""
         self.formatter = TextFormatter()
         
-        # Short sample text
+        # Short sample text (natural language with a few fillers)
         self.short_text = (
-            "um one thing that I have recognized is that see I am purifying my earth element. "
-            "What happens is that some karma manifests as things like past reminders."
+            "Um, one thing that I have noticed in our weekly meeting is how the discussion "
+            "shifts once everyone has had a chance to speak. "
+            "It becomes clearer, more focused, and the main decisions stand out much more naturally."
         )
         
         # Medium sample text (repeating pattern)

@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from insightron.core.utils import create_markdown, save_processed_audio
+from insightron.core.utils import create_timestamps_section, save_processed_audio
 from insightron.core.config import (
     TRANSCRIPTION_FOLDER, 
     PROCESSED_AUDIO_FOLDER,
@@ -28,12 +28,22 @@ class ResultHandler:
     - File saving
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         config = get_config_manager()
-        self.segment_merge_threshold = config.get('insightron.services.transcription.segment_merge_threshold', -0.5)
-        
+        self.segment_merge_threshold = config.get(
+            "insightron.services.transcription.segment_merge_threshold", -0.5
+        )
+
         self.segment_analyzer = SegmentAnalyzer()
         self.quality_metrics_calculator = QualityMetricsCalculator()
+
+        # Core collaborators for formatting and quality/risk scoring
+        self.formatter = TextFormatter()
+        self.quality_calc = QualityMetricsCalculator()
+
+        # Output directory for markdown reports
+        self.output_dir = Path(get_config("insightron.paths.output_dir", "output"))
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def merge_segments(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -87,12 +97,13 @@ class ResultHandler:
         return merged
 
     def calculate_quality_metrics(self, segments: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Calculate quality metrics for transcribed segments."""
-        metrics = self.quality_metrics_calculator.calculate_metrics(segments)
-        self.formatter = TextFormatter()
-        self.quality_calc = QualityMetricsCalculator()
-        self.output_dir = Path(get_config('insightron.paths.output_dir', 'output'))
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        """
+        Calculate detailed quality metrics for transcribed segments.
+
+        This is a convenience wrapper around the underlying calculator and
+        is safe to call independently of save_result.
+        """
+        return self.quality_metrics_calculator.calculate_metrics(segments)
 
     def save_result(
         self,
@@ -145,30 +156,43 @@ class ResultHandler:
 
         return output_path, result_data
 
-    def _write_markdown(self, path: Path, data: Dict[str, Any]):
+    def _write_markdown(self, path: Path, data: Dict[str, Any]) -> None:
         """Write a standardized, human-readable report."""
         risk = data["quality"]
         action = risk["action_recommendation"]
         
         # Color indicator for risk
         color = "🟢" if action == "Accept" else "🟡" if action == "Flag" else "🔴"
-        
+
+        # Optional timestamps section for detailed navigation
+        segments = data["transcription"].get("segments", [])
+        timestamps_section = ""
+        if segments:
+            timestamps_section = "\n## Timestamps\n\n" + create_timestamps_section(segments)
+
         lines = [
             f"# Insightron Transcription: {data['metadata']['filename']}",
-            f"\n## Quality Report {color}",
+            f"## Quality Report {color}",
             f"- **Status**: {action}",
             f"- **Risk Score**: {risk['risk_score']:.2f}",
             f"- **Audio Confidence**: {risk['metrics']['average_confidence']:.2f}",
             f"- **Consistency**: {risk['metrics']['language_consistency_score']:.2f}",
-            "\n---",
-            "\n## Transcript",
-            f"\n{data['transcription']['full_text']}",
-            "\n---",
-            "\n## Metadata",
+            "",
+            "---",
+            "## Transcript",
+            "",
+            data["transcription"]["full_text"],
+            "",
+            timestamps_section.strip() if timestamps_section else "",
+            "",
+            "---",
+            "## Metadata",
             f"- **Model**: {data['transcription']['model']}",
             f"- **Processing Time**: {data['stats']['processing_time']:.1f}s",
-            f"- **RTF**: {data['stats']['rtf']:.3f}"
+            f"- **RTF**: {data['stats']['rtf']:.3f}",
         ]
-        
+
         with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
+            # Preserve intentional blank lines ("" entries) for markdown spacing,
+            # while still skipping any accidental None values.
+            f.write("\n".join(line for line in lines if line is not None))

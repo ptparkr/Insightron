@@ -35,6 +35,10 @@ matplotlib>=3.5.0
 # Development and testing (optional)
 pytest>=7.0.0
 
+# Build and packaging tools (pinned to avoid pkg_resources deprecation noise
+# from some CTranslate2/faster-whisper builds when used with newer setuptools)
+setuptools>=65.0.0,<81.0.0
+
 # Enhanced error handling and logging
 colorama>=0.4.6
 

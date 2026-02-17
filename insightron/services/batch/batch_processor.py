@@ -8,7 +8,7 @@ import sys
 import os
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Callable
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, FIRST_COMPLETED
 import logging
 from datetime import datetime
 import multiprocessing
@@ -50,12 +50,16 @@ def transcribe_single_file_worker(audio_file: str, model_size: str, language: st
         
         # Note: Audio saving is handled in transcribe_file() method
         
+        metadata = transcription_data.get("metadata", {})
+        stats = transcription_data.get("stats", {})
+        transcription = transcription_data.get("transcription", {})
+
         return {
-            'output_path': str(output_path),
-            'duration': transcription_data['duration'],
-            'language': transcription_data['language'],
-            'processing_time': transcription_data['processing_time_seconds'],
-            'status': 'success'
+            "output_path": str(output_path),
+            "duration": metadata.get("duration_seconds"),
+            "language": transcription.get("language", language),
+            "processing_time": stats.get("processing_time"),
+            "status": "success",
         }
     except Exception as e:
         return {
@@ -78,9 +82,14 @@ class BatchTranscriber(BaseTranscriber):
         transcriber: Optional[AudioTranscriber] = None
     ):
         # Initialize BaseTranscriber (creates ResourceManager)
-        super().__init__(model_size, language)
+        super().__init__(model_size=model_size)
+        self.language = language
         
-        self.use_multiprocessing = use_multiprocessing
+        # Prefer threads when CUDA is available; multi-process often forces
+        # multiple model loads/VRAM allocations and can OOM or thrash.
+        self.use_multiprocessing = use_multiprocessing and not self._cuda_available()
+        if use_multiprocessing and not self.use_multiprocessing:
+            logger.info("CUDA detected: switching batch execution to ThreadPoolExecutor for stability.")
         
         # Determine optimal worker count from config or defaults (optimized using ResourceManager)
         if max_workers is None:
@@ -101,7 +110,17 @@ class BatchTranscriber(BaseTranscriber):
             self.transcriber = AudioTranscriber(model_size, language)
         
         logger.info(f"BatchTranscriber initialized: model={model_size}, workers={self.max_workers}, "
-                   f"multiprocessing={use_multiprocessing}")
+                   f"multiprocessing={self.use_multiprocessing}")
+
+    @staticmethod
+    def _cuda_available() -> bool:
+        """Best-effort CUDA availability check (safe fallback)."""
+        try:
+            import ctranslate2  # type: ignore
+
+            return bool(getattr(ctranslate2, "get_cuda_device_count")() > 0)
+        except Exception:
+            return False
 
     def transcribe(self, audio_files: List[str], **kwargs):
         """Satisfy BaseTranscriber contract."""
@@ -155,99 +174,95 @@ class BatchTranscriber(BaseTranscriber):
         ExecutorClass = ProcessPoolExecutor if self.use_multiprocessing else ThreadPoolExecutor
         
         with ExecutorClass(max_workers=self.max_workers) as executor:
-            future_to_file = {}
-            
-            for audio_file in audio_files:
+            future_to_file: Dict[Any, str] = {}
+
+            def submit_file(file_path: str) -> None:
+                """Submit a file for transcription and mark it in progress."""
+                batch_state.set_file_status(file_path, FileStatus.IN_PROGRESS)
                 if self.use_multiprocessing:
-                    # Pass simple types for multiprocessing
                     future = executor.submit(
                         transcribe_single_file_worker,
-                        audio_file,
+                        file_path,
                         self.model_size,
                         self.language,
-                        formatting_style
+                        formatting_style,
                     )
                 else:
-                    # Use internal method for threading (can share self.transcriber)
                     future = executor.submit(
                         self._transcribe_single_file_threaded,
-                        audio_file,
-                        formatting_style
+                        file_path,
+                        formatting_style,
                     )
-                future_to_file[future] = audio_file
-            
-            for future in as_completed(future_to_file):
-                audio_file = future_to_file[future]
-                batch_state.set_file_status(audio_file, FileStatus.IN_PROGRESS)
-                
-                try:
-                    result = future.result()
-                    
-                    if result.get('status') == 'failed':
-                        raise Exception(result.get('error', 'Unknown error'))
-                    
-                    # Success
-                    batch_state.set_file_status(
-                        audio_file, 
-                        FileStatus.SUCCESS,
-                        output_path=result.get('output_path')
-                    )
-                    
-                    results['successful'].append({
-                        'file': audio_file,
-                        'output': result['output_path'],
-                        'duration': result['duration'],
-                        'language': result['language']
-                    })
-                    results['completed'] += 1
-                    
-                    if progress_callback:
-                        progress_callback(
-                            results['completed'],
-                            results['total_files'],
-                            Path(audio_file).name
-                        )
-                    logger.info(f"✓ Completed: {Path(audio_file).name}")
-                    
-                except Exception as e:
-                    error_msg = str(e)
-                    file_state = batch_state.state['files'].get(str(Path(audio_file).resolve()), {})
-                    attempts = file_state.get('attempts', 0)
-                    
-                    if attempts < max_retries:
-                        # Retry
-                        logger.warning(f"Retrying {Path(audio_file).name} (attempt {attempts + 1}/{max_retries})")
+                future_to_file[future] = file_path
+
+            # Initial submission
+            for audio_file in audio_files:
+                submit_file(audio_file)
+
+            # Robust completion loop that supports retries.
+            while future_to_file:
+                done, _ = wait(set(future_to_file.keys()), return_when=FIRST_COMPLETED)
+
+                for future in done:
+                    audio_file = future_to_file.pop(future)
+
+                    try:
+                        result = future.result()
+                        if result.get("status") == "failed":
+                            raise RuntimeError(result.get("error", "Unknown error"))
+
+                        # Success
                         batch_state.set_file_status(
-                            audio_file, 
-                            FileStatus.FAILED,
-                            last_error=error_msg
+                            audio_file,
+                            FileStatus.SUCCESS,
+                            output_path=result.get("output_path"),
                         )
-                        # Re-queue for retry
-                        if self.use_multiprocessing:
-                            future = executor.submit(
-                                transcribe_single_file_worker,
-                                audio_file,
-                                self.model_size,
-                                self.language,
-                                formatting_style
+
+                        results["successful"].append(
+                            {
+                                "file": audio_file,
+                                "output": result["output_path"],
+                                "duration": result.get("duration"),
+                                "language": result.get("language"),
+                                "processing_time": result.get("processing_time"),
+                            }
+                        )
+                        results["completed"] += 1
+
+                        if progress_callback:
+                            progress_callback(
+                                results["completed"],
+                                results["total_files"],
+                                Path(audio_file).name,
                             )
+                        logger.info(f"✓ Completed: {Path(audio_file).name}")
+
+                    except Exception as e:
+                        error_msg = str(e)
+                        file_state = batch_state.state["files"].get(str(Path(audio_file).resolve()), {})
+                        attempts = int(file_state.get("attempts", 0))
+
+                        if attempts < max_retries:
+                            # Record failed attempt (increments attempts) then retry.
+                            logger.warning(
+                                f"Retrying {Path(audio_file).name} (attempt {attempts + 1}/{max_retries}): {error_msg}"
+                            )
+                            batch_state.set_file_status(
+                                audio_file,
+                                FileStatus.FAILED,
+                                last_error=error_msg,
+                            )
+                            submit_file(audio_file)
                         else:
-                            future = executor.submit(
-                                self._transcribe_single_file_threaded,
+                            # Final failure
+                            batch_state.set_file_status(
                                 audio_file,
-                                formatting_style
+                                FileStatus.FAILED,
+                                last_error=error_msg,
                             )
-                        future_to_file[future] = audio_file
-                    else:
-                        # Max retries reached
-                        batch_state.set_file_status(
-                            audio_file, 
-                            FileStatus.FAILED,
-                            last_error=error_msg
-                        )
-                        results['failed'].append({'file': audio_file, 'error': error_msg})
-                        results['failed_count'] += 1
-                        logger.error(f"✗ Failed: {Path(audio_file).name} - {error_msg}")
+                            results["failed"].append({"file": audio_file, "error": error_msg})
+                            results["failed_count"] += 1
+                            logger.error(f"✗ Failed: {Path(audio_file).name} - {error_msg}")
         
         # Statistics
         end_time = datetime.now()
@@ -258,7 +273,10 @@ class BatchTranscriber(BaseTranscriber):
             'total_time_seconds': total_time,
             'throughput': results['completed'] / total_time if total_time > 0 else 0,
             'success_rate': batch_stats['success_rate'],
-            'batch_id': batch_state.batch_id
+            'batch_id': batch_state.batch_id,
+            'average_time_per_file': (
+                total_time / max(1, (results['completed'] + results['failed_count']))
+            ),
         }
         
         # Cleanup state if all files completed successfully
@@ -282,12 +300,16 @@ class BatchTranscriber(BaseTranscriber):
         
         # Note: Audio saving is handled in transcribe_file() method
         
+        metadata = transcription_data.get("metadata", {})
+        stats = transcription_data.get("stats", {})
+        transcription = transcription_data.get("transcription", {})
+
         return {
-            'output_path': str(output_path),
-            'duration': transcription_data['duration'],
-            'language': transcription_data['language'],
-            'processing_time': transcription_data['processing_time_seconds'],
-            'status': 'success'
+            "output_path": str(output_path),
+            "duration": metadata.get("duration_seconds"),
+            "language": transcription.get("language", self.language),
+            "processing_time": stats.get("processing_time"),
+            "status": "success",
         }
 
 def batch_transcribe_files(

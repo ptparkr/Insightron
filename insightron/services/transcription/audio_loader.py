@@ -38,12 +38,49 @@ class AudioLoader:
             raise ValueError(f"Unsupported audio format: {audio.suffix}")
         return True
 
+    def load_and_preprocess(self, audio_path: str) -> Optional[np.ndarray]:
+        """
+        High-efficiency intake that can skip overly large files.
+
+        Returns:
+            numpy array with normalized signal, or None when the file
+            exceeds the safe in-memory size recommended by ResourceManager.
+        """
+        path = Path(audio_path)
+
+        # Fast existence check; callers rely on skip semantics only for size.
+        if not path.exists():
+            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+        try:
+            size_mb = path.stat().st_size / (1024 * 1024)
+        except Exception:
+            size_mb = None
+
+        max_safe_mb = float(self.resource_manager.get_max_safe_file_load_size_mb())
+
+        if size_mb is not None and size_mb > max_safe_mb:
+            logger.warning(
+                f"Skipping '{audio_path}' ({size_mb:.1f} MB) – exceeds safe load limit of {max_safe_mb:.1f} MB"
+            )
+            return None
+
+        # Delegate to standard strict-loading path.
+        self.validate_audio_file(audio_path)
+        return self.load_signal(audio_path)
+
     def get_audio_metadata(self, audio_path: str) -> Dict[str, Any]:
         """Extract metadata for signal preservation and tracking."""
+        file_path = Path(audio_path)
+        try:
+            file_size_mb = file_path.stat().st_size / (1024 * 1024)
+        except Exception:
+            file_size_mb = None
         try:
             info = soundfile.info(audio_path)
             return {
-                'filename': Path(audio_path).name,
+                'filename': file_path.name,
+                'file_size_mb': float(file_size_mb) if file_size_mb is not None else None,
                 'duration_seconds': info.duration,
                 'sample_rate': info.samplerate,
                 'channels': info.channels,
@@ -54,7 +91,8 @@ class AudioLoader:
             logger.warning(f"Metadata extraction via soundfile failed: {e}. Falling back to librosa.")
             duration = librosa.get_duration(filename=audio_path)
             return {
-                'filename': Path(audio_path).name,
+                'filename': file_path.name,
+                'file_size_mb': float(file_size_mb) if file_size_mb is not None else None,
                 'duration_seconds': duration,
                 'sample_rate': self.target_sr,
                 'channels': 1,

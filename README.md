@@ -24,6 +24,12 @@ python automation/setup/install.py
 automation/setup/install_windows.bat    # Windows
 ```
 
+> **Note:** Some versions of the underlying `ctranslate2` / `faster-whisper`
+> stack may emit a `pkg_resources is deprecated as an API` warning when used
+> with very new `setuptools` versions. Insightron pins `setuptools` in its
+> requirements and the test suite filters out this third‑party warning. It is
+> safe to ignore and does not affect functionality.
+
 ## 📚 Documentation
 
 All documentation is in the `docs/` folder:

@@ -44,11 +44,38 @@ class AudioTranscriber(BaseTranscriber):
         self.language = language
         self.max_retries = 3
 
+    def get_audio_metadata(self, audio_path: str) -> Dict[str, Any]:
+        """
+        Extract comprehensive audio metadata for integration tests and callers.
+
+        Wraps `AudioLoader.get_audio_metadata` and adds:
+        - `duration_formatted` (MM:SS)
+        - `file_extension`
+        """
+        metadata = self.loader.get_audio_metadata(audio_path)
+        duration = float(metadata.get("duration_seconds") or 0.0)
+
+        if duration > 0:
+            # Round total duration first so that fractional seconds correctly
+            # carry over into minutes (e.g. 59.5s -> 1:00 instead of 0:60).
+            total_seconds = int(round(duration))
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+            metadata["duration_formatted"] = f"{minutes}:{seconds:02d}"
+        else:
+            metadata["duration_formatted"] = "Unknown"
+
+        from pathlib import Path
+
+        metadata["file_extension"] = Path(audio_path).suffix.lower()
+        return metadata
+
     def transcribe_file(
         self, 
         audio_path: str, 
         progress_callback: Optional[Callable[[str], None]] = None,
-        language: Optional[str] = None
+        formatting_style: str = "auto",
+        language: Optional[str] = None,
     ) -> tuple[Path, Dict[str, Any]]:
         """
         Coordinate the transcription execution flow.
@@ -98,7 +125,8 @@ class AudioTranscriber(BaseTranscriber):
                 metadata=metadata,
                 processing_time=processing_time,
                 model_size=self.model_size,
-                language=target_language
+                language=target_language,
+                formatting_style=formatting_style,
             )
 
             if progress_callback:

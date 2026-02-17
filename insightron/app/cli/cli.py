@@ -207,19 +207,32 @@ Examples:
             if not args.quiet:
                 print(f"\n✅ Transcription completed in {processing_time:.1f}s!")
                 print(f"📄 Output: {output_path}")
-                print(f"⏱️  Duration: {transcription_data['duration']}")
-                print(f"📊 File Size: {transcription_data['file_size_mb']:.1f} MB")
-                print(f"🌍 Language: {transcription_data['language']}")
-                print(f"📝 Characters: {len(transcription_data['text']):,}")
-                
-                if 'processing_time_seconds' in transcription_data:
-                    print(f"⚡ Processing Speed: {transcription_data.get('characters_per_second', 0):.1f} chars/sec")
+                metadata = transcription_data.get("metadata", {})
+                transcript = transcription_data.get("transcription", {})
+                stats = transcription_data.get("stats", {})
+
+                duration_s = metadata.get("duration_seconds")
+                file_size_mb = metadata.get("file_size_mb")
+                language = transcript.get("language")
+                full_text = transcript.get("full_text", "")
+                proc_s = stats.get("processing_time")
+
+                if duration_s is not None:
+                    print(f"⏱️  Duration: {duration_s:.1f}s")
+                if file_size_mb is not None:
+                    print(f"📊 File Size: {file_size_mb:.1f} MB")
+                if language:
+                    print(f"🌍 Language: {language}")
+                print(f"📝 Characters: {len(full_text):,}")
+
+                if proc_s and proc_s > 0:
+                    print(f"⚡ Processing Speed: {len(full_text) / proc_s:.1f} chars/sec")
                 
                 if args.verbose:
                     print(f"\n📝 Preview of transcript:")
                     print("-" * 50)
-                    preview = transcription_data['text'][:300]
-                    print(preview + "..." if len(transcription_data['text']) > 300 else preview)
+                    preview = full_text[:300]
+                    print(preview + "..." if len(full_text) > 300 else preview)
             
             logger.info(f"Transcription completed successfully: {output_path}")
         

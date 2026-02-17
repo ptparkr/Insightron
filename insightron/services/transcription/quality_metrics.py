@@ -20,7 +20,46 @@ class QualityMetricsCalculator:
     - Measure stability, consistency, and confidence
     - Output actionable risk scores
     """
-    
+
+    def calculate_metrics(self, segments: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Backward-compatible summary metrics used by `ModelManager.get_quality_metrics`.
+
+        Returns a lightweight view with:
+        - confidence_simple_avg
+        - segment_count
+        - quality_tier (high|medium|low)
+        - degradation_detected (bool)
+        """
+        if not segments:
+            return {
+                "confidence_simple_avg": 0.0,
+                "segment_count": 0,
+                "quality_tier": "unknown",
+                "degradation_detected": False,
+            }
+
+        confidences = [seg.get("confidence", -1.0) for seg in segments]
+        avg_conf = statistics.mean(confidences)
+        segment_count = len(segments)
+
+        # Simple tiering heuristic on average confidence.
+        if avg_conf >= -0.25:
+            tier = "high"
+        elif avg_conf >= -0.75:
+            tier = "medium"
+        else:
+            tier = "low"
+
+        degradation_detected = any(c < -1.0 for c in confidences)
+
+        return {
+            "confidence_simple_avg": float(avg_conf),
+            "segment_count": segment_count,
+            "quality_tier": tier,
+            "degradation_detected": degradation_detected,
+        }
+
     def calculate_risk_metrics(
         self,
         segments: List[Dict[str, Any]],

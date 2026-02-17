@@ -1,5 +1,6 @@
 import logging
 from typing import Optional, Dict, Any, Tuple, Iterator
+from threading import Lock
 from faster_whisper import WhisperModel
 from faster_whisper.transcribe import TranscriptionInfo, Segment
 from insightron.core.config import get_config_manager
@@ -8,8 +9,6 @@ from insightron.core.resource_manager import ResourceManager
 import numpy as np
 import time
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ModelManager:
@@ -40,6 +39,7 @@ class ModelManager:
     _instance = None
     _model = None
     _loaded_model_size = None  # Track which model is currently loaded
+    _load_lock: Lock = Lock()
 
     # Performance-optimized default parameters with dynamic tuning
     DEFAULT_PARAMS = {
@@ -66,13 +66,29 @@ class ModelManager:
     _model_warmup_done = False
 
     def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(ModelManager, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
+        """
+        Thread-safe, patch-friendly singleton constructor.
+
+        When the real `ModelManager` type is used, we enforce a process-wide
+        singleton. When tests monkeypatch/override the symbol with a mock,
+        `cls` will no longer be the concrete `ModelManager` type, and we fall
+        back to a plain object construction to keep mocking behavior intact.
+        """
+        # If this is a mocked/derived class, don't enforce the singleton;
+        # letting the mock construct normally keeps tests simple.
+        if cls is not ModelManager:
+            return object.__new__(cls)
+
+        if ModelManager._instance is None:
+            ModelManager._instance = object.__new__(cls)
+            ModelManager._instance._initialized = False
+        return ModelManager._instance
 
     def __init__(self):
-        if self._initialized:
+        # Guard against multiple initializations and work correctly when the
+        # class is patched/mocked in tests (where `_initialized` may not yet
+        # exist on the instance).
+        if getattr(self, "_initialized", False):
             return
         self._initialized = True
         
@@ -103,8 +119,10 @@ class ModelManager:
         recommended_quantization = self.resource_manager.recommend_quantization()
         
         if self.compute_type not in ["int8", "int8_float16"] and recommended_quantization == "int8":
-             logger.warning(f"Low memory detected. Downgrading compute_type from {self.compute_type} to int8")
-             self.compute_type = "int8"
+            logger.warning(
+                f"Low memory detected. Downgrading compute_type from {self.compute_type} to int8"
+            )
+            self.compute_type = "int8"
 
         # Performance optimizations
         self.enable_model_warmup = config.get('model.enable_warmup', True)
@@ -145,96 +163,66 @@ class ModelManager:
         Returns:
             WhisperModel: Loaded model instance
         """
-        # Always check current config in case it changed
         config = get_config_manager()
         current_model_size = config.model.name
-        
-        # Check if we need to reload: model not loaded or model size changed
-        if self._model is None or ModelManager._loaded_model_size != current_model_size:
-            # If model size changed, clear the old model
-            if self._model is not None and ModelManager._loaded_model_size != current_model_size:
-                logger.info(f"Model size changed from '{ModelManager._loaded_model_size}' to '{current_model_size}'. Reloading model...")
-                
-                # Check system health before reloading
-                health = self.resource_manager.check_health()
-                if health['status'] == 'constrained':
-                     logger.warning(f"System constrained during model reload: {health['warnings']}")
-                     # We proceed but warn
 
-                # Clean up old model if possible
+        # Ensure single-load semantics across threads.
+        with ModelManager._load_lock:
+            if ModelManager._model is not None and ModelManager._loaded_model_size == current_model_size:
+                return ModelManager._model
+
+            # Reload when model size changes.
+            if ModelManager._model is not None and ModelManager._loaded_model_size != current_model_size:
+                logger.info(
+                    f"Model size changed from '{ModelManager._loaded_model_size}' to '{current_model_size}'. Reloading..."
+                )
+
+                health = self.resource_manager.check_health()
+                if health.get("status") == "constrained":
+                    logger.warning(f"System constrained during model reload: {health.get('warnings')}")
+
                 try:
-                    del self._model
-                except:
+                    del ModelManager._model
+                except Exception:
                     pass
-                self._model = None
-                ModelManager._model_warmup_done = False  # Reset warmup flag for new model
-            
-            # Update instance model_size to match current config
+                ModelManager._model = None
+                ModelManager._model_warmup_done = False
+
+            # Update instance model_size to match config for downstream logging/metadata.
             self.model_size = current_model_size
-            
-            logger.info(f"Loading faster-whisper v1.2.1: {self.model_size} on {self.device}...")
-            print(f"🔄 Loading Whisper model: {self.model_size}")
-            print("   (This may take a moment - downloading model files if needed...)")
-            print("   (First-time download can take 1-5 minutes depending on model size)")
-            
+
+            logger.info(
+                f"Loading faster-whisper model '{self.model_size}' on device='{self.device}' compute_type='{self.compute_type}'"
+            )
+
             try:
-                # Map model names for compatibility
                 model_name = self.model_size
-                
-                # Handle transformers-style naming
                 if model_name.startswith("openai/whisper-"):
                     model_name = model_name.replace("openai/whisper-", "")
                     logger.info(f"Mapped model name: {self.model_size} -> {model_name}")
-                
-                # Check if model needs download
-                import os
-                from pathlib import Path
-                cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
-                model_cache = cache_dir / f"models--guillaumekln--faster-whisper-{model_name}"
-                
-                if not model_cache.exists():
-                    print(f"   📥 Downloading model '{model_name}' (this may take several minutes)...")
-                    print("   💡 Tip: Model download happens once and is cached for future use")
-                else:
-                    print(f"   ✓ Model found in cache, loading...")
-                
-                self._model = WhisperModel(
+
+                ModelManager._model = WhisperModel(
                     model_name,
                     device=self.device,
                     compute_type=self.compute_type,
                     download_root=None,
-                    local_files_only=False
+                    local_files_only=False,
                 )
-                ModelManager._loaded_model_size = self.model_size  # Track loaded model size
-                logger.info(f"✓ Model loaded successfully: {model_name}")
-                print(f"   ✅ Model '{model_name}' loaded successfully!")
-                
-                # Warm up the model for better first-inference performance
+                ModelManager._loaded_model_size = self.model_size
+
                 if self.enable_model_warmup and not ModelManager._model_warmup_done:
                     self._warmup_model()
                     ModelManager._model_warmup_done = True
-                    
+
+                return ModelManager._model
+
             except Exception as e:
                 error_msg = str(e)
-                logger.error(f"Failed to load model: {error_msg}")
-                
-                # Provide helpful error messages
+                logger.error(f"Failed to load model '{self.model_size}': {error_msg}")
+
                 if "download" in error_msg.lower() or "connection" in error_msg.lower():
-                    print(f"\n❌ Error downloading model '{model_name}':")
-                    print("   This could be due to:")
-                    print("   - Slow or unstable internet connection")
-                    print("   - Firewall blocking the download")
-                    print("   - Hugging Face servers being temporarily unavailable")
-                    print("\n   💡 Solutions:")
-                    print("   1. Check your internet connection")
-                    print("   2. Try again in a few minutes")
-                    print("   3. Manually download the model from:")
-                    print(f"      https://huggingface.co/guillaumekln/faster-whisper-{model_name}")
                     raise RuntimeError(f"Could not download model '{self.model_size}': {error_msg}")
-                else:
-                    print(f"\n❌ Error loading model '{model_name}': {error_msg}")
-                    raise RuntimeError(f"Could not load model '{self.model_size}': {error_msg}")
-        return self._model
+                raise RuntimeError(f"Could not load model '{self.model_size}': {error_msg}")
     
     def _warmup_model(self):
         """Warm up the model with a dummy inference to optimize first real inference."""
@@ -245,7 +233,7 @@ class ModelManager:
             start_time = time.time()
             
             # Run a quick warmup inference
-            segments, _ = self._model.transcribe(
+            segments, _ = ModelManager._model.transcribe(
                 dummy_audio,
                 beam_size=1,
                 language=None,

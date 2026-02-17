@@ -28,10 +28,10 @@ class RealtimeTranscriber(BaseTranscriber):
     """
     
     def __init__(self):
-        # Initialize BaseTranscriber (Load config via these getters)
+        # Initialize BaseTranscriber (load model config via getters)
         model_size = get_config('model.name', 'medium')
         language = get_config('insightron.services.transcription.language', DEFAULT_LANGUAGE)
-        super().__init__(model_size, language)
+        super().__init__(model_size=model_size)
         
         self.is_running = False
         self.result_callback = None
@@ -70,8 +70,8 @@ class RealtimeTranscriber(BaseTranscriber):
         # State
         self.full_audio_buffer = [] # Keep for saving recording
         self.transcribed_text = ""
-        self.language = get_config('insightron.services.transcription.language', DEFAULT_LANGUAGE)
-        self.model_size = get_config('model.name', 'medium')  # Default model size
+        self.language = language
+        self.model_size = model_size  # Default model size
         self.transcribed_segments = []  # Store all transcribed segments
         self.detected_language = None  # Store detected language
         

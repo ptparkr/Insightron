@@ -506,7 +506,7 @@ git clone https://github.com/ptparkr/Insightron.git
 cd Insightron
 
 # Install development dependencies
-pip install -r requirements.txt
+pip install -r automation/setup/requirements.txt
 pip install pytest black flake8
 
 # Run enhanced diagnostics
@@ -518,6 +518,13 @@ python -m pytest
 # Format code
 black *.py
 ```
+
+> **Note on warnings:** When running tests you may see a warning from the
+> `ctranslate2` / `faster-whisper` stack about
+> `pkg_resources is deprecated as an API` on very new `setuptools`
+> versions. The project pins `setuptools` in `automation/setup/requirements.txt`
+> and `pytest.ini` filters out this third‑party warning; it does not affect
+> Insightron’s behavior.
 
 ## 🙏 Acknowledgments
 
