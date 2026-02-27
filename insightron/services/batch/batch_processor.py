@@ -24,6 +24,7 @@ if sys.platform == "win32":
         pass
 
 from insightron.services.transcription.transcribe import AudioTranscriber
+from insightron.services.transcription.multi_pass_transcriber import MultiPassTranscriber
 from insightron.services.base_transcriber import BaseTranscriber
 from insightron.services.batch.batch_state_manager import BatchState, FileStatus
 from insightron.core.config import WHISPER_MODEL, DEFAULT_LANGUAGE, get_config
@@ -33,7 +34,14 @@ import uuid
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def transcribe_single_file_worker(audio_file: str, model_size: str, language: str, formatting_style: str) -> Dict[str, Any]:
+def transcribe_single_file_worker(
+    audio_file: str, 
+    model_size: str, 
+    language: str, 
+    formatting_style: str,
+    use_multi_pass: bool = False,
+    enable_emotion: bool = False
+) -> Dict[str, Any]:
     """
     Top-level worker function for batch processing.
     Must be at module level for multiprocessing pickling.
@@ -41,26 +49,59 @@ def transcribe_single_file_worker(audio_file: str, model_size: str, language: st
     try:
         # Create a new transcriber instance for this process
         # ModelManager singleton will handle model loading/sharing within the process
-        transcriber = AudioTranscriber(model_size, language)
-        
-        output_path, transcription_data = transcriber.transcribe_file(
-            audio_file,
-            formatting_style=formatting_style
-        )
-        
-        # Note: Audio saving is handled in transcribe_file() method
-        
-        metadata = transcription_data.get("metadata", {})
-        stats = transcription_data.get("stats", {})
-        transcription = transcription_data.get("transcription", {})
+        if use_multi_pass:
+            config = {
+                'contextual_restoration': {'enabled': True},
+                'emotion_mapping': {'enabled': enable_emotion}
+            }
+            transcriber = MultiPassTranscriber(config=config)
+            
+            # Note: MultiPassTranscriber has a different interface
+            result = transcriber.transcribe_multipass(
+                audio_file,
+                language=language if language != "auto" else None
+            )
+            
+            # Export to file using ResultHandler (mimicking AudioTranscriber logic)
+            from insightron.services.transcription.result_handler import ResultHandler
+            handler = ResultHandler()
+            
+            output_path, result_data = handler.save_result(
+                audio_path=audio_file,
+                segments=result.segments,
+                metadata=result.metadata,
+                processing_time=result.processing_times.get('total', 0),
+                model_size=model_size,
+                language=result.metadata.get('language', language),
+                formatting_style=formatting_style,
+            )
+            
+            return {
+                "output_path": str(output_path),
+                "duration": result.metadata.get("duration"),
+                "language": result.metadata.get("language"),
+                "processing_time": result.processing_times.get('total'),
+                "status": "success",
+            }
+        else:
+            transcriber = AudioTranscriber(model_size, language)
+            
+            output_path, transcription_data = transcriber.transcribe_file(
+                audio_file,
+                formatting_style=formatting_style
+            )
+            
+            metadata = transcription_data.get("metadata", {})
+            stats = transcription_data.get("stats", {})
+            transcription = transcription_data.get("transcription", {})
 
-        return {
-            "output_path": str(output_path),
-            "duration": metadata.get("duration_seconds"),
-            "language": transcription.get("language", language),
-            "processing_time": stats.get("processing_time"),
-            "status": "success",
-        }
+            return {
+                "output_path": str(output_path),
+                "duration": metadata.get("duration_seconds"),
+                "language": transcription.get("language", language),
+                "processing_time": stats.get("processing_time"),
+                "status": "success",
+            }
     except Exception as e:
         return {
             'file': audio_file,
@@ -79,11 +120,15 @@ class BatchTranscriber(BaseTranscriber):
         language: str = DEFAULT_LANGUAGE,
         max_workers: Optional[int] = None,
         use_multiprocessing: bool = True, # Default to True for better CPU utilization
-        transcriber: Optional[AudioTranscriber] = None
+        transcriber: Optional[AudioTranscriber] = None,
+        use_multi_pass: bool = False,
+        enable_emotion: bool = False
     ):
         # Initialize BaseTranscriber (creates ResourceManager)
         super().__init__(model_size=model_size)
         self.language = language
+        self.use_multi_pass = use_multi_pass
+        self.enable_emotion = enable_emotion
         
         # Prefer threads when CUDA is available; multi-process often forces
         # multiple model loads/VRAM allocations and can OOM or thrash.
@@ -106,8 +151,16 @@ class BatchTranscriber(BaseTranscriber):
         # Initialize transcriber ONLY if using threads (shared instance)
         self.transcriber = transcriber
         if not self.use_multiprocessing and self.transcriber is None:
-            logger.info("Initializing shared model for thread pool...")
-            self.transcriber = AudioTranscriber(model_size, language)
+            if self.use_multi_pass:
+                logger.info("Initializing shared multi-pass engine for thread pool...")
+                config = {
+                    'contextual_restoration': {'enabled': True},
+                    'emotion_mapping': {'enabled': self.enable_emotion}
+                }
+                self.transcriber = MultiPassTranscriber(config=config)
+            else:
+                logger.info("Initializing shared model for thread pool...")
+                self.transcriber = AudioTranscriber(model_size, language)
         
         logger.info(f"BatchTranscriber initialized: model={model_size}, workers={self.max_workers}, "
                    f"multiprocessing={self.use_multiprocessing}")
@@ -186,6 +239,8 @@ class BatchTranscriber(BaseTranscriber):
                         self.model_size,
                         self.language,
                         formatting_style,
+                        self.use_multi_pass,
+                        self.enable_emotion,
                     )
                 else:
                     future = executor.submit(
@@ -293,24 +348,52 @@ class BatchTranscriber(BaseTranscriber):
         else:
             transcriber = AudioTranscriber(self.model_size, self.language)
         
-        output_path, transcription_data = transcriber.transcribe_file(
-            audio_file,
-            formatting_style=formatting_style
-        )
-        
-        # Note: Audio saving is handled in transcribe_file() method
-        
-        metadata = transcription_data.get("metadata", {})
-        stats = transcription_data.get("stats", {})
-        transcription = transcription_data.get("transcription", {})
+        if self.use_multi_pass:
+            # Handle multi-pass transcription
+            result = transcriber.transcribe_multipass(
+                audio_file,
+                language=self.language if self.language != "auto" else None
+            )
+            
+            # Export to file
+            from insightron.services.transcription.result_handler import ResultHandler
+            handler = ResultHandler()
+            
+            output_path, result_data = handler.save_result(
+                audio_path=audio_file,
+                segments=result.segments,
+                metadata=result.metadata,
+                processing_time=result.processing_times.get('total', 0),
+                model_size=self.model_size,
+                language=result.metadata.get('language', self.language),
+                formatting_style=formatting_style,
+            )
+            
+            return {
+                "output_path": str(output_path),
+                "duration": result.metadata.get("duration"),
+                "language": result.metadata.get("language", self.language),
+                "processing_time": result.processing_times.get('total'),
+                "status": "success",
+            }
+        else:
+            # Standard single-pass
+            output_path, transcription_data = transcriber.transcribe_file(
+                audio_file,
+                formatting_style=formatting_style
+            )
+            
+            metadata = transcription_data.get("metadata", {})
+            stats = transcription_data.get("stats", {})
+            transcription = transcription_data.get("transcription", {})
 
-        return {
-            "output_path": str(output_path),
-            "duration": metadata.get("duration_seconds"),
-            "language": transcription.get("language", self.language),
-            "processing_time": stats.get("processing_time"),
-            "status": "success",
-        }
+            return {
+                "output_path": str(output_path),
+                "duration": metadata.get("duration_seconds"),
+                "language": transcription.get("language", self.language),
+                "processing_time": stats.get("processing_time"),
+                "status": "success",
+            }
 
 def batch_transcribe_files(
     audio_files: List[str],
@@ -321,7 +404,9 @@ def batch_transcribe_files(
     progress_callback: Optional[Callable[[int, int, str], None]] = None,
     transcriber: Optional[AudioTranscriber] = None,
     enable_resume: bool = True,
-    max_retries: int = 2
+    max_retries: int = 2,
+    use_multi_pass: bool = False,
+    enable_emotion: bool = False
 ) -> Dict[str, Any]:
     """
     Enhanced batch transcription with resume and retry capabilities.
@@ -329,6 +414,8 @@ def batch_transcribe_files(
     Args:
         enable_resume: Enable resume from previous failed batch
         max_retries: Maximum retry attempts per file
+        use_multi_pass: Enable 3-pass transcription pipeline
+        enable_emotion: Enable emotion detection markers
         ...existing args...
     """
     batch_transcriber = BatchTranscriber(
@@ -336,7 +423,9 @@ def batch_transcribe_files(
         language=language,
         max_workers=max_workers,
         use_multiprocessing=use_multiprocessing,
-        transcriber=transcriber
+        transcriber=transcriber,
+        use_multi_pass=use_multi_pass,
+        enable_emotion=enable_emotion
     )
     
     batch_state = None

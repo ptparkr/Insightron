@@ -136,6 +136,8 @@ def run_batch(args):
         sys.exit(1)
     
     print(f"Found {len(audio_files)} files to process.")
+    if args.multi_pass:
+        print(f"✨ Multi-pass mode enabled (Sentiment: {'ON' if args.emotion else 'OFF'})")
     
     try:
         results = batch_transcribe_files(
@@ -144,7 +146,10 @@ def run_batch(args):
             language=args.language,
             max_workers=args.workers,
             use_multiprocessing=True,
-            progress_callback=lambda c, t, f: print(f"[{c}/{t}] Processing: {f}")
+            progress_callback=lambda c, t, f: print(f"[{c}/{t}] Processing: {f}"),
+            use_multi_pass=args.multi_pass,
+            enable_emotion=args.emotion,
+            formatting_style=args.style
         )
         
         print("\nBatch Processing Complete!")
@@ -166,7 +171,7 @@ def run_batch(args):
 
 def main():
     """Main application entry point."""
-    print("🎤 Insightron - AI Audio Transcriber")
+    print("🎤 Insightron v3.1.0 - AI Audio Transcriber")
     print("=" * 40)
     
     # Check dependencies
@@ -188,6 +193,9 @@ def main():
     batch_parser.add_argument('--workers', '-w', type=int, default=None, help='Number of worker processes')
     batch_parser.add_argument('--model', '-m', default=WHISPER_MODEL, help='Whisper model size')
     batch_parser.add_argument('--language', '-l', default=DEFAULT_LANGUAGE, help='Language code')
+    batch_parser.add_argument('--multi-pass', '-mp', action='store_true', help='Enable Multi-Pass transcription (higher quality)')
+    batch_parser.add_argument('--emotion', '-e', action='store_true', help='Enable emotion detection (requires multi-pass)')
+    batch_parser.add_argument('--style', '-s', default='auto', choices=['auto', 'paragraphs', 'minimal'], help='Formatting style')
     
     args = parser.parse_args()
     
