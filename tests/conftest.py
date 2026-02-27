@@ -5,6 +5,7 @@ Provides common test utilities, mock objects, and sample data.
 import pytest
 import tempfile
 import shutil
+import os
 import numpy as np
 import soundfile as sf
 from pathlib import Path
@@ -309,6 +310,104 @@ def reset_singletons():
         ModelManager._model = None
     except ImportError:
         pass
+
+
+# ============================================================================
+# Test gating (LLM/GPU/network/model downloads)
+# ============================================================================
+
+def _env_truthy(name: str) -> bool:
+    val = (os.getenv(name) or "").strip().lower()
+    return val in {"1", "true", "yes", "y", "on"}
+
+
+def _torch_cuda_available() -> bool:
+    try:
+        import torch  # type: ignore
+    except Exception:
+        return False
+    try:
+        return bool(torch.cuda.is_available())
+    except Exception:
+        return False
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--run-llm",
+        action="store_true",
+        default=False,
+        help="Run tests marked 'llm' (may be slow / require extra deps).",
+    )
+    parser.addoption(
+        "--run-model-download",
+        action="store_true",
+        default=False,
+        help="Run tests marked 'model_download' (may download models).",
+    )
+    parser.addoption(
+        "--run-network",
+        action="store_true",
+        default=False,
+        help="Run tests marked 'network' (requires external connectivity).",
+    )
+    parser.addoption(
+        "--run-gpu",
+        action="store_true",
+        default=False,
+        help="Run tests marked 'gpu' (requires CUDA GPU).",
+    )
+    parser.addoption(
+        "--allow-cpu-llm",
+        action="store_true",
+        default=False,
+        help="Allow 'llm' tests to run without CUDA (can be extremely slow).",
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    run_llm = bool(config.getoption("--run-llm")) or _env_truthy("INSIGHTRON_RUN_LLM_TESTS")
+    run_model_download = bool(config.getoption("--run-model-download")) or _env_truthy(
+        "INSIGHTRON_RUN_MODEL_DOWNLOAD_TESTS"
+    )
+    run_network = bool(config.getoption("--run-network")) or _env_truthy("INSIGHTRON_RUN_NETWORK_TESTS")
+    run_gpu = bool(config.getoption("--run-gpu")) or _env_truthy("INSIGHTRON_RUN_GPU_TESTS")
+    allow_cpu_llm = bool(config.getoption("--allow-cpu-llm")) or _env_truthy("INSIGHTRON_ALLOW_CPU_LLM")
+
+    has_cuda = _torch_cuda_available()
+
+    skip_llm = pytest.mark.skip(
+        reason="LLM tests are opt-in. Use --run-llm or set INSIGHTRON_RUN_LLM_TESTS=1."
+    )
+    skip_model_download = pytest.mark.skip(
+        reason="Model download tests are opt-in. Use --run-model-download or set INSIGHTRON_RUN_MODEL_DOWNLOAD_TESTS=1."
+    )
+    skip_network = pytest.mark.skip(
+        reason="Network tests are opt-in. Use --run-network or set INSIGHTRON_RUN_NETWORK_TESTS=1."
+    )
+    skip_gpu = pytest.mark.skip(
+        reason="GPU tests require CUDA. Use --run-gpu / INSIGHTRON_RUN_GPU_TESTS=1 on a CUDA machine."
+    )
+    skip_llm_no_cuda = pytest.mark.skip(
+        reason="LLM test requires CUDA GPU by default (this machine appears CPU-only). "
+        "Set INSIGHTRON_ALLOW_CPU_LLM=1 or pass --allow-cpu-llm to override."
+    )
+
+    for item in items:
+        if item.get_closest_marker("model_download") and not run_model_download:
+            item.add_marker(skip_model_download)
+        if item.get_closest_marker("network") and not run_network:
+            item.add_marker(skip_network)
+        if item.get_closest_marker("gpu"):
+            if not run_gpu:
+                item.add_marker(skip_gpu)
+            elif not has_cuda:
+                item.add_marker(skip_gpu)
+        if item.get_closest_marker("llm"):
+            if not run_llm:
+                item.add_marker(skip_llm)
+            elif not has_cuda and not allow_cpu_llm:
+                item.add_marker(skip_llm_no_cuda)
     
     try:
         from insightron.core.config import ConfigManager

@@ -5,17 +5,26 @@ from pathlib import Path
 import yaml
 import logging
 import json
+import pytest
 
 # Add project root to sys.path
 root_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(root_dir))
 
-def test_quality_suite_v2():
+pytestmark = [pytest.mark.llm, pytest.mark.slow]
+
+
+def test_quality_suite_v2(pytestconfig: pytest.Config):
+    if not bool(pytestconfig.getoption("--run-llm")) and os.getenv("INSIGHTRON_RUN_LLM_TESTS") != "1":
+        pytest.skip("Use --run-llm or set INSIGHTRON_RUN_LLM_TESTS=1 to run LLM tests.")
+
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     logger = logging.getLogger(__name__)
 
     # Load config
     config_path = root_dir / "config.yaml"
+    if not config_path.exists():
+        pytest.skip("config.yaml not found at project root; LLM tests require local config.")
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
@@ -50,32 +59,19 @@ def test_quality_suite_v2():
         print(f"\n[3/3] Results:")
         print("-" * 50)
         
-        if result.success:
-            print(f"STATUS: SUCCESS")
-            print(f"FLAGS: {result.flags}")
-            print(f"STITCHED: {result.stitched}")
-            print(f"\nRESTORED TEXT:\n{result.restored_text}")
-            print("-" * 50)
-            
-            # Basic validation
-            if "10⁻³" in result.restored_text or "10^-3" in result.restored_text:
-                print("CHECK: Number normalization works.")
-            if "±" in result.restored_text or "sqrt" in result.restored_text or "=" in result.restored_text:
-                print("CHECK: Formula detection works.")
-            
-            return True
-        else:
-            print(f"STATUS: FAILED")
-            print(f"ERROR: {result.error}")
-            print("-" * 50)
-            return False
+        assert result.success, f"Quality suite failed: {result.error}"
+        assert isinstance(result.restored_text, str) and result.restored_text.strip()
+
+        print(f"STATUS: SUCCESS")
+        print(f"FLAGS: {result.flags}")
+        print(f"STITCHED: {result.stitched}")
+        print(f"\nRESTORED TEXT:\n{result.restored_text}")
+        print("-" * 50)
             
     except Exception as e:
         logger.error(f"Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+        raise
 
 if __name__ == "__main__":
-    success = test_quality_suite_v2()
+    raise SystemExit("Run via pytest (this is an opt-in test).")
     sys.exit(0 if success else 1)

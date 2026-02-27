@@ -1,24 +1,35 @@
-#!/usr/bin/env python3
 """
-Test script for Multi-Pass LLM Transcription
-Tests the LLM text restoration (Pass 2) with Qwen2.5-3B-Instruct
+Opt-in integration tests for Multi-Pass LLM transcription.
+
+These tests can be expensive (GPU/CPU time) and may require local model caches
+or additional optional dependencies. They are marked `llm` and skipped by
+default unless explicitly enabled.
 """
-import pytest
-import sys
-import os
-from pathlib import Path
-import yaml
+
 import logging
+import os
+import sys
 import time
+from pathlib import Path
+
+import pytest
+import yaml
 
 # Add the project root to sys.path (parent of tests folder)
 root_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(root_dir))
 
-def test_llm_restoration():
+pytestmark = [pytest.mark.llm, pytest.mark.slow]
+
+
+def _llm_opt_in(pytestconfig: pytest.Config) -> bool:
+    return bool(pytestconfig.getoption("--run-llm")) or os.getenv("INSIGHTRON_RUN_LLM_TESTS") == "1"
+
+
+def test_llm_restoration(pytestconfig: pytest.Config):
     """Test LLM provider text restoration independently"""
-    if os.getenv("INSIGHTRON_RUN_LLM_TESTS") != "1":
-        pytest.skip("Set INSIGHTRON_RUN_LLM_TESTS=1 to run local LLM tests.")
+    if not _llm_opt_in(pytestconfig):
+        pytest.skip("Use --run-llm or set INSIGHTRON_RUN_LLM_TESTS=1 to run LLM tests.")
 
     # Configure logging
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -26,6 +37,8 @@ def test_llm_restoration():
 
     # Load config
     config_path = root_dir / "config.yaml"
+    if not config_path.exists():
+        pytest.skip("config.yaml not found at project root; LLM tests require local config.")
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
@@ -42,15 +55,16 @@ def test_llm_restoration():
     
     try:
         from insightron.services.transcription.llm_provider import LLMProviderFactory
-        
+
         print("\n[1/4] Creating LLM provider...")
         provider = LLMProviderFactory.create_from_config(multi_pass_config)
-        
+
         print("[2/4] Checking provider availability...")
         if not provider.is_available():
-            print("ERROR: LLM provider dependencies not available!")
-            print("Install with: pip install transformers torch accelerate bitsandbytes")
-            return False
+            pytest.skip(
+                "LLM provider dependencies not available. Install with: "
+                "pip install -e .[llm] (or install transformers/torch/etc)."
+            )
         print("      Dependencies verified!")
         
         # Test text that needs restoration
@@ -67,31 +81,25 @@ def test_llm_restoration():
         print(f"\n[4/4] Results:")
         print("-" * 50)
         
-        if result.success:
-            print(f"STATUS: SUCCESS")
-            print(f"TIME: {elapsed:.2f}s")
-            print(f"TOKENS: {result.tokens_used}")
-            print(f"MODEL: {result.model_name}")
-            print(f"\nORIGINAL:\n  {test_text}")
-            print(f"\nRESTORED:\n  {result.restored_text}")
-            print("-" * 50)
-            return True
-        else:
-            print(f"STATUS: FAILED")
-            print(f"ERROR: {result.error}")
-            print("-" * 50)
-            return False
+        assert result.success, f"LLM restoration failed: {result.error}"
+        assert isinstance(result.restored_text, str) and result.restored_text.strip()
+
+        print(f"STATUS: SUCCESS")
+        print(f"TIME: {elapsed:.2f}s")
+        print(f"TOKENS: {result.tokens_used}")
+        print(f"MODEL: {result.model_name}")
+        print(f"\nORIGINAL:\n  {test_text}")
+        print(f"\nRESTORED:\n  {result.restored_text}")
+        print("-" * 50)
             
     except Exception as e:
         logger.error(f"An error occurred: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+        raise
 
-def test_full_multipass():
+def test_full_multipass(pytestconfig: pytest.Config):
     """Test full multi-pass transcription with sample audio"""
-    if os.getenv("INSIGHTRON_RUN_LLM_TESTS") != "1":
-        pytest.skip("Set INSIGHTRON_RUN_LLM_TESTS=1 to run local LLM tests.")
+    if not _llm_opt_in(pytestconfig):
+        pytest.skip("Use --run-llm or set INSIGHTRON_RUN_LLM_TESTS=1 to run LLM tests.")
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     
@@ -102,8 +110,7 @@ def test_full_multipass():
     audio_path = root_dir / "tests" / "benchmarks" / "benchmark_test.wav"
     
     if not audio_path.exists():
-        print(f"ERROR: Sample audio not found at {audio_path}")
-        return False
+        pytest.skip(f"Sample audio not found at {audio_path}")
     
     print(f"\nAudio file: {audio_path}")
     
@@ -130,24 +137,12 @@ def test_full_multipass():
         for key, val in result.processing_times.items():
             print(f"  {key}: {val:.2f}s")
         print("-" * 50)
-        return True
+        assert result.pass1_raw_text is not None
+        assert result.pass3_final_text is not None
         
     except Exception as e:
-        print(f"ERROR: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+        raise
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="Test Multi-Pass LLM Transcription")
-    parser.add_argument("--full", action="store_true", help="Run full transcription test")
-    args = parser.parse_args()
-    
-    if args.full:
-        success = test_full_multipass()
-    else:
-        success = test_llm_restoration()
-    
-    sys.exit(0 if success else 1)
+    raise SystemExit("Run via pytest (these are tests, not a CLI script).")
     
