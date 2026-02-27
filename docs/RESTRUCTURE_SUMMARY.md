@@ -6,7 +6,7 @@ The Insightron codebase has been successfully restructured into a modern, profes
 
 ## 🎯 Goals Achieved
 
-1. ✅ **Modern Application Structure**: Clean `src/` directory with organized modules
+1. ✅ **Modern Application Structure**: Clean `insightron/` package with organized modules
 2. ✅ **High-End GUI**: Modular UI components with professional design
 3. ✅ **Personalized Experience**: Component-based architecture for easy customization
 4. ✅ **Clarified Codebase**: Clear organization with documented modules
@@ -35,10 +35,9 @@ Insightron/
 │   │   └── themes/               # Theme management
 │   └── utils/                   # Utilities (under core/)
 ├── docs/                        # Documentation
-├── tests/                       # Test suite
-├── setup/                       # Installation (under automation/)
-├── scripts/                     # Utility scripts (under automation/)
-└── insightron.py               # Legacy entry (backward compatible)
+├── tests/                       # Test suite (including benchmarks/)
+├── automation/                  # Installation + scripts
+└── insightron.py                # Legacy entry (backward compatible)
 ```
 
 ## 🎨 Key Improvements
@@ -70,7 +69,9 @@ Insightron/
 
 ### New Way (Recommended)
 ```bash
-python insightron/app/main.py
+insightron
+# or
+python -m insightron.app.main
 ```
 
 ### Legacy Way (Still Works)
@@ -106,7 +107,7 @@ Both work identically - the new structure is backward compatible!
 
 ## 📝 Next Steps
 
-1. Test the new structure: `python insightron/app/main.py`
+1. Test the new structure: `insightron` or `python -m insightron.app.main`
 2. Review documentation: `docs/STRUCTURE.md`
 3. Explore components: `insightron/ui/components/`
 4. Customize themes: `insightron/ui/themes/theme_manager.py`

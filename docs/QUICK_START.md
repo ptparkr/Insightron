@@ -133,7 +133,7 @@ for success in results['successful']:
 Run the benchmark to see performance on your system:
 
 ```bash
-python benchmark_insightron.py
+python tests/benchmarks/benchmark_insightron.py
 ```
 
 **Sample Output:**

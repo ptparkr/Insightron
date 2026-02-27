@@ -7,20 +7,22 @@ The root directory is now **clean and organized**!
 ### ✅ Root Directory (Clean)
 ```
 Insightron/
+├── pyproject.toml        # Project metadata and dependencies
 ├── config.yaml           # User configuration
-├── insightron.py         # Main entry point
-├── pytest.ini           # Test configuration
+├── insightron.py         # Legacy GUI entry point (still supported)
+├── cli.py                # Legacy CLI entry point (still supported)
+├── pytest.ini            # Test configuration
 └── user_settings.json    # User preferences
 ```
 
 ### ⚠️ Legacy Folders (Can Be Removed)
 
-After verifying everything works, you can safely remove these old folders:
+After verifying everything works, you can safely remove these old folders if they still exist:
 
-1. **`core/`** → Replaced by `src/core/`
-2. **`gui/`** → Replaced by `src/app/gui/` and `src/ui/components/`
-3. **`realtime/`** → Replaced by `src/services/realtime/`
-4. **`transcription/`** → Replaced by `src/services/transcription/` and `src/services/batch/`
+1. **`core/`** → Replaced by `insightron/core/`
+2. **`gui/`** → Replaced by `insightron/app/gui/` and `insightron/ui/components/`
+3. **`realtime/`** → Replaced by `insightron/services/realtime/`
+4. **`transcription/`** → Replaced by `insightron/services/transcription/` and `insightron/services/batch/`
 
 ## ✅ Verification Steps
 
@@ -28,12 +30,16 @@ Before removing legacy folders:
 
 1. **Test the new structure:**
    ```bash
-   python src/app/main.py
+   insightron
+   # or
+   python -m insightron.app.main
    ```
 
 2. **Test CLI:**
    ```bash
-   python src/app/cli/cli.py audio.mp3
+   insightron-cli audio.mp3
+   # or
+   python -m insightron.app.cli.cli audio.mp3
    ```
 
 3. **Run tests:**
@@ -68,9 +74,9 @@ rm -rf core gui realtime transcription
 - Confusing organization
 
 ### After
-- 4 essential files in root
+- 5 essential files in root
 - All docs in `docs/`
-- Clean new structure in `src/`
+- Clean new structure in `insightron/`
 - Clear organization
 
 ## ✨ Result

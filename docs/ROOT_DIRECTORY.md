@@ -8,19 +8,21 @@ The root directory now contains only **essential files** for running and configu
 
 ```
 Insightron/
-├── insightron.py          # Main entry point (backward compatible)
+├── pyproject.toml         # Project metadata and dependencies
 ├── config.yaml            # User configuration file
-├── pytest.ini            # Test configuration
+├── insightron.py          # Legacy GUI entry point (still supported)
+├── cli.py                 # Legacy CLI entry point (still supported)
+├── pytest.ini             # Test configuration
 ├── user_settings.json     # User preferences (auto-generated)
-├── .gitignore            # Git ignore rules
-└── README.md             # Main documentation (moved to docs/)
+├── .gitignore             # Git ignore rules
+└── README.md              # Top-level project summary
 ```
 
 ### 📂 Organized Folders
 
 ```
 Insightron/
-├── insightron/            # Main source code (formerly src)
+├── insightron/            # Main source code package
 ├── docs/                  # All documentation
 │   ├── README.md
 │   ├── STRUCTURE.md
@@ -29,13 +31,13 @@ Insightron/
 │   ├── BATCH_PROCESSING.md
 │   ├── CHANGELOG.md
 │   └── PERFORMANCE_UPGRADE.md
-├── benchmarks/            # Benchmarking tools
-│   ├── benchmark_insightron.py
-│   ├── benchmark_results.json
-│   └── benchmark_test.wav
-├── tests/                 # Test suite
-├── setup/                 # Installation scripts
-├── scripts/               # Utility scripts
+├── tests/                 # Test suite (including benchmarks/)
+│   └── benchmarks/
+│       ├── benchmark_insightron.py
+│       └── benchmark_test.wav
+├── automation/            # Installation + utility scripts
+│   ├── setup/             # Installers (requirements, platform installers)
+│   └── scripts/           # Utility / maintenance scripts
 └── [legacy folders]       # Old structure (can be removed)
 ```
 
@@ -52,12 +54,12 @@ Insightron/
 - All `.md` files go here
 - README, CHANGELOG, guides, etc.
 
-### Benchmarks → `benchmarks/`
+### Benchmarks → `tests/benchmarks/`
 - Benchmark scripts
 - Benchmark results
 - Test audio files for benchmarking
 
-### Source Code → `src/`
+### Source Code → `insightron/`
 - All application code
 - Organized by module type
 
@@ -65,21 +67,21 @@ Insightron/
 - All test files
 - Test configuration
 
-### Setup → `setup/`
+### Setup → `automation/setup/`
 - Installation scripts
 - Requirements files
 
-### Scripts → `scripts/`
+### Scripts → `automation/scripts/`
 - Utility scripts
 - Development tools
 
 ## 🗑️ Legacy Folders (Can Be Removed)
 
 After verifying the new structure works:
-- `core/` → Replaced by `src/core/`
-- `gui/` → Replaced by `src/app/gui/` and `src/ui/`
-- `realtime/` → Replaced by `src/services/realtime/`
-- `transcription/` → Replaced by `src/services/transcription/` and `src/services/batch/`
+- `core/` → Replaced by `insightron/core/`
+- `gui/` → Replaced by `insightron/app/gui/` and `insightron/ui/`
+- `realtime/` → Replaced by `insightron/services/realtime/`
+- `transcription/` → Replaced by `insightron/services/transcription/` and `insightron/services/batch/`
 
 ## 🎯 Result
 

@@ -37,13 +37,15 @@ Total: 20+ files/folders in root ❌
 ### After (Clean)
 ```
 Insightron/
+├── pyproject.toml        # Project metadata and dependencies
 ├── config.yaml           # User configuration
-├── insightron.py         # Main entry point
-├── pytest.ini           # Test configuration
+├── insightron.py         # Legacy GUI entry point (still supported)
+├── cli.py                # Legacy CLI entry point (still supported)
+├── pytest.ini            # Test configuration
 ├── README.md             # Quick reference
 └── user_settings.json    # User preferences
 
-Total: 5 essential files ✅
+Total: 7 essential files ✅
 ```
 
 ## 📁 Where Everything Went
@@ -60,24 +62,23 @@ Total: 5 essential files ✅
 - ✅ CLEANUP_GUIDE.md
 - ✅ LEGACY_STRUCTURE.md
 
-### Benchmarks → `benchmarks/`
+### Benchmarks → `tests/benchmarks/`
 - ✅ benchmark_insightron.py
-- ✅ benchmark_results.json
 - ✅ benchmark_test.wav
 
-### CLI → `src/app/cli/`
+### CLI → `insightron/app/cli/`
 - ✅ cli.py
 
-### Install Scripts → `setup/`
+### Install Scripts → `automation/setup/`
 - ✅ install.py
 - ✅ install_unix.sh
 - ✅ install_windows.bat
 
 ### Legacy Code → (Can be removed)
-- ⚠️ core/ → Replaced by src/core/
-- ⚠️ gui/ → Replaced by src/app/gui/ and src/ui/
-- ⚠️ realtime/ → Replaced by src/services/realtime/
-- ⚠️ transcription/ → Replaced by src/services/
+- ⚠️ core/ → Replaced by insightron/core/
+- ⚠️ gui/ → Replaced by insightron/app/gui/ and insightron/ui/
+- ⚠️ realtime/ → Replaced by insightron/services/realtime/
+- ⚠️ transcription/ → Replaced by insightron/services/
 
 ## 🎯 Result
 
@@ -88,11 +89,11 @@ Total: 5 essential files ✅
 
 ### Organization
 - ✅ All documentation in `docs/`
-- ✅ All benchmarks in `benchmarks/`
-- ✅ All source code in `src/`
-- ✅ All install scripts in `setup/`
+- ✅ All benchmarks in `tests/benchmarks/`
+- ✅ All source code in `insightron/`
+- ✅ All install scripts in `automation/setup/`
 - ✅ All tests in `tests/`
-- ✅ All utility scripts in `scripts/`
+- ✅ All utility scripts in `automation/scripts/`
 
 ## 📋 Root Directory Rules
 
@@ -116,7 +117,7 @@ Total: 5 essential files ✅
 
 1. ✅ Root directory is clean
 2. ✅ All files organized
-3. ⚠️ Test the application: `python src/app/main.py`
+3. ⚠️ Test the application: `insightron` or `python -m insightron.app.main`
 4. ⚠️ Remove legacy folders after verification (see `docs/CLEANUP_GUIDE.md`)
 
 ---

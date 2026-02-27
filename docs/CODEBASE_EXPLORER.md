@@ -77,17 +77,36 @@ Contains the business logic for transcription and post-processing.
 - **`transcription/multi_pass_transcriber.py`**:
   - **Use**: Orchestrates the 3-pass transcription pipeline.
   - **Concept**:
-    - **Pass 1**: Raw detection using Whisper.
-    - **Pass 2**: Contextual restoration using an LLM (punctuation, grammar).
-    - **Pass 3**: Emotion mapping (injecting sentiment labels).
-  - **Integration**: Coordinates `TranscriptionEngine`, `LLMProvider`, and `EmotionAnalyzer`.
+    - **Pass 1**: Raw detection using Whisper (`TranscriptionEngine`).
+    - **Pass 2**: Contextual restoration using an LLM (`LLMProvider`).
+    - **Pass 3**: Emotion mapping (`EmotionAnalyzer`) and optional speaker/structure passes.
+  - **Integration**: Coordinates `TranscriptionEngine`, `LLMProvider`, `EmotionAnalyzer`, `TextFormatter`, and `ResultHandler`.
 - **`transcription/transcription_engine.py`**:
   - **Use**: Low-level interface for the Whisper model.
-  - **Concept**: Handles signal processing and single-pass inference.
-  - **Integration**: Used by `MultiPassTranscriber` for Pass 1.
+  - **Concept**: Handles signal processing and single-pass inference, chunking, and device/model selection.
+  - **Integration**: Used by `MultiPassTranscriber` for Pass 1 and by single-pass flows.
+- **`transcription/llm_provider.py`**:
+  - **Use**: Unified interface for local and cloud LLMs.
+  - **Concept**: Wraps providers (e.g. OpenAI, local Qwen) with strict, non‑hallucinating prompts focused on restoration.
+- **`transcription/emotion_analyzer.py`**:
+  - **Use**: Computes emotion markers (e.g. `[Cheerful]`, `[Urgent]`).
+  - **Concept**: Uses speech rate, lexical cues, and configuration thresholds.
+- **`transcription/text_formatter.py`**:
+  - **Use**: Deterministic formatting (paragraphs, bullets, views).
+  - **Concept**: Implements the “typesetter” role from note‑shaping docs.
+- **`transcription/result_handler.py` & `markdown_renderer.py`**:
+  - **Use**: Turn results into Markdown/other artifacts and write them safely.
+  - **Concept**: Atomic writes, frontmatter, and view selection.
+- **`transcription/segment_analyzer.py`, `quality_metrics.py`, `metrics_calculator.py`**:
+  - **Use**: Advanced quality metrics and adaptive segment merging.
+  - **Concept**: Compute confidence tiers, degradation detection, and per‑segment stats.
+- **`transcription/audio_loader.py` & `audio_preprocessor.py`**:
+  - **Use**: Robust loading, normalization, and preprocessing for all supported formats.
+- **`transcription/diarization.py` & `speaker_attribution.py`**:
+  - **Use**: Speaker‑aware processing (where enabled).
 - **`batch/batch_processor.py`**:
   - **Use**: Handles processing of multiple files in parallel.
-  - **Concept**: Uses multiprocessing to speed up large transcription jobs.
+  - **Concept**: Uses thread/process pools plus state/resume support (`batch_state_manager.py`, `progress_tracker.py`).
   - **Integration**: Used by the CLI and GUI for "Batch Mode".
 
 ### 4. `insightron/ui/`
