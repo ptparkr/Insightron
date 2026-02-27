@@ -73,10 +73,10 @@ if %errorlevel% neq 0 (
 REM Install other dependencies
 echo.
 echo [3/4] Installing other dependencies...
-if exist "setup\requirements.txt" (
-    python -m pip install -r setup\requirements.txt --prefer-binary --no-cache-dir
-) else if exist "requirements.txt" (
+if exist "requirements.txt" (
     python -m pip install -r requirements.txt --prefer-binary --no-cache-dir
+) else if exist "..\..\requirements.txt" (
+    python -m pip install -r "..\..\requirements.txt" --prefer-binary --no-cache-dir
 ) else (
     echo ERROR: requirements.txt not found
     echo Please run this script from the Insightron root directory
@@ -105,14 +105,14 @@ if %errorlevel% neq 0 (
 
     echo.
     echo [INFO] Retrying full installation...
-    python -m pip install -r setup/requirements.txt --prefer-binary --no-cache-dir
+    python -m pip install -r requirements.txt --prefer-binary --no-cache-dir
     if !errorlevel! neq 0 (
         echo.
         echo [WARNING] Some dependencies failed, trying minimal installation...
-        if exist "setup\requirements-minimal.txt" (
-            python -m pip install -r setup\requirements-minimal.txt --prefer-binary --no-cache-dir
-        ) else if exist "requirements-minimal.txt" (
+        if exist "requirements-minimal.txt" (
             python -m pip install -r requirements-minimal.txt --prefer-binary --no-cache-dir
+        ) else if exist "..\..\requirements-minimal.txt" (
+            python -m pip install -r "..\..\requirements-minimal.txt" --prefer-binary --no-cache-dir
         ) else (
             echo ERROR: requirements-minimal.txt not found
             pause
@@ -150,7 +150,7 @@ echo    Installation Complete!
 echo ================================================
 echo.
 echo You can now run Insightron:
-echo   python insightron.py    # GUI mode (recommended)
+echo   python run_insightron.py # GUI mode (legacy)
 echo   python cli.py audio.mp3  # Command line mode
 echo.
 echo For help: python scripts/troubleshoot.py

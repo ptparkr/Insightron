@@ -7,7 +7,7 @@
 # ============================================================================
 model:
   # Model name: Whisper model size to use for transcription
-  # Options: tiny, base, small, medium, large, large-v2, distil-medium.en, distil-large-v2
+  # Options: tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo, distil-medium.en, distil-large-v2
   # Smaller models are faster but less accurate. Larger models are slower but more accurate.
   # distil-* models are optimized for speed with minimal accuracy loss.
   # Default: small (faster for slower machines, still multilingual)
@@ -87,6 +87,71 @@ model:
   # Optimizes speed vs accuracy trade-off automatically
   # Default: true
   enable_dynamic_beam: true
+
+  # ========== Decode Parameters (Single-Phase Tuning) ==========
+  # These are passed directly to faster-whisper and are still "single-phase":
+  # they tune decoding within the ASR pass (no LLM restoration).
+  decode:
+    # Optional prompt for domain vocabulary (keep short; no stylistic instructions).
+    initial_prompt: ""
+
+    # World-class decode knobs (safe defaults).
+    # Note: Dynamic beam tuning may still adjust beam/best_of if enabled.
+    beam_size: 5
+    best_of: 5
+    temperature: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+
+    compression_ratio_threshold: 2.4
+    log_prob_threshold: -1.0
+    no_speech_threshold: 0.6
+    condition_on_previous_text: true
+
+    # Required for confidence scoring and temporal metrics.
+    word_timestamps: true
+
+# ============================================================================
+# Single-Phase Audio Preprocessing
+# ============================================================================
+audio_preprocess:
+  enabled: true
+
+  noise_reduction:
+    enabled: true
+    stationary: true
+    prop_decrease: 0.75
+
+  loudness:
+    enabled: true
+    # Integrated loudness target (LUFS). -23 is common for speech.
+    target_lufs: -23.0
+
+  pre_emphasis:
+    enabled: true
+    coeff: 0.97
+
+  trim:
+    enabled: true
+    top_db: 20
+
+# ============================================================================
+# Diarization (Speaker Labels)
+# ============================================================================
+diarization:
+  enabled: false
+  pipeline_id: "pyannote/speaker-diarization@2.1"
+  hf_token: ""
+  # Optional constraints. Leave null/empty for auto.
+  num_speakers: null
+  min_speakers: null
+  max_speakers: null
+
+# ============================================================================
+# Report Rendering
+# ============================================================================
+report:
+  # classic: current Insightron report
+  # dashboard: world-class quality dashboard + speaker timeline + flags
+  style: "dashboard"
 
 # ============================================================================
 # Runtime Configuration

@@ -3,6 +3,7 @@
 Test script for Multi-Pass LLM Transcription
 Tests the LLM text restoration (Pass 2) with Qwen2.5-3B-Instruct
 """
+import pytest
 import sys
 import os
 from pathlib import Path
@@ -16,6 +17,9 @@ sys.path.insert(0, str(root_dir))
 
 def test_llm_restoration():
     """Test LLM provider text restoration independently"""
+    if os.getenv("INSIGHTRON_RUN_LLM_TESTS") != "1":
+        pytest.skip("Set INSIGHTRON_RUN_LLM_TESTS=1 to run local LLM tests.")
+
     # Configure logging
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     logger = logging.getLogger(__name__)
@@ -86,6 +90,9 @@ def test_llm_restoration():
 
 def test_full_multipass():
     """Test full multi-pass transcription with sample audio"""
+    if os.getenv("INSIGHTRON_RUN_LLM_TESTS") != "1":
+        pytest.skip("Set INSIGHTRON_RUN_LLM_TESTS=1 to run local LLM tests.")
+
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     
     print("\n" + "="*60)

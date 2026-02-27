@@ -27,8 +27,16 @@ class ModelConfig:
     def __post_init__(self):
         """Validate model configuration."""
         valid_models = {
-            'tiny', 'base', 'small', 'medium', 'large', 'large-v2',
-            'distil-medium.en', 'distil-large-v2'
+            'tiny',
+            'base',
+            'small',
+            'medium',
+            'large',
+            'large-v2',
+            'large-v3',
+            'large-v3-turbo',
+            'distil-medium.en',
+            'distil-large-v2',
         }
         if self.name not in valid_models:
             logger.warning(f"Invalid model name '{self.name}'. Defaulting to 'medium'.")

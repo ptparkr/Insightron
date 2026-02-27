@@ -7,8 +7,12 @@
 ### Run the Application
 
 ```bash
-# Main entry point (recommended) 
-python insightron.py
+# Recommended (after install): GUI
+insightron
+python -m insightron.app.main
+
+# Or (legacy)
+python run_insightron.py
 
 # Or use the app module
 python insightron/app/main.py
@@ -17,11 +21,23 @@ python insightron/app/main.py
 ### Installation
 
 ```bash
-# Run the installer
-python automation/setup/install.py
+# Create venv (Windows PowerShell)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 
-# Or platform-specific
+# Install (editable)
+python -m pip install -U pip
+pip install -e .
+
+# Optional: Multi-pass LLM dependencies
+pip install -e ".[llm]"
+
+# Alternative: use the bundled installer
+python install.py
+
+# Or platform-specific installers
 automation/setup/install_windows.bat    # Windows
+./automation/setup/install_unix.sh      # Linux/macOS
 ```
 
 > **Note:** Some versions of the underlying `ctranslate2` / `faster-whisper`

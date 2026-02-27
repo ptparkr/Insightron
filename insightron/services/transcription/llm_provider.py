@@ -9,7 +9,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, List
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,20 +21,16 @@ class RestorationResult:
     """Result from LLM-based text restoration"""
     original_text: str
     restored_text: str
+    processing_time: float = 0.0
     # Optional segment-level restored texts; when present this should be aligned
     # 1:1 with the ASR segments used to build the chunk.
     segment_texts: Optional[List[str]] = None
-    processing_time: float
     tokens_used: int = 0
     model_name: str = ""
     success: bool = True
     error: Optional[str] = None
-    flags: List[str] = None
+    flags: List[str] = field(default_factory=list)
     stitched: bool = False
-
-    def __post_init__(self):
-        if self.flags is None:
-            self.flags = []
 
 
 class BaseLLMProvider(ABC):

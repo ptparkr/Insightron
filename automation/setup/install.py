@@ -310,7 +310,8 @@ def main():
     if success:
         print("\n🎉 Installation completed successfully!")
         print("\nYou can now run Insightron:")
-        print("   • python insightron.py    # GUI mode (recommended)")
+        print("   • insightron              # GUI mode (recommended, after pip install -e .)")
+        print("   • python run_insightron.py # GUI mode (legacy)")
         print("   • python cli.py audio.mp3  # Command line mode")
         print("   • python scripts/troubleshoot.py  # For diagnostics")
     else:

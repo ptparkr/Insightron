@@ -14,6 +14,11 @@ from insightron.core.config import (
 from insightron.services.transcription.segment_analyzer import SegmentAnalyzer
 from insightron.services.transcription.quality_metrics import QualityMetricsCalculator
 from insightron.services.transcription.text_formatter import TextFormatter
+from insightron.services.transcription.metrics_calculator import MetricsCalculator
+from insightron.services.transcription.markdown_renderer import MarkdownRenderer
+from insightron.services.transcription.contracts import DiarizationResult
+from insightron.services.transcription.diarization import Diarizer
+from insightron.services.transcription.speaker_attribution import SpeakerAttribution
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -45,6 +50,9 @@ class ResultHandler:
 
         # Output directory for markdown reports (inside the main transcription workspace)
         self.output_dir = TRANSCRIPTION_FOLDER
+        self.report_style = config.get("report.style", "classic")
+        self.metrics_calc = MetricsCalculator()
+        self.renderer = MarkdownRenderer()
 
     def _resolve_style(self, config_profile: str, cli_format: str) -> str:
         """
@@ -131,11 +139,22 @@ class ResultHandler:
         processing_time: float,
         model_size: str,
         language: str,
-        formatting_style: str = "auto"
+        formatting_style: str = "auto",
+        diarization: Optional[DiarizationResult] = None,
+        asr_info: Any = None,
     ) -> tuple[Path, Dict[str, Any]]:
         """
         Execute the final contract: format, analyze risk, and save.
         """
+        # 0. Optional diarization + speaker attribution (single-phase enrichment)
+        if diarization is None:
+            diarization = Diarizer().run(audio_path)
+
+        if diarization is not None and diarization.turns:
+            # Only apply if speakers are missing (idempotent safety)
+            if any(seg.get("speaker") is None for seg in (segments or [])):
+                segments = SpeakerAttribution().apply(segments, diarization)
+
         # 1. Human Readability (Text Formatting)
         formatting_profile = get_config_manager().get(
             "post_processing.formatting_profile", "thinking_session"
@@ -145,6 +164,21 @@ class ResultHandler:
         
         # 2. Truth Scoring (Quality/Risk)
         quality_analysis = self.quality_calc.calculate_risk_metrics(segments)
+
+        # 2b. Dashboard Metrics (word-level + temporal)
+        duration_seconds = float(metadata.get("duration_seconds") or 0.0)
+        lang_detected = getattr(asr_info, "language", None) or language or "unknown"
+        lang_prob = float(getattr(asr_info, "language_probability", 0.0) or 0.0)
+        no_speech_prob = float(getattr(asr_info, "no_speech_prob", 0.0) or 0.0)
+        compression_ratio = float(getattr(asr_info, "compression_ratio", 1.0) or 1.0)
+        metrics = self.metrics_calc.compute(
+            segments,
+            language_detected=str(lang_detected),
+            language_confidence=float(lang_prob),
+            duration_seconds=duration_seconds,
+            no_speech_probability=no_speech_prob,
+            compression_ratio=compression_ratio,
+        )
         
         # 3. Standardized Result Schema
         result_data = {
@@ -156,6 +190,10 @@ class ResultHandler:
                 "language": language,
                 "model": model_size,
                 "formatting_style": effective_style,
+            },
+            "analysis": {
+                "metrics": metrics,
+                "diarization": diarization,
             },
             "quality": quality_analysis,
             "stats": {
@@ -206,6 +244,24 @@ class ResultHandler:
 
     def _write_markdown(self, path: Path, data: Dict[str, Any]) -> None:
         """Write a standardized, human-readable report."""
+        if str(self.report_style).lower() == "dashboard":
+            diar = (data.get("analysis") or {}).get("diarization")
+            metrics = (data.get("analysis") or {}).get("metrics")
+            source_path = str((data.get("metadata") or {}).get("source_path") or "")
+            md = self.renderer.render_dashboard(
+                audio_path=source_path if source_path else str((data.get("metadata") or {}).get("filename") or ""),
+                segments=data["transcription"].get("segments", []),
+                metrics=metrics,
+                diarization=diar,
+                engine_model=data["transcription"].get("model", "unknown"),
+                backend="faster-whisper",
+                formatting_style=data["transcription"].get("formatting_style", "auto"),
+                processed_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            )
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(md)
+            return
+
         risk = data["quality"]
         action = risk["action_recommendation"]
         stats = data.get("stats", {})

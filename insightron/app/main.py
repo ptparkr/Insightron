@@ -40,7 +40,8 @@ try:
 except ImportError as e:
     print(f"Error importing required modules: {e}")
     print("Please install the required dependencies:")
-    print("pip install -r setup/requirements.txt")
+    print("pip install -e .")
+    print("  or: pip install -r automation/setup/requirements.txt")
     sys.exit(1)
 
 
@@ -68,7 +69,8 @@ def check_dependencies():
         for dep in missing_deps:
             print(f"   - {dep}")
         print("\nPlease install them using:")
-        print("pip install -r setup/requirements.txt")
+        print("pip install -e .")
+        print("  or: pip install -r automation/setup/requirements.txt")
         return False
     
     return True

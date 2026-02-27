@@ -11,7 +11,6 @@ import time
 from pathlib import Path
 from typing import Optional
 from insightron.services.transcription.transcribe import AudioTranscriber
-from insightron.services.transcription.multi_pass_transcriber import MultiPassTranscriber
 from insightron.core.config import WHISPER_MODEL, SUPPORTED_LANGUAGES, get_config
 
 # Configure logging
@@ -44,7 +43,18 @@ Examples:
     
     parser.add_argument("audio_file", nargs='+', help="Path to audio file(s) to transcribe (supports multiple files for batch processing)")
     parser.add_argument("-m", "--model", default=WHISPER_MODEL, 
-                       choices=["tiny", "base", "small", "medium", "large"],
+                       choices=[
+                           "tiny",
+                           "base",
+                           "small",
+                           "medium",
+                           "large",
+                           "large-v2",
+                           "large-v3",
+                           "large-v3-turbo",
+                           "distil-medium.en",
+                           "distil-large-v2",
+                       ],
                        help="Whisper model size to use (default: %(default)s)")
     parser.add_argument("-v", "--verbose", action="store_true", 
                        help="Enable verbose output with detailed progress")
@@ -202,6 +212,8 @@ Examples:
             # Initialize appropriate transcriber based on profile
             if profile == "deep":
                 logger.info(f"Initializing multi-pass transcriber (profile={profile}, model={args.model})")
+                from insightron.services.transcription.multi_pass_transcriber import MultiPassTranscriber
+
                 transcriber = MultiPassTranscriber()
                 use_multi_pass = True
             else:

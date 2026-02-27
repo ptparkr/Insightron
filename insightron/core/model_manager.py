@@ -52,6 +52,7 @@ class ModelManager:
         "no_speech_threshold": 0.6,  # Detect silence/non-speech
         "patience": 1.0,  # Beam search patience (faster convergence)
         "length_penalty": 1.0,  # Length penalty for beam search
+        "word_timestamps": True,  # Required for confidence + temporal metrics
     }
     
     # Enhanced VAD parameters for cleaner segments (optimized for accuracy)
@@ -292,9 +293,26 @@ class ModelManager:
         **kwargs
     ) -> Dict[str, Any]:
         """Build optimized transcription parameters with dynamic tuning."""
+        cfg = get_config_manager()
+
         # Get base parameters
         beam_size = kwargs.pop("beam_size", self.default_beam_size)
         best_of = kwargs.pop("best_of", self.default_best_of)
+
+        # Optional decode overrides from config (world-class tuning)
+        beam_size = int(cfg.get("model.decode.beam_size", beam_size))
+        best_of = int(cfg.get("model.decode.best_of", best_of))
+        temperature = cfg.get("model.decode.temperature", None)
+        compression_ratio_threshold = float(
+            cfg.get("model.decode.compression_ratio_threshold", self.DEFAULT_PARAMS["compression_ratio_threshold"])
+        )
+        log_prob_threshold = float(cfg.get("model.decode.log_prob_threshold", self.DEFAULT_PARAMS["log_prob_threshold"]))
+        no_speech_threshold = float(cfg.get("model.decode.no_speech_threshold", self.DEFAULT_PARAMS["no_speech_threshold"]))
+        condition_on_previous_text = bool(
+            cfg.get("model.decode.condition_on_previous_text", self.DEFAULT_PARAMS["condition_on_previous_text"])
+        )
+        initial_prompt = cfg.get("model.decode.initial_prompt", "")
+        word_timestamps_default = bool(cfg.get("model.decode.word_timestamps", self.DEFAULT_PARAMS["word_timestamps"]))
         
         # Dynamic beam size adjustment based on audio characteristics
         if self.enable_dynamic_beam and audio is not None:
@@ -303,29 +321,25 @@ class ModelManager:
         params = {
             "language": language,
             "task": task,
-            "beam_size": beam_size,
-            "best_of": best_of,
-            "temperature": kwargs.pop("temperature", self.DEFAULT_PARAMS["temperature"]),
-            "condition_on_previous_text": kwargs.pop(
-                "condition_on_previous_text",
-                self.DEFAULT_PARAMS["condition_on_previous_text"]
+            "beam_size": int(beam_size),
+            "best_of": int(best_of),
+            "temperature": kwargs.pop(
+                "temperature",
+                temperature if temperature is not None else self.DEFAULT_PARAMS["temperature"],
             ),
-            "compression_ratio_threshold": kwargs.pop(
-                "compression_ratio_threshold",
-                self.DEFAULT_PARAMS["compression_ratio_threshold"]
-            ),
-            "log_prob_threshold": kwargs.pop(
-                "log_prob_threshold",
-                self.DEFAULT_PARAMS["log_prob_threshold"]
-            ),
-            "no_speech_threshold": kwargs.pop(
-                "no_speech_threshold",
-                self.DEFAULT_PARAMS["no_speech_threshold"]
-            ),
+            "condition_on_previous_text": kwargs.pop("condition_on_previous_text", condition_on_previous_text),
+            "compression_ratio_threshold": kwargs.pop("compression_ratio_threshold", compression_ratio_threshold),
+            "log_prob_threshold": kwargs.pop("log_prob_threshold", log_prob_threshold),
+            "no_speech_threshold": kwargs.pop("no_speech_threshold", no_speech_threshold),
             "patience": kwargs.pop("patience", self.DEFAULT_PARAMS.get("patience", 1.0)),
             "length_penalty": kwargs.pop("length_penalty", self.DEFAULT_PARAMS.get("length_penalty", 1.0)),
             "vad_filter": kwargs.pop("vad_filter", self.enable_vad),
+            "word_timestamps": kwargs.pop("word_timestamps", word_timestamps_default),
         }
+
+        # Optional initial prompt for domain vocabulary (faster-whisper supports it)
+        if isinstance(initial_prompt, str) and initial_prompt.strip():
+            params["initial_prompt"] = kwargs.pop("initial_prompt", initial_prompt.strip())
         
         # Add VAD parameters if enabled (with adaptive tuning)
         if params["vad_filter"]:

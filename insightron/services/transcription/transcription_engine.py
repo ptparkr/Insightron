@@ -31,6 +31,7 @@ class TranscriptionEngine:
         self.literal_transcriber = BaseTranscriber()
         config = get_config_manager()
         self.min_confidence_threshold = config.get('insightron.services.transcription.min_confidence', -1.0)
+        self.last_info = None
 
     def process_signal_single_pass(
         self,
@@ -80,6 +81,8 @@ class TranscriptionEngine:
             
             refined_segments.append(refined_seg)
             
+        # Capture latest info after generator has started.
+        self.last_info = getattr(self.literal_transcriber, "_last_transcription_info", None)
         return refined_segments
 
     def _resolve_obvious_errors(self, text: str) -> str:

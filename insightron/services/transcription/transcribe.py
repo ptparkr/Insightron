@@ -16,6 +16,8 @@ from insightron.services.transcription.audio_loader import AudioLoader
 from insightron.services.transcription.transcription_engine import TranscriptionEngine
 from insightron.services.transcription.result_handler import ResultHandler
 from insightron.services.base_transcriber import BaseTranscriber
+from insightron.services.transcription.diarization import Diarizer
+from insightron.services.transcription.speaker_attribution import SpeakerAttribution
 
 # Multi-pass components
 from insightron.services.transcription.multi_pass_transcriber import MultiPassTranscriber
@@ -41,6 +43,8 @@ class AudioTranscriber(BaseTranscriber):
         self.loader = AudioLoader()
         self.engine = TranscriptionEngine()
         self.handler = ResultHandler()
+        self.diarizer = Diarizer()
+        self.speaker_attribution = SpeakerAttribution()
         self.language = language
         self.max_retries = 3
 
@@ -90,6 +94,7 @@ class AudioTranscriber(BaseTranscriber):
             # 1. Signal Intake
             self.loader.validate_audio_file(audio_path)
             metadata = self.loader.get_audio_metadata(audio_path)
+            metadata["source_path"] = audio_path
             signal = self.loader.load_signal(audio_path)
             
             if progress_callback:
@@ -127,6 +132,8 @@ class AudioTranscriber(BaseTranscriber):
                 model_size=self.model_size,
                 language=target_language,
                 formatting_style=formatting_style,
+                diarization=None,
+                asr_info=getattr(self.engine, "last_info", None),
             )
 
             if progress_callback:

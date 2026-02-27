@@ -92,8 +92,19 @@ Insightron is a next-generation transcription application powered by **faster-wh
 git clone https://github.com/ptparkr/Insightron.git
 cd Insightron
 
-# Universal installer (recommended - works on all platforms)
-python install.py
+# Recommended: venv + editable install
+python -m venv .venv
+
+# Windows PowerShell:
+#   .\.venv\Scripts\Activate.ps1
+# macOS/Linux:
+#   source .venv/bin/activate
+
+python -m pip install -U pip
+pip install -e .
+
+# Optional (multi-pass LLM dependencies)
+pip install -e ".[llm]"
 
 # Platform-specific installers
 # Platform-specific installers
@@ -132,7 +143,7 @@ model:
 
 **🎨 GUI Mode (Recommended):**
 ```bash
-python insightron.py
+insightron
 ```
 
 **⚡ Command Line Mode:**

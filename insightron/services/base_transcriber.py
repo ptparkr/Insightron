@@ -60,6 +60,11 @@ class BaseTranscriber:
             word_timestamps=True # Crucial for literal ground truth
         )
 
+        # Expose the latest info for downstream single-phase metrics/reporting.
+        # This preserves the generator API while still letting orchestrators
+        # access language/duration/compression risk signals.
+        self._last_transcription_info = info
+
         logger.info(f"Literal transcription started: {info.language} (p={info.language_probability:.4f})")
         
         for segment in segments_iter:

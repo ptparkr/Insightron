@@ -247,7 +247,10 @@ class TextFormatter:
             bullets.append(" ".join(current_bullet))
             
         # Keep bullets plain Markdown without additional structure.
-        return "\n".join([f"- {b}" for b in bullets])
+        # Historical behavior: meeting_notes uses '-' bullets, while the generic
+        # bullets mode uses '*' bullets (tests rely on this distinction).
+        marker = "- " if view_name == "meeting_notes" else "* "
+        return "\n".join([f"{marker}{b}" for b in bullets])
 
     def format_text(self, text: str, style: str = "auto") -> str:
         """

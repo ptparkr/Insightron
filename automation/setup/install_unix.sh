@@ -6,7 +6,7 @@
 set -e  # Exit on error
 
 echo "================================================"
-echo "   Insightron v2.2.0 - Unix/Linux Installer"
+echo "   Insightron v3.1.0 - Unix/Linux Installer"
 echo "   Enhanced Whisper AI Transcription Tool"
 echo "================================================"
 echo ""
@@ -88,10 +88,10 @@ $PYTHON_CMD -m pip install numpy --prefer-binary --upgrade || {
 # Install other dependencies
 echo ""
 echo "[3/4] Installing other dependencies..."
-if [ -f "setup/requirements.txt" ]; then
-    REQ_FILE="setup/requirements.txt"
-elif [ -f "requirements.txt" ]; then
+if [ -f "requirements.txt" ]; then
     REQ_FILE="requirements.txt"
+elif [ -f "../../requirements.txt" ]; then
+    REQ_FILE="../../requirements.txt"
 else
     echo "ERROR: requirements.txt not found"
     echo "Please run this script from the Insightron root directory"
@@ -120,10 +120,10 @@ $PYTHON_CMD -m pip install -r "$REQ_FILE" --prefer-binary --no-cache-dir || {
     $PYTHON_CMD -m pip install -r "$REQ_FILE" --prefer-binary --no-cache-dir || {
         echo ""
         echo "[WARNING] Some dependencies failed, trying minimal installation..."
-        if [ -f "setup/requirements-minimal.txt" ]; then
-            MIN_REQ_FILE="setup/requirements-minimal.txt"
-        elif [ -f "requirements-minimal.txt" ]; then
+        if [ -f "requirements-minimal.txt" ]; then
             MIN_REQ_FILE="requirements-minimal.txt"
+        elif [ -f "../../requirements-minimal.txt" ]; then
+            MIN_REQ_FILE="../../requirements-minimal.txt"
         else
             echo "ERROR: requirements-minimal.txt not found"
             exit 1
@@ -161,7 +161,7 @@ echo "    Installation Complete!"
 echo "================================================"
 echo ""
 echo "You can now run Insightron:"
-echo "  $PYTHON_CMD insightron.py    # GUI mode (recommended)"
+echo "  $PYTHON_CMD run_insightron.py # GUI mode (legacy)"
 echo "  $PYTHON_CMD cli.py audio.mp3  # Command line mode"
 echo ""
 echo "For help: $PYTHON_CMD scripts/troubleshoot.py"

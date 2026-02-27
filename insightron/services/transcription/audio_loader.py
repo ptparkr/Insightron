@@ -8,6 +8,10 @@ from functools import lru_cache
 
 from insightron.core.config import get_config_manager
 from insightron.core.resource_manager import ResourceManager
+from insightron.services.transcription.audio_preprocessor import (
+    AudioPreProcessor,
+    AudioPreprocessConfig,
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -28,6 +32,7 @@ class AudioLoader:
         self.target_sr = target_sr
         self.supported_formats = {'.mp3', '.wav', '.m4a', '.flac', '.mp4', '.ogg', '.aac', '.wma'}
         self.resource_manager = ResourceManager()
+        self._config = get_config_manager()
 
     def validate_audio_file(self, audio_path: str) -> bool:
         """Validate if the audio file is supported and accessible."""
@@ -105,8 +110,7 @@ class AudioLoader:
         Always returns 16kHz, Mono, Float32.
         """
         try:
-            # Use soundfile for primary intake
-            audio, sr = soundfile.read(audio_path, dtype='float32')
+            audio, sr = self._decode_audio(audio_path)
             
             # 1. Normalize channels (downmix to mono)
             if len(audio.shape) > 1:
@@ -115,10 +119,10 @@ class AudioLoader:
             # 2. Resample if necessary
             if sr != self.target_sr:
                 audio = librosa.resample(audio, orig_sr=sr, target_sr=self.target_sr)
+                sr = self.target_sr
             
-            # 3. Conservative silence trimming
-            # We use a low threshold to preserve subtle audio artifacts
-            audio, _ = librosa.effects.trim(audio, top_db=40)
+            # 3. Optional single-phase preprocessing (noise reduction, LUFS, pre-emphasis, trim)
+            audio = self._apply_preprocessing(audio, sr=sr)
             
             # 4. Standard Peak Normalization
             max_val = np.abs(audio).max()
@@ -130,6 +134,56 @@ class AudioLoader:
         except Exception as e:
             logger.error(f"Signal intake failed: {e}")
             raise RuntimeError(f"Could not load signal from {audio_path}: {e}")
+
+    def _decode_audio(self, audio_path: str) -> tuple[np.ndarray, int]:
+        """
+        Decode audio robustly across formats.
+
+        - Prefer `soundfile` for formats it supports well (wav/flac/ogg, etc.).
+        - Fall back to `librosa.load` (audioread backend) for MP3/M4A on systems
+          without a working libsndfile decoder.
+        """
+        try:
+            audio, sr = soundfile.read(audio_path, dtype="float32")
+            return np.asarray(audio, dtype=np.float32), int(sr)
+        except Exception as e:
+            logger.warning(f"soundfile decode failed ({type(e).__name__}); falling back to librosa: {e}")
+            y, sr = librosa.load(audio_path, sr=None, mono=False)
+            return np.asarray(y, dtype=np.float32), int(sr)
+
+    def _apply_preprocessing(self, audio: np.ndarray, sr: int) -> np.ndarray:
+        cfg = self._config
+
+        enabled = bool(cfg.get("audio_preprocess.enabled", cfg.get("transcription.enable_audio_preprocessing", True)))
+        if not enabled:
+            return audio
+
+        ap_cfg = AudioPreprocessConfig(
+            enabled=enabled,
+            noise_reduction_enabled=bool(
+                cfg.get("audio_preprocess.noise_reduction.enabled", True)
+            ),
+            noise_reduction_stationary=bool(
+                cfg.get("audio_preprocess.noise_reduction.stationary", True)
+            ),
+            noise_reduction_prop_decrease=float(
+                cfg.get("audio_preprocess.noise_reduction.prop_decrease", 0.75)
+            ),
+            loudness_enabled=bool(cfg.get("audio_preprocess.loudness.enabled", True)),
+            loudness_target_lufs=float(cfg.get("audio_preprocess.loudness.target_lufs", -23.0)),
+            pre_emphasis_enabled=bool(cfg.get("audio_preprocess.pre_emphasis.enabled", True)),
+            pre_emphasis_coeff=float(cfg.get("audio_preprocess.pre_emphasis.coeff", 0.97)),
+            trim_enabled=bool(cfg.get("audio_preprocess.trim.enabled", True)),
+            trim_top_db=float(cfg.get("audio_preprocess.trim.top_db", 20.0)),
+        )
+
+        pre = AudioPreProcessor(sr=sr, cfg=ap_cfg)
+        processed, meta = pre.process(audio)
+        try:
+            logger.debug(f"Audio preprocessing meta: {meta}")
+        except Exception:
+            pass
+        return processed
 
     def segment_by_time(self, audio: np.ndarray, segment_seconds: float) -> list[Dict[str, Any]]:
         """
