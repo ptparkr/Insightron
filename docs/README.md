@@ -139,6 +139,62 @@ model:
   compute_type: "int8"
 ```
 
+## Single-Phase Enhancements (Dashboard + Preprocessing + Diarization)
+
+### Dashboard report
+
+Set the report style in `config.yaml`:
+
+```yaml
+report:
+  style: "dashboard"  # or "classic"
+```
+
+### Audio preprocessing (single-phase)
+
+```yaml
+audio_preprocess:
+  enabled: true
+  noise_reduction:
+    enabled: true
+  loudness:
+    enabled: true
+    target_lufs: -23.0
+  pre_emphasis:
+    enabled: true
+  trim:
+    enabled: true
+    top_db: 20
+```
+
+Dependencies are included in `automation/setup/requirements.txt`:
+- `noisereduce`
+- `pyloudnorm`
+
+### Speaker diarization (optional)
+
+Enable diarization in `config.yaml`:
+
+```yaml
+diarization:
+  enabled: true
+  pipeline_id: "pyannote/speaker-diarization@2.1"
+  hf_token: ""
+```
+
+You must also:
+1. Accept the model conditions on Hugging Face for `pyannote/speaker-diarization` (and its dependencies).
+2. Create a Hugging Face access token.
+3. Provide it either in `config.yaml` (`diarization.hf_token`) or as an environment variable:
+
+```bash
+# Windows
+set HF_TOKEN=your_token_here
+
+# macOS/Linux
+export HF_TOKEN=your_token_here
+```
+
 ### 3. **Launch Insightron**
 
 **🎨 GUI Mode (Recommended):**

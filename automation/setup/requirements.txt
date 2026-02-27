@@ -17,6 +17,8 @@ tokenizers>=0.19.1,<1.0.0
 # librosa requires numpy, scipy, and soundfile
 librosa>=0.10.1,<1.0.0
 soundfile>=0.12.1,<1.0.0
+noisereduce>=3.0.0
+pyloudnorm>=0.1.1
 
 # Progress tracking and utilities
 tqdm>=4.66.0
@@ -63,3 +65,8 @@ torch>=2.0.0
 accelerate>=0.28.0
 bitsandbytes>=0.43.0
 openai>=1.0.0
+
+# Speaker diarization (optional, single-phase enrichment)
+pyannote.audio>=3.1.1
+torchaudio>=2.0.0
+huggingface_hub>=0.20.0

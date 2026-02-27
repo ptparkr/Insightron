@@ -103,6 +103,43 @@ for success in results['successful']:
 
 ## 🔧 Configuration Options
 
+## Single-Phase Engine (Dashboard + Preprocessing + Diarization)
+
+### Dashboard report (recommended)
+
+```yaml
+report:
+  style: "dashboard"   # or "classic"
+```
+
+### Audio preprocessing
+
+```yaml
+audio_preprocess:
+  enabled: true
+  noise_reduction:
+    enabled: true
+  loudness:
+    enabled: true
+    target_lufs: -23.0
+  pre_emphasis:
+    enabled: true
+  trim:
+    enabled: true
+    top_db: 20
+```
+
+### Speaker diarization (optional)
+
+```yaml
+diarization:
+  enabled: true
+  pipeline_id: "pyannote/speaker-diarization@2.1"
+  hf_token: ""   # or set HF_TOKEN env var
+```
+
+If you use diarization, you must accept the Hugging Face model conditions and provide an access token.
+
 ### Worker Count
 
 | Setting | Description | Best For |
