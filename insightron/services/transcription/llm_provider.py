@@ -21,6 +21,9 @@ class RestorationResult:
     """Result from LLM-based text restoration"""
     original_text: str
     restored_text: str
+    # Optional segment-level restored texts; when present this should be aligned
+    # 1:1 with the ASR segments used to build the chunk.
+    segment_texts: Optional[List[str]] = None
     processing_time: float
     tokens_used: int = 0
     model_name: str = ""
@@ -49,7 +52,13 @@ class BaseLLMProvider(ABC):
         self.retry_delay = config.get('retry_delay', 1.0)
     
     @abstractmethod
-    def restore_text(self, text: str, prev_clean: Optional[str] = None, next_raw: Optional[str] = None) -> RestorationResult:
+    def restore_text(
+        self,
+        text: str,
+        prev_clean: Optional[str] = None,
+        next_raw: Optional[str] = None,
+        segment_count: Optional[int] = None,
+    ) -> RestorationResult:
         """
         Restore punctuation and fix phonetic errors in text using v2 philosophy.
         
@@ -57,6 +66,9 @@ class BaseLLMProvider(ABC):
             text: Raw transcribed text (current chunk)
             prev_clean: Optional cleaned text from previous chunk
             next_raw: Optional raw text from next chunk (lookahead)
+            segment_count: Optional number of ASR segments represented in this chunk.
+                When provided, the model is encouraged (but not required) to return
+                a segment-aligned list of restored texts in segment_texts.
             
         Returns:
             RestorationResult object
@@ -73,6 +85,7 @@ class BaseLLMProvider(ABC):
         Build system instructions for restoration.
 
         The provider may set `prompt_profile` in config to bias the style:
+        This also defines the JSON contract expected from the model.
         - thinking_session
         - meeting_notes
         - study_notes
@@ -116,37 +129,61 @@ class BaseLLMProvider(ABC):
             "- If unsure, LEAVE IT UNCHANGED and flag it.\n\n"
             "STAGE 3 — Semantic Repair (Conservative)\n"
             "- Correct obvious ASR errors using local context.\n"
-            "- If unsure, LEAVE IT UNCHANGED and flag it.\n\n"
+            "- For technical/domain terms, ONLY repair if you are at least ~90% confident.\n"
+            '- If unsure, LEAVE IT UNCHANGED and add "uncertain_term" to flags.\n\n'
             "STAGE 4 — No formatting\n"
             "- Output plain text only (no Markdown, no bullets, no headings).\n\n"
             "STAGE 5 — Confidence Signaling\n"
             "- Attach flags: low_audio_confidence, uncertain_term, possible_domain_error\n\n"
             "OUTPUT FORMAT (JSON ONLY):\n"
-            "Return EXACTLY this JSON format and nothing else:\n"
+            "Return EXACTLY this JSON object and nothing else. The segment_texts field is OPTIONAL:\n"
             "{\n"
             '  \"clean_text\": \"...\",\n'
             '  \"flags\": [\"...\"],\n'
-            "  \"stitched\": true/false\n"
+            "  \"stitched\": true/false,\n"
+            "  \"segment_texts\": [\"segment1 text\", \"segment2 text\", \"...\"]\n"
             "}"
         )
         return system_content
 
     def _build_restoration_user_content(
-        self, text: str, prev_clean: Optional[str] = None, next_raw: Optional[str] = None
+        self,
+        text: str,
+        prev_clean: Optional[str] = None,
+        next_raw: Optional[str] = None,
+        segment_count: Optional[int] = None,
     ) -> str:
-        user_content = f"raw_chunk: {text}\n"
-        if prev_clean:
-            user_content = f"prev_clean_chunk: {prev_clean}\n" + user_content
-        if next_raw:
-            user_content += f"next_raw_chunk: {next_raw}\n"
-        return user_content
+        """
+        Build user content for restoration.
 
-    def _build_restoration_prompt(self, text: str, prev_clean: Optional[str] = None, next_raw: Optional[str] = None) -> str:
+        When segment_count is provided, we inform the model how many ASR segments
+        are represented in this chunk so it can optionally emit a segment-aligned
+        list in segment_texts.
+        """
+        lines: List[str] = []
+        if segment_count is not None:
+            lines.append(f"segment_count: {segment_count}")
+        if prev_clean:
+            lines.append(f"prev_clean_chunk: {prev_clean}")
+        lines.append(f"raw_chunk: {text}")
+        if next_raw:
+            lines.append(f"next_raw_chunk: {next_raw}")
+        return "\n".join(lines) + "\n"
+
+    def _build_restoration_prompt(
+        self,
+        text: str,
+        prev_clean: Optional[str] = None,
+        next_raw: Optional[str] = None,
+        segment_count: Optional[int] = None,
+    ) -> str:
         """
         Build the prompt for text restoration based on 5-stage philosophy.
         """
         system_content = self._build_restoration_instructions()
-        user_content = self._build_restoration_user_content(text, prev_clean, next_raw)
+        user_content = self._build_restoration_user_content(
+            text, prev_clean=prev_clean, next_raw=next_raw, segment_count=segment_count
+        )
 
         # Detect model type
         is_llama = "llama" in self.config.get('model_name', '').lower() if hasattr(self, 'config') else False
@@ -378,7 +415,9 @@ class LocalLLMProvider(BaseLLMProvider):
             import torch
             # Build prompt
             logger.info("Building v2 restoration prompt...")
-            prompt = self._build_restoration_prompt(text, prev_clean, next_raw)
+            prompt = self._build_restoration_prompt(
+                text, prev_clean=prev_clean, next_raw=next_raw, segment_count=None
+            )
             
             # Tokenize
             logger.info("Tokenizing input...")
@@ -411,16 +450,22 @@ class LocalLLMProvider(BaseLLMProvider):
             tokens_used = outputs.shape[1]
             
             logger.info(f"Text restored in {processing_time:.2f}s ({tokens_used} tokens)")
-            
+
+            segment_texts = parsed.get("segment_texts")
+            if segment_texts is not None and not isinstance(segment_texts, list):
+                logger.warning("segment_texts present but not a list; ignoring this field.")
+                segment_texts = None
+
             return RestorationResult(
                 original_text=text,
-                restored_text=parsed.get('clean_text', text),
+                restored_text=parsed.get("clean_text", text),
+                segment_texts=segment_texts,
                 processing_time=processing_time,
                 tokens_used=tokens_used,
                 model_name=self.model_name,
                 success=True,
-                flags=parsed.get('flags', []),
-                stitched=parsed.get('stitched', False)
+                flags=parsed.get("flags", []),
+                stitched=parsed.get("stitched", False),
             )
             
         except Exception as e:
@@ -428,9 +473,11 @@ class LocalLLMProvider(BaseLLMProvider):
             return RestorationResult(
                 original_text=text,
                 restored_text=text,
+                segment_texts=None,
                 processing_time=time.time() - start_time,
                 success=False,
-                error=str(e)
+                error=str(e),
+                flags=["restoration_error"],
             )
 
 
@@ -491,12 +538,15 @@ class OpenAIProvider(BaseLLMProvider):
                 restored_text=text,
                 processing_time=time.time() - start_time,
                 success=False,
-                error="OpenAI client not initialized"
+                error="OpenAI client not initialized",
+                flags=["restoration_disabled"],
             )
         
         try:
             system_content = self._build_restoration_instructions()
-            user_content = self._build_restoration_user_content(text, prev_clean, next_raw)
+            user_content = self._build_restoration_user_content(
+                text, prev_clean=prev_clean, next_raw=next_raw, segment_count=None
+            )
             
             response = self._retry_with_backoff(
                 self.client.chat.completions.create,
@@ -511,21 +561,27 @@ class OpenAIProvider(BaseLLMProvider):
             
             raw_response = response.choices[0].message.content.strip()
             parsed = self._parse_json_response(raw_response)
-            
+
             tokens_used = response.usage.total_tokens
             processing_time = time.time() - start_time
             
             logger.info(f"OpenAI restoration completed in {processing_time:.2f}s ({tokens_used} tokens)")
-            
+
+            segment_texts = parsed.get("segment_texts")
+            if segment_texts is not None and not isinstance(segment_texts, list):
+                logger.warning("segment_texts present but not a list; ignoring this field.")
+                segment_texts = None
+
             return RestorationResult(
                 original_text=text,
-                restored_text=parsed.get('clean_text', text),
+                restored_text=parsed.get("clean_text", text),
+                segment_texts=segment_texts,
                 processing_time=processing_time,
                 tokens_used=tokens_used,
                 model_name=self.model,
                 success=True,
-                flags=parsed.get('flags', []),
-                stitched=parsed.get('stitched', False)
+                flags=parsed.get("flags", []),
+                stitched=parsed.get("stitched", False),
             )
             
         except Exception as e:

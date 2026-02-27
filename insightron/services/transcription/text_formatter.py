@@ -68,6 +68,8 @@ class TextFormatter:
             "pi": r"$\pi$",
         }
 
+        # Layout “views” define how dense paragraphs/bullets should be and how
+        # aggressive we are with filler removal and LaTeX substitution.
         self.views: Dict[str, FormattingView] = {
             # Backward-compatible styles
             "auto": FormattingView("paragraphs", sentences_per_paragraph=2, latex_mode="safe", remove_fillers=False),
@@ -79,6 +81,47 @@ class TextFormatter:
             "thinking_session": FormattingView("paragraphs", sentences_per_paragraph=4, latex_mode="safe", remove_fillers=True),
             "meeting_notes": FormattingView("bullets", sentences_per_paragraph=2, latex_mode="off", remove_fillers=True),
             "study_notes": FormattingView("paragraphs", sentences_per_paragraph=3, latex_mode="math", remove_fillers=True),
+        }
+
+        # Shared transition starters that often indicate a topic change in any view.
+        self._base_transition_starters: List[str] = [
+            "however",
+            "furthermore",
+            "moreover",
+            "additionally",
+            "in conclusion",
+            "finally",
+            "next",
+            "then",
+            "after that",
+            "first",
+            "second",
+            "third",
+            "fourth",
+            "fifth",
+        ]
+
+        # View-specific tweaks allow us to bias how eager we are to break.
+        # thinking_session: more flowing, fewer hard breaks.
+        # meeting_notes: more structured, bullets for each clear step.
+        self._view_transition_overrides: Dict[str, Dict[str, List[str]]] = {
+            "thinking_session": {
+                "add": [],
+                # Loosen some mechanical starters that feel too choppy in a monologue.
+                "remove": ["then", "after that"],
+            },
+            "meeting_notes": {
+                "add": [
+                    "so the next thing",
+                    "action item",
+                    "we need to",
+                ],
+                "remove": [],
+            },
+            "study_notes": {
+                "add": [],
+                "remove": [],
+            },
         }
 
     def format_structure(self, segments: List[Dict[str, Any]], style: str = "auto") -> str:
@@ -108,9 +151,13 @@ class TextFormatter:
         
         # 4. Apply Structural Layout (Paragraphs/Lists)
         if view.structure == "bullets":
-            return self._to_bullets(formatted_text)
+            return self._to_bullets(formatted_text, view_name=style)
 
-        return self._to_paragraphs(formatted_text, limit=view.sentences_per_paragraph)
+        return self._to_paragraphs(
+            formatted_text,
+            limit=view.sentences_per_paragraph,
+            view_name=style,
+        )
 
     def _apply_punctuation(self, text: str) -> str:
         """Standardize punctuation and capitalization."""
@@ -150,7 +197,7 @@ class TextFormatter:
             text = pattern.sub(lambda _m: latex, text)
         return text
 
-    def _to_paragraphs(self, text: str, limit: int = 3) -> str:
+    def _to_paragraphs(self, text: str, limit: int = 3, view_name: str = "auto") -> str:
         """Break text into readable paragraphs based on length and pauses."""
         # Typesetter rule: avoid "walls of text"
         sentences = self._split_into_sentences(text)
@@ -163,7 +210,7 @@ class TextFormatter:
                 continue
                 
             # Break if limit reached or sentence indicates a pause/topic change
-            if len(current_p) >= limit or self._indicates_long_pause(sent):
+            if len(current_p) >= limit or self._indicates_long_pause(sent, view_name=view_name):
                 paragraphs.append(" ".join(current_p))
                 current_p = [sent]
             else:
@@ -174,7 +221,7 @@ class TextFormatter:
             
         return "\n\n".join(paragraphs)
 
-    def _to_bullets(self, text: str) -> str:
+    def _to_bullets(self, text: str, view_name: str = "auto") -> str:
         """Convert text into a bulleted list."""
         # Bullets should group sentences that belong together (paragraphs)
         # We can reuse the paragraph logic but output as bullets
@@ -190,7 +237,7 @@ class TextFormatter:
                 continue
             
             # If sent starts a new point (e.g. "Next", "Second"), flush current
-            if self._indicates_long_pause(sent):
+            if self._indicates_long_pause(sent, view_name=view_name):
                 bullets.append(" ".join(current_bullet))
                 current_bullet = [sent]
             else:
@@ -225,9 +272,13 @@ class TextFormatter:
         
         # 3. Apply Structural Layout (Paragraphs/Lists)
         if view.structure == "bullets":
-            return self._to_bullets(formatted_text)
+            return self._to_bullets(formatted_text, view_name=style)
 
-        return self._to_paragraphs(formatted_text, limit=view.sentences_per_paragraph)
+        return self._to_paragraphs(
+            formatted_text,
+            limit=view.sentences_per_paragraph,
+            view_name=style,
+        )
 
     def format_with_custom_structure(self, text: str, max_sentences_per_paragraph: int = 3) -> str:
         """
@@ -243,7 +294,11 @@ class TextFormatter:
         formatted_text = self._apply_punctuation(text)
         formatted_text = self._apply_latex(formatted_text)
 
-        return self._to_paragraphs(formatted_text, limit=max_sentences_per_paragraph)
+        return self._to_paragraphs(
+            formatted_text,
+            limit=max_sentences_per_paragraph,
+            view_name="auto",
+        )
 
     # Legacy/Convenience aliases
     def format_as_bullets(self, text: str) -> str:
@@ -277,30 +332,32 @@ class TextFormatter:
         # Reading test_formatting.py: assertIsInstance(breaks, list)
         return [] 
         
-    def _indicates_long_pause(self, text: str) -> bool:
-        # Transition words that typically start new paragraphs or points
-        starters = [
-            "however", "furthermore", "moreover", "additionally", "in conclusion", "finally", 
-            "next", "then", "after that",
-            "first", "second", "third", "fourth", "fifth"
-        ]
+    def _indicates_long_pause(self, text: str, view_name: str = "auto") -> bool:
+        """
+        Heuristic to detect long pauses / topic shifts that should start a new
+        paragraph or bullet.
 
-        # Spoken transitions that often signal a new point in notes
-        starters.extend(
-            [
-                "so",
-                "okay",
-                "alright",
-                "the key thing is",
-                "the main point is",
-                "one more thing",
-            ]
-        )
-        
-        # Use regex with word boundaries to avoid false positives like "Secondary" matching "second"
-        # We also check for starting at the beginning of the sentence
+        The base set of transition starters is adjusted per view to keep
+        thinking_session more flowing and meeting_notes more structured.
+        """
+        starters = list(self._base_transition_starters)
+        overrides = self._view_transition_overrides.get(view_name, {})
+        for phrase in overrides.get("add", []):
+            if phrase not in starters:
+                starters.append(phrase)
+        for phrase in overrides.get("remove", []):
+            if phrase in starters:
+                starters.remove(phrase)
+
+        # Avoid breaking on extremely short fragments which are often just
+        # continuations (e.g., "So." or "Okay.")
+        if len(text.split()) <= 2:
+            return False
+
+        # Use regex with word boundaries to avoid false positives like "Secondary"
+        # matching "second". We also check from the beginning of the sentence.
         pattern = rf"^(?:{'|'.join(re.escape(s) for s in starters)})\b"
-        return bool(re.match(pattern, text, re.IGNORECASE))
+        return bool(re.match(pattern, text.strip(), re.IGNORECASE))
         
     def clean_text(self, text: str) -> str:
         """Clean and normalize the transcribed text."""

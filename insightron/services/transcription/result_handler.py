@@ -46,6 +46,23 @@ class ResultHandler:
         # Output directory for markdown reports (inside the main transcription workspace)
         self.output_dir = TRANSCRIPTION_FOLDER
 
+    def _resolve_style(self, config_profile: str, cli_format: str) -> str:
+        """
+        Resolve the effective formatting style given the config profile and any
+        CLI override.
+
+        - If cli_format is "auto", use the post_processing.formatting_profile.
+        - Otherwise, prefer the explicit CLI-provided style.
+        - If the resolved style is unknown to TextFormatter, fall back to "auto".
+        """
+        chosen = config_profile if cli_format == "auto" else cli_format
+        if chosen not in self.formatter.views:
+            logger.warning(
+                f"Unknown formatting style '{chosen}', falling back to 'auto'."
+            )
+            return "auto"
+        return chosen
+
     def merge_segments(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Intelligently merge segments using adaptive thresholds.
@@ -120,8 +137,10 @@ class ResultHandler:
         Execute the final contract: format, analyze risk, and save.
         """
         # 1. Human Readability (Text Formatting)
-        formatting_profile = get_config_manager().get("post_processing.formatting_profile", "thinking_session")
-        effective_style = formatting_profile if formatting_style == "auto" else formatting_style
+        formatting_profile = get_config_manager().get(
+            "post_processing.formatting_profile", "thinking_session"
+        )
+        effective_style = self._resolve_style(formatting_profile, formatting_style)
         final_text = self.formatter.format_structure(segments, style=effective_style)
         
         # 2. Truth Scoring (Quality/Risk)
@@ -189,6 +208,7 @@ class ResultHandler:
         """Write a standardized, human-readable report."""
         risk = data["quality"]
         action = risk["action_recommendation"]
+        stats = data.get("stats", {})
         
         # Color indicator for risk
         color = "🟢" if action == "Accept" else "🟡" if action == "Flag" else "🔴"
@@ -202,6 +222,7 @@ class ResultHandler:
         # Restoration flags (multi-pass pass2_restore attaches `quality_flags` per segment)
         flag_counts: Dict[str, int] = {}
         stitched_count = 0
+        total_segments = len(segments)
         for seg in segments:
             for flag in (seg.get("quality_flags") or []):
                 flag_counts[str(flag)] = flag_counts.get(str(flag), 0) + 1
@@ -214,7 +235,17 @@ class ResultHandler:
             lines_flags = [f"- **{name}**: {count}" for name, count in sorted_flags]
             if stitched_count:
                 lines_flags.append(f"- **stitched_segments**: {stitched_count}")
-            restoration_section = "\n## Restoration Notes\n\n" + "\n".join(lines_flags)
+            restored_segments = sum(flag_counts.values())
+            summary_line = (
+                f"Pass 2 summary: {restored_segments}/{total_segments} segments "
+                f"carried restoration flags; stitched spans: {stitched_count}."
+            )
+            restoration_section = (
+                "\n## Restoration Notes\n\n"
+                + summary_line
+                + "\n\n"
+                + "\n".join(lines_flags)
+            )
 
         lines = [
             f"# Insightron Transcription: {data['metadata']['filename']}",
@@ -237,8 +268,8 @@ class ResultHandler:
             "## Metadata",
             f"- **Model**: {data['transcription']['model']}",
             f"- **Formatting**: {data['transcription'].get('formatting_style', 'auto')}",
-            f"- **Processing Time**: {data['stats']['processing_time']:.1f}s",
-            f"- **RTF**: {data['stats']['rtf']:.3f}",
+            f"- **Processing Time**: {stats.get('processing_time', 0.0):.1f}s",
+            f"- **RTF**: {stats.get('rtf', 0.0):.3f}",
         ]
 
         with open(path, "w", encoding="utf-8") as f:

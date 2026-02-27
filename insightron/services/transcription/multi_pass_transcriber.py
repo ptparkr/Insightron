@@ -283,6 +283,7 @@ class MultiPassTranscriber:
             
             # Combine current chunk text
             chunk_text = " ".join(seg.get('text', '') for seg in chunk)
+            segment_count = len(chunk)
             
             # Lookahead: get next chunk text if available
             next_raw = None
@@ -290,11 +291,30 @@ class MultiPassTranscriber:
                 next_raw = " ".join(seg.get('text', '') for seg in chunk_groups[i+1])
             
             # Restore with LLM using v2 philosophy
-            result = self.llm_provider.restore_text(chunk_text, prev_clean, next_raw)
+            result = self.llm_provider.restore_text(
+                chunk_text,
+                prev_clean=prev_clean,
+                next_raw=next_raw,
+                segment_count=segment_count,
+            )
             
             if result.success:
-                # Distribute restored text back to segments
-                restored_chunk = self._distribute_restored_text(chunk, result.restored_text)
+                # Prefer explicit segment-aligned texts when provided and valid
+                if result.segment_texts and len(result.segment_texts) == segment_count:
+                    restored_chunk = []
+                    for original_seg, restored_text in zip(chunk, result.segment_texts):
+                        updated_seg = original_seg.copy()
+                        updated_seg["text"] = restored_text
+                        restored_chunk.append(updated_seg)
+                else:
+                    if result.segment_texts and len(result.segment_texts) != segment_count:
+                        logger.warning(
+                            "segment_texts length mismatch in Pass 2: "
+                            f"expected {segment_count}, got {len(result.segment_texts)}; "
+                            "falling back to proportional distribution."
+                        )
+                    # Distribute restored text back to segments using proportional splitter
+                    restored_chunk = self._distribute_restored_text(chunk, result.restored_text)
                 
                 # Add flags and stitched status to segments for tracking
                 for seg in restored_chunk:
