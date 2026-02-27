@@ -5,16 +5,15 @@ from typing import Dict, Any, List, Optional
 
 from insightron.core.utils import create_timestamps_section, save_processed_audio
 from insightron.core.config import (
-    TRANSCRIPTION_FOLDER, 
+    TRANSCRIPTION_FOLDER,
     PROCESSED_AUDIO_FOLDER,
-    ENSURE_UTF8_ENCODING, 
+    ENSURE_UTF8_ENCODING,
     OUTPUT_ENCODING,
-    get_config_manager
+    get_config_manager,
 )
 from insightron.services.transcription.segment_analyzer import SegmentAnalyzer
 from insightron.services.transcription.quality_metrics import QualityMetricsCalculator
 from insightron.services.transcription.text_formatter import TextFormatter
-from insightron.core.config import get_config
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -31,7 +30,10 @@ class ResultHandler:
     def __init__(self) -> None:
         config = get_config_manager()
         self.segment_merge_threshold = config.get(
-            "insightron.services.transcription.segment_merge_threshold", -0.5
+            "transcription.segment_merge_threshold", -0.5
+        )
+        self.filename_template = config.get(
+            "transcription.filename_template", "{stem}_transcription.md"
         )
 
         self.segment_analyzer = SegmentAnalyzer()
@@ -41,9 +43,8 @@ class ResultHandler:
         self.formatter = TextFormatter()
         self.quality_calc = QualityMetricsCalculator()
 
-        # Output directory for markdown reports
-        self.output_dir = Path(get_config("insightron.paths.output_dir", "output"))
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        # Output directory for markdown reports (inside the main transcription workspace)
+        self.output_dir = TRANSCRIPTION_FOLDER
 
     def merge_segments(self, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -119,7 +120,9 @@ class ResultHandler:
         Execute the final contract: format, analyze risk, and save.
         """
         # 1. Human Readability (Text Formatting)
-        final_text = self.formatter.format_structure(segments, style=formatting_style)
+        formatting_profile = get_config_manager().get("post_processing.formatting_profile", "thinking_session")
+        effective_style = formatting_profile if formatting_style == "auto" else formatting_style
+        final_text = self.formatter.format_structure(segments, style=effective_style)
         
         # 2. Truth Scoring (Quality/Risk)
         quality_analysis = self.quality_calc.calculate_risk_metrics(segments)
@@ -132,7 +135,8 @@ class ResultHandler:
                 "full_text": final_text,
                 "segments": segments,
                 "language": language,
-                "model": model_size
+                "model": model_size,
+                "formatting_style": effective_style,
             },
             "quality": quality_analysis,
             "stats": {
@@ -142,7 +146,30 @@ class ResultHandler:
         }
         
         # 4. Deterministic Persistence
-        output_filename = f"{Path(audio_path).stem}_transcription.md"
+        source_path = Path(audio_path)
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d")
+        time_str = now.strftime("%H%M%S")
+
+        template_context = {
+            "stem": source_path.stem,
+            "date": date_str,
+            "time": time_str,
+            "calendar_date": metadata.get("calendar_date", date_str),
+        }
+
+        try:
+            output_filename = self.filename_template.format(**template_context)
+        except Exception as e:
+            logger.warning(
+                f"Failed to apply filename template '{self.filename_template}': {e}. "
+                "Falling back to default pattern."
+            )
+            output_filename = f"{source_path.stem}_transcription.md"
+
+        if Path(output_filename).suffix.lower() != ".md":
+            output_filename = f"{output_filename}.md"
+
         output_path = self.output_dir / output_filename
         
         # Generate Markdown with clear uncertainty exposure
@@ -150,7 +177,9 @@ class ResultHandler:
         
         # 7. Save Processed Audio (optional, but good practice to keep together)
         try:
-            save_processed_audio(audio_path, PROCESSED_AUDIO_FOLDER)
+            processed_audio_path = save_processed_audio(audio_path, PROCESSED_AUDIO_FOLDER)
+            artifacts = result_data.setdefault("artifacts", {})
+            artifacts["processed_audio_path"] = str(processed_audio_path)
         except Exception as e:
             logger.warning(f"Failed to save processed audio: {e}")
 
@@ -170,6 +199,23 @@ class ResultHandler:
         if segments:
             timestamps_section = "\n## Timestamps\n\n" + create_timestamps_section(segments)
 
+        # Restoration flags (multi-pass pass2_restore attaches `quality_flags` per segment)
+        flag_counts: Dict[str, int] = {}
+        stitched_count = 0
+        for seg in segments:
+            for flag in (seg.get("quality_flags") or []):
+                flag_counts[str(flag)] = flag_counts.get(str(flag), 0) + 1
+            if seg.get("stitched"):
+                stitched_count += 1
+
+        restoration_section = ""
+        if flag_counts or stitched_count:
+            sorted_flags = sorted(flag_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+            lines_flags = [f"- **{name}**: {count}" for name, count in sorted_flags]
+            if stitched_count:
+                lines_flags.append(f"- **stitched_segments**: {stitched_count}")
+            restoration_section = "\n## Restoration Notes\n\n" + "\n".join(lines_flags)
+
         lines = [
             f"# Insightron Transcription: {data['metadata']['filename']}",
             f"## Quality Report {color}",
@@ -183,11 +229,14 @@ class ResultHandler:
             "",
             data["transcription"]["full_text"],
             "",
+            restoration_section.strip() if restoration_section else "",
+            "",
             timestamps_section.strip() if timestamps_section else "",
             "",
             "---",
             "## Metadata",
             f"- **Model**: {data['transcription']['model']}",
+            f"- **Formatting**: {data['transcription'].get('formatting_style', 'auto')}",
             f"- **Processing Time**: {data['stats']['processing_time']:.1f}s",
             f"- **RTF**: {data['stats']['rtf']:.3f}",
         ]

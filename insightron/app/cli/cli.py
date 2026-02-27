@@ -11,7 +11,8 @@ import time
 from pathlib import Path
 from typing import Optional
 from insightron.services.transcription.transcribe import AudioTranscriber
-from insightron.core.config import WHISPER_MODEL, SUPPORTED_LANGUAGES
+from insightron.services.transcription.multi_pass_transcriber import MultiPassTranscriber
+from insightron.core.config import WHISPER_MODEL, SUPPORTED_LANGUAGES, get_config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -48,7 +49,15 @@ Examples:
     parser.add_argument("-v", "--verbose", action="store_true", 
                        help="Enable verbose output with detailed progress")
     parser.add_argument("-f", "--format", default="auto", 
-                       choices=["auto", "paragraphs", "minimal"],
+                       choices=[
+                           "auto",
+                           "paragraphs",
+                           "minimal",
+                           "bullets",
+                           "thinking_session",
+                           "meeting_notes",
+                           "study_notes",
+                       ],
                        help="Text formatting style (default: %(default)s)")
     parser.add_argument("-l", "--language", default="auto",
                        help="Language for transcription (e.g., 'en', 'es', 'fr') or 'auto' for detection (default: %(default)s)")
@@ -62,6 +71,11 @@ Examples:
                        help="Number of parallel workers for batch processing (default: auto-detect)")
     parser.add_argument("--use-processes", action="store_true",
                        help="Use process pool instead of thread pool (better for CPU-bound tasks)")
+    parser.add_argument(
+        "--profile",
+        choices=["fast", "balanced", "deep"],
+        help="Transcription profile: fast, balanced, or deep (multi-pass). Defaults to config.yaml model.profile.",
+    )
     
     args = parser.parse_args()
     
@@ -132,13 +146,21 @@ Examples:
                     print(f"⏳ [{completed}/{total}] Processing: {filename}")
                 logger.info(f"Progress: {completed}/{total} - {filename}")
             
+            # Determine profile from CLI or config
+            profile = args.profile or get_config("model.profile", "balanced")
+
+            use_multi_pass = profile == "deep"
+            enable_emotion = False  # Can later be tied to config or another flag
+
             results = batch_transcribe_files(
                 [str(f) for f in audio_files],
                 model_size=args.model,
                 language=args.language,
                 max_workers=args.workers,
                 use_multiprocessing=args.use_processes,
-                progress_callback=progress_callback
+                progress_callback=progress_callback,
+                use_multi_pass=use_multi_pass,
+                enable_emotion=enable_emotion,
             )
             
             # Calculate processing time
@@ -174,9 +196,18 @@ Examples:
             if not args.quiet:
                 print(f"📁 File: {audio_path.name}")
             
-            # Initialize transcriber
-            logger.info(f"Initializing transcriber with model: {args.model}")
-            transcriber = AudioTranscriber(args.model)
+            # Determine profile from CLI or config
+            profile = args.profile or get_config("model.profile", "balanced")
+
+            # Initialize appropriate transcriber based on profile
+            if profile == "deep":
+                logger.info(f"Initializing multi-pass transcriber (profile={profile}, model={args.model})")
+                transcriber = MultiPassTranscriber()
+                use_multi_pass = True
+            else:
+                logger.info(f"Initializing single-pass transcriber (profile={profile}, model={args.model})")
+                transcriber = AudioTranscriber(args.model)
+                use_multi_pass = False
             
             # Progress callback for CLI
             def progress_callback(message: str) -> None:
@@ -186,12 +217,32 @@ Examples:
             
             # Transcribe file
             logger.info(f"Starting transcription of {audio_path}")
-            output_path, transcription_data = transcriber.transcribe_file(
-                str(audio_path), 
-                progress_callback=progress_callback,
-                formatting_style=args.format,
-                language=args.language
-            )
+            if use_multi_pass:
+                result = transcriber.transcribe_multipass(
+                    str(audio_path),
+                    language=args.language if args.language != "auto" else None,
+                    progress_callback=progress_callback,
+                )
+
+                from insightron.services.transcription.result_handler import ResultHandler
+
+                handler = ResultHandler()
+                output_path, transcription_data = handler.save_result(
+                    audio_path=str(audio_path),
+                    segments=result.segments,
+                    metadata=result.metadata,
+                    processing_time=result.processing_times.get("total", 0),
+                    model_size=args.model,
+                    language=result.metadata.get("language", args.language),
+                    formatting_style=args.format,
+                )
+            else:
+                output_path, transcription_data = transcriber.transcribe_file(
+                    str(audio_path),
+                    progress_callback=progress_callback,
+                    formatting_style=args.format,
+                    language=args.language,
+                )
             
             # Handle custom output path
             if args.output:

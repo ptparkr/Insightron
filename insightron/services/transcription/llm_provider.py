@@ -68,54 +68,85 @@ class BaseLLMProvider(ABC):
         """Check if the provider is available and configured correctly"""
         pass
     
-    def _build_restoration_prompt(self, text: str, prev_clean: Optional[str] = None, next_raw: Optional[str] = None) -> str:
+    def _build_restoration_instructions(self) -> str:
         """
-        Build the prompt for text restoration based on 5-stage philosophy.
+        Build system instructions for restoration.
+
+        The provider may set `prompt_profile` in config to bias the style:
+        - thinking_session
+        - meeting_notes
+        - study_notes
         """
-        system_content = """You are the Post-Transcription Quality Engine for Insightron.
-Your job is to REPAIR, ALIGN, and CLARIFY messy speech-to-text output from ~30-second chunks.
+        prompt_profile = (self.config.get("prompt_profile") or "").strip().lower()
 
-NORTH STAR: Same meaning. Fewer errors. Zero hallucinations.
+        profile_hint = ""
+        if prompt_profile == "thinking_session":
+            profile_hint = (
+                "\nSTYLE BIAS:\n"
+                "- Preserve the speaker's stream-of-consciousness tone.\n"
+                "- Improve clarity and sentence boundaries without rewriting ideas.\n"
+            )
+        elif prompt_profile == "meeting_notes":
+            profile_hint = (
+                "\nSTYLE BIAS:\n"
+                "- Prefer crisp sentence boundaries.\n"
+                "- Preserve explicit action verbs and commitments.\n"
+                "- Do NOT output bullets or headings; just clean text.\n"
+            )
+        elif prompt_profile == "study_notes":
+            profile_hint = (
+                "\nSTYLE BIAS:\n"
+                "- Preserve technical terms and symbols.\n"
+                "- Be conservative when correcting domain language; flag uncertainty.\n"
+            )
 
-STAGE 1 — Mechanical Cleanup (Deterministic)
-- Remove filler noise (uh, um, ah, you know)
-- Collapse repeated words/phrases caused by overlap
-- Fix casing, spacing, punctuation
-- Normalize numbers and symbols: "ten power minus three" → 10⁻³, "square root of x" → √x
+        system_content = (
+            "You are the Post-Transcription Quality Engine for Insightron.\n"
+            "Your job is to REPAIR, ALIGN, and CLARIFY messy speech-to-text output from ~30-second chunks.\n\n"
+            "NORTH STAR: Same meaning. Fewer errors. Zero hallucinations.\n"
+            f"{profile_hint}\n"
+            "STAGE 1 — Mechanical Cleanup (Deterministic)\n"
+            "- Remove strict filler noise (uh, um, er, ah)\n"
+            "- Collapse repeated words/phrases caused by overlap\n"
+            "- Fix casing, spacing, punctuation\n\n"
+            "STAGE 2 — Boundary Intelligence (High ROI)\n"
+            "- If a sentence starts mid-thought → stitch with prev_clean_chunk\n"
+            "- If a sentence cuts off → allow completion using next_raw_chunk\n"
+            "- Remove duplicated fragments across chunk boundaries\n"
+            "- If unsure, LEAVE IT UNCHANGED and flag it.\n\n"
+            "STAGE 3 — Semantic Repair (Conservative)\n"
+            "- Correct obvious ASR errors using local context.\n"
+            "- If unsure, LEAVE IT UNCHANGED and flag it.\n\n"
+            "STAGE 4 — No formatting\n"
+            "- Output plain text only (no Markdown, no bullets, no headings).\n\n"
+            "STAGE 5 — Confidence Signaling\n"
+            "- Attach flags: low_audio_confidence, uncertain_term, possible_domain_error\n\n"
+            "OUTPUT FORMAT (JSON ONLY):\n"
+            "Return EXACTLY this JSON format and nothing else:\n"
+            "{\n"
+            '  \"clean_text\": \"...\",\n'
+            '  \"flags\": [\"...\"],\n'
+            "  \"stitched\": true/false\n"
+            "}"
+        )
+        return system_content
 
-STAGE 2 — Boundary Intelligence (High ROI)
-- If a sentence starts mid-thought → stitch with prev_clean_chunk
-- If a sentence cuts off → allow completion using next_raw_chunk
-- Remove duplicated fragments across chunk boundaries
-- Never merge if confidence is low
-
-STAGE 3 — Semantic Repair (JEE-oriented Context)
-- Correct obvious ASR errors using local context: physics, chemistry, math
-- Phrases like "take this as zero", "consider the case"
-- Replace nonsense with best-fit domain words
-- If unsure, LEAVE IT UNCHANGED and flag it.
-
-STAGE 4 — Structure Detection
-- Convert spoken lists → bullet points
-- Detect formulas → LaTeX inline: "x minus b plus minus root" → x = (-b ± √(b² − 4ac)) / 2a
-- Detect topic shift → add minimal heading
-
-STAGE 5 — Confidence Signaling
-- Attach flags: low_audio_confidence, uncertain_term, possible_domain_error
-
-OUTPUT FORMAT (JSON ONLY):
-Return EXACTLY this JSON format and nothing else:
-{
-  "clean_text": "...",
-  "flags": ["..."],
-  "stitched": true/false
-}"""
-        
+    def _build_restoration_user_content(
+        self, text: str, prev_clean: Optional[str] = None, next_raw: Optional[str] = None
+    ) -> str:
         user_content = f"raw_chunk: {text}\n"
         if prev_clean:
             user_content = f"prev_clean_chunk: {prev_clean}\n" + user_content
         if next_raw:
             user_content += f"next_raw_chunk: {next_raw}\n"
+        return user_content
+
+    def _build_restoration_prompt(self, text: str, prev_clean: Optional[str] = None, next_raw: Optional[str] = None) -> str:
+        """
+        Build the prompt for text restoration based on 5-stage philosophy.
+        """
+        system_content = self._build_restoration_instructions()
+        user_content = self._build_restoration_user_content(text, prev_clean, next_raw)
 
         # Detect model type
         is_llama = "llama" in self.config.get('model_name', '').lower() if hasattr(self, 'config') else False
@@ -464,14 +495,15 @@ class OpenAIProvider(BaseLLMProvider):
             )
         
         try:
-            prompt = self._build_restoration_prompt(text, prev_clean, next_raw)
+            system_content = self._build_restoration_instructions()
+            user_content = self._build_restoration_user_content(text, prev_clean, next_raw)
             
             response = self._retry_with_backoff(
                 self.client.chat.completions.create,
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are a text restoration assistant."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": system_content},
+                    {"role": "user", "content": user_content},
                 ],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature
@@ -559,5 +591,6 @@ class LLMProviderFactory:
         
         # Add common settings
         provider_config['max_retries'] = restoration_config.get('max_retries', 3)
+        provider_config['prompt_profile'] = restoration_config.get('prompt_profile')
         
         return LLMProviderFactory.create_provider(provider_type, provider_config)

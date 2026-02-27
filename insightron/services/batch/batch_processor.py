@@ -28,6 +28,7 @@ from insightron.services.transcription.multi_pass_transcriber import MultiPassTr
 from insightron.services.base_transcriber import BaseTranscriber
 from insightron.services.batch.batch_state_manager import BatchState, FileStatus
 from insightron.core.config import WHISPER_MODEL, DEFAULT_LANGUAGE, get_config
+from insightron.services.batch.batch_summary import save_batch_summary
 import uuid
 
 # Configure logging
@@ -82,6 +83,7 @@ def transcribe_single_file_worker(
                 "language": result.metadata.get("language"),
                 "processing_time": result.processing_times.get('total'),
                 "status": "success",
+                "metadata": result.metadata,
             }
         else:
             transcriber = AudioTranscriber(model_size, language)
@@ -219,7 +221,8 @@ class BatchTranscriber(BaseTranscriber):
             'failed': [],
             'total_files': batch_state.state['statistics']['total'],
             'completed': batch_state.state['statistics']['completed'],
-            'failed_count': batch_state.state['statistics']['failed']
+            'failed_count': batch_state.state['statistics']['failed'],
+            'batch_id': batch_state.batch_id,
         }
         
         logger.info(f"Starting batch transcription of {len(audio_files)} files with {self.max_workers} workers")
@@ -276,10 +279,11 @@ class BatchTranscriber(BaseTranscriber):
                         results["successful"].append(
                             {
                                 "file": audio_file,
-                                "output": result["output_path"],
+                                "output": result.get("output_path"),
                                 "duration": result.get("duration"),
                                 "language": result.get("language"),
                                 "processing_time": result.get("processing_time"),
+                                "metadata": result.get("metadata", {}),
                             }
                         )
                         results["completed"] += 1
@@ -333,6 +337,13 @@ class BatchTranscriber(BaseTranscriber):
                 total_time / max(1, (results['completed'] + results['failed_count']))
             ),
         }
+
+        # Persist a compact batch summary artifact for downstream tools.
+        try:
+            summary_path = save_batch_summary(results)
+            results['summary_path'] = str(summary_path)
+        except Exception as e:
+            logger.warning(f"Failed to write batch summary: {e}")
         
         # Cleanup state if all files completed successfully
         if batch_stats['failed'] == 0 and batch_stats['pending'] == 0:
@@ -375,6 +386,7 @@ class BatchTranscriber(BaseTranscriber):
                 "language": result.metadata.get("language", self.language),
                 "processing_time": result.processing_times.get('total'),
                 "status": "success",
+                "metadata": result.metadata,
             }
         else:
             # Standard single-pass

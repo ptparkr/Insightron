@@ -38,6 +38,12 @@ model:
   # fast = speed priority, lower accuracy (beam_size=1, best_of=1)
   # Default: balanced (faster default for broader hardware support)
   quality_mode: "balanced"
+
+  # High-level transcription profile:
+  # - fast:     single-pass, speed-focused
+  # - balanced: single-pass with robust post-processing
+  # - deep:     multi-pass pipeline (LLM restoration, optional emotion)
+  profile: "balanced"
   
   # Enable VAD (Voice Activity Detection): Filter out silence and noise
   # Produces cleaner segments by removing non-speech portions
@@ -179,12 +185,17 @@ post_processing:
   cache_size: 128
   
   # Formatting style: How to format transcription output
-  # Options: auto, paragraphs, minimal
+  # Options: auto, paragraphs, minimal, bullets, thinking_session, meeting_notes, study_notes
   # auto = smart paragraph breaks based on content analysis
   # paragraphs = new paragraph every 3 sentences
   # minimal = new paragraph every 5 sentences
   # Default: auto
   formatting_style: "auto"
+
+  # Formatting profile: a higher-level view that matches your workflow.
+  # If you leave formatting_style as "auto", you can still switch views here.
+  # Options: thinking_session, meeting_notes, study_notes
+  formatting_profile: "thinking_session"
 
 # ============================================================================
 # Transcription Optimization Configuration
@@ -233,6 +244,17 @@ transcription:
   # Default: false
   enable_parallel_segments: false
 
+  # Filename template for generated Markdown notes
+  # Available tokens:
+  #   {stem}          - Original audio filename without extension
+  #   {date}          - Generation date (YYYY-MM-DD)
+  #   {time}          - Generation time (HHMMSS)
+  #   {calendar_date} - Calendar date for the note (defaults to {date} if not provided in metadata)
+  # Example:
+  #   "{calendar_date}_{stem}_transcription.md"
+  #   "Transcripts/{calendar_date}/{stem}.md"
+  filename_template: "{stem}_transcription.md"
+
 # ============================================================================
 # Multi-Pass Transcription Configuration
 # ============================================================================
@@ -272,6 +294,11 @@ multi_pass:
     # Maximum retry attempts for LLM calls
     # Default: 3
     max_retries: 3
+
+    # Prompt profile: biases restoration style without changing formatting.
+    # The LLM must still output plain clean_text JSON (no Markdown).
+    # Options: thinking_session, meeting_notes, study_notes
+    prompt_profile: "thinking_session"
     
     # Local model settings (used when provider: local)
     local_model:

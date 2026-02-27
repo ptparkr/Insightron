@@ -8,13 +8,25 @@ Optimized for performance and accuracy with improved error handling.
 import re
 import logging
 import hashlib
-from typing import List, Tuple, Dict, Set, Optional, Any
+from dataclasses import dataclass
+from typing import List, Dict, Optional, Any, Literal
 from functools import lru_cache
 from insightron.core.config import get_config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+LatexMode = Literal["off", "safe", "math"]
+
+
+@dataclass(frozen=True)
+class FormattingView:
+    structure: Literal["paragraphs", "bullets"]
+    sentences_per_paragraph: int
+    latex_mode: LatexMode
+    remove_fillers: bool
+
 
 class TextFormatter:
     """
@@ -32,13 +44,14 @@ class TextFormatter:
     """
     
     def __init__(self):
-        # Technical/Mathematical terms for LaTeX conversion (only if unambiguous)
-        self.latex_map = {
+        # LaTeX conversion maps are intentionally conservative.
+        # `safe_latex_map`: very low ambiguity.
+        # `math_latex_map`: more aggressive; enable only in math-heavy views.
+        self.safe_latex_map = {
             "alpha": r"$\alpha$",
             "beta": r"$\beta$",
             "gamma": r"$\gamma$",
             "delta": r"$\delta$",
-            "pi": r"$\pi$",
             "sigma": r"$\sigma$",
             "theta": r"$\theta$",
             "lambda": r"$\lambda$",
@@ -50,38 +63,72 @@ class TextFormatter:
             "less than or equal to": r"$\le$"
         }
 
+        self.math_latex_map = {
+            # More ambiguous mappings. Enable only in study/math contexts.
+            "pi": r"$\pi$",
+        }
+
+        self.views: Dict[str, FormattingView] = {
+            # Backward-compatible styles
+            "auto": FormattingView("paragraphs", sentences_per_paragraph=2, latex_mode="safe", remove_fillers=False),
+            "paragraphs": FormattingView("paragraphs", sentences_per_paragraph=3, latex_mode="safe", remove_fillers=False),
+            "minimal": FormattingView("paragraphs", sentences_per_paragraph=5, latex_mode="safe", remove_fillers=False),
+            "bullets": FormattingView("bullets", sentences_per_paragraph=2, latex_mode="safe", remove_fillers=False),
+
+            # New deterministic “views”
+            "thinking_session": FormattingView("paragraphs", sentences_per_paragraph=4, latex_mode="safe", remove_fillers=True),
+            "meeting_notes": FormattingView("bullets", sentences_per_paragraph=2, latex_mode="off", remove_fillers=True),
+            "study_notes": FormattingView("paragraphs", sentences_per_paragraph=3, latex_mode="math", remove_fillers=True),
+        }
+
     def format_structure(self, segments: List[Dict[str, Any]], style: str = "auto") -> str:
         """
         Apply structural formatting to the transcription segments.
         Guarantees meaning preservation.
         """
         # 1. Join raw text
-        raw_text = " ".join([seg["text"] for seg in segments])
+        raw_text = " ".join([seg.get("text", "") for seg in segments]).strip()
+        if not raw_text:
+            return ""
+
+        view = self.views.get(style, self.views["auto"])
+        if style not in self.views:
+            logger.warning(f"Unknown formatting style '{style}', falling back to 'auto'")
         
         # 2. Apply Punctuation (Typesetting)
         # We use a simple rule-based approach to ensure we don't add semantic weight
         formatted_text = self._apply_punctuation(raw_text)
         
+        # Optional filler removal (strict only)
+        if view.remove_fillers:
+            formatted_text = self._remove_excessive_fillers(formatted_text)
+
         # 3. Apply LaTeX (Technical formatting)
-        formatted_text = self._apply_latex(formatted_text)
+        formatted_text = self._apply_latex(formatted_text, mode=view.latex_mode)
         
         # 4. Apply Structural Layout (Paragraphs/Lists)
-        if style == "bullets":
+        if view.structure == "bullets":
             return self._to_bullets(formatted_text)
-        
-        return self._to_paragraphs(formatted_text)
+
+        return self._to_paragraphs(formatted_text, limit=view.sentences_per_paragraph)
 
     def _apply_punctuation(self, text: str) -> str:
         """Standardize punctuation and capitalization."""
         if not text:
             return ""
-            
-        # Ensure capitalization of the first word
-        text = text[0].upper() + text[1:] if len(text) > 0 else text
+
+        # Ensure capitalization of the first alphabetic character (robust to leading whitespace/symbols)
+        m = re.search(r"[A-Za-z]", text)
+        if m:
+            i = m.start()
+            text = text[:i] + text[i].upper() + text[i + 1 :]
         
         # Ensure it ends with a period if missing
-        if not text.rstrip()[-1] in ".!?":
-            text = text.rstrip() + "."
+        stripped = text.rstrip()
+        if stripped and stripped[-1] not in ".!?":
+            text = stripped + "."
+        else:
+            text = stripped
             
         # Basic cleanup of spacing around punctuation
         text = re.sub(r'\s+([,.!?;:])', r'\1', text)
@@ -89,13 +136,18 @@ class TextFormatter:
         
         return text
 
-    def _apply_latex(self, text: str) -> str:
-        """Convert unambiguous terms to LaTeX."""
-        # Simple word-for-word mapping to avoid meaning shift
-        for term, latex in self.latex_map.items():
-            pattern = re.compile(rf'\b{term}\b', re.IGNORECASE)
-            # Use lambda to avoid template parsing issues with backslashes
-            text = pattern.sub(lambda m: latex, text)
+    def _apply_latex(self, text: str, mode: LatexMode = "safe") -> str:
+        """Convert unambiguous terms to LaTeX (mode-dependent)."""
+        if not text or mode == "off":
+            return text
+
+        mapping = dict(self.safe_latex_map)
+        if mode == "math":
+            mapping.update(self.math_latex_map)
+
+        for term, latex in mapping.items():
+            pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
+            text = pattern.sub(lambda _m: latex, text)
         return text
 
     def _to_paragraphs(self, text: str, limit: int = 3) -> str:
@@ -147,30 +199,35 @@ class TextFormatter:
         if current_bullet:
             bullets.append(" ".join(current_bullet))
             
-        return "\n".join([f"* {b}" for b in bullets])
+        # Keep bullets plain Markdown without additional structure.
+        return "\n".join([f"- {b}" for b in bullets])
 
     def format_text(self, text: str, style: str = "auto") -> str:
         """
         Format raw text directly.
         """
+        text = (text or "").strip()
+        if not text:
+            return ""
+
+        view = self.views.get(style, self.views["auto"])
+        if style not in self.views:
+            logger.warning(f"Unknown formatting style '{style}', falling back to 'auto'")
+
         # 1. Apply Punctuation (Typesetting)
         formatted_text = self._apply_punctuation(text)
+
+        if view.remove_fillers:
+            formatted_text = self._remove_excessive_fillers(formatted_text)
         
         # 2. Apply LaTeX (Technical formatting)
-        formatted_text = self._apply_latex(formatted_text)
+        formatted_text = self._apply_latex(formatted_text, mode=view.latex_mode)
         
         # 3. Apply Structural Layout (Paragraphs/Lists)
-        if style == "bullets":
+        if view.structure == "bullets":
             return self._to_bullets(formatted_text)
-        elif style == "minimal":
-            # Minimal mode: fewer breaks (5 sentences per paragraph)
-            return self._to_paragraphs(formatted_text, limit=5)
-        elif style == "paragraphs":
-            # Explicit paragraphs mode (3 sentences per paragraph)
-            return self._to_paragraphs(formatted_text, limit=3)
-        
-        # Auto mode: slightly more aggressive breaking (2 sentences per paragraph)
-        return self._to_paragraphs(formatted_text, limit=2)
+
+        return self._to_paragraphs(formatted_text, limit=view.sentences_per_paragraph)
 
     def format_with_custom_structure(self, text: str, max_sentences_per_paragraph: int = 3) -> str:
         """
@@ -227,6 +284,18 @@ class TextFormatter:
             "next", "then", "after that",
             "first", "second", "third", "fourth", "fifth"
         ]
+
+        # Spoken transitions that often signal a new point in notes
+        starters.extend(
+            [
+                "so",
+                "okay",
+                "alright",
+                "the key thing is",
+                "the main point is",
+                "one more thing",
+            ]
+        )
         
         # Use regex with word boundaries to avoid false positives like "Secondary" matching "second"
         # We also check for starting at the beginning of the sentence
