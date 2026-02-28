@@ -4,7 +4,7 @@ Contains paths and settings for the transcription application
 """
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import os
 import yaml
 import logging
@@ -18,25 +18,41 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 @dataclass
+class DecodeConfig:
+    initial_prompt: str = ""
+    beam_size: int = 5
+    best_of: int = 5
+    temperature: List[float] = field(default_factory=lambda: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    compression_ratio_threshold: float = 2.4
+    log_prob_threshold: float = -1.0
+    no_speech_threshold: float = 0.6
+    condition_on_previous_text: bool = True
+    word_timestamps: bool = True
+
+@dataclass
 class ModelConfig:
     """Model configuration settings."""
-    name: str = "small"
+    name: str = "medium"
     compute_type: str = "int8"
     device: str = "auto"
+    quality_mode: str = "balanced"
+    profile: str = "balanced"
+    enable_vad: bool = True
+    vad_threshold: float = 0.5
+    enable_retry: bool = True
+    max_retries: int = 2
+    adaptive_vad: bool = False
+    batch_size: int = 1
+    enable_warmup: bool = True
+    enable_dynamic_beam: bool = True
+    decode: DecodeConfig = field(default_factory=DecodeConfig)
     
     def __post_init__(self):
         """Validate model configuration."""
         valid_models = {
-            'tiny',
-            'base',
-            'small',
-            'medium',
-            'large',
-            'large-v2',
-            'large-v3',
-            'large-v3-turbo',
-            'distil-medium.en',
-            'distil-large-v2',
+            'tiny', 'base', 'small', 'medium', 'large', 
+            'large-v2', 'large-v3', 'large-v3-turbo', 
+            'distil-medium.en', 'distil-large-v2'
         }
         if self.name not in valid_models:
             logger.warning(f"Invalid model name '{self.name}'. Defaulting to 'medium'.")
@@ -54,29 +70,71 @@ class ModelConfig:
 
 
 @dataclass
+class AudioPreProcessNoiseReductionConfig:
+    enabled: bool = True
+    stationary: bool = True
+    prop_decrease: float = 0.75
+
+@dataclass
+class AudioPreProcessLoudnessConfig:
+    enabled: bool = True
+    target_lufs: float = -23.0
+
+@dataclass
+class AudioPreProcessPreEmphasisConfig:
+    enabled: bool = True
+    coeff: float = 0.97
+
+@dataclass
+class AudioPreProcessTrimConfig:
+    enabled: bool = True
+    top_db: int = 20
+
+@dataclass
+class AudioPreProcessConfig:
+    enabled: bool = True
+    noise_reduction: AudioPreProcessNoiseReductionConfig = field(default_factory=AudioPreProcessNoiseReductionConfig)
+    loudness: AudioPreProcessLoudnessConfig = field(default_factory=AudioPreProcessLoudnessConfig)
+    pre_emphasis: AudioPreProcessPreEmphasisConfig = field(default_factory=AudioPreProcessPreEmphasisConfig)
+    trim: AudioPreProcessTrimConfig = field(default_factory=AudioPreProcessTrimConfig)
+
+
+@dataclass
+class DiarizationConfig:
+    enabled: bool = False
+    pipeline_id: str = "pyannote/speaker-diarization@2.1"
+    hf_token: str = ""
+    num_speakers: Optional[int] = None
+    min_speakers: Optional[int] = None
+    max_speakers: Optional[int] = None
+
+
+@dataclass
+class ReportConfig:
+    style: str = "dashboard"
+
+
+@dataclass
 class RuntimeConfig:
     """Runtime configuration settings."""
-    transcription_folder: str = r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Notes"
-    recordings_folder: str = r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Recordings"
-    processed_audio_folder: str = r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Processed"
+    transcription_folder: str = r"C:\Users\USER\Downloads\Insightron\Notes"
+    recordings_folder: str = r"C:\Users\USER\Downloads\Insightron\Recordings"
+    processed_audio_folder: str = r"C:\Users\USER\Downloads\Insightron\Processed"
     max_file_size_mb: int = 500
     log_level: str = "INFO"
     worker_count: Optional[int] = None  # None = auto-detect
     
     def __post_init__(self):
         """Validate runtime configuration."""
-        # Validate max_file_size_mb
         if self.max_file_size_mb <= 0:
             logger.warning(f"Invalid max_file_size_mb '{self.max_file_size_mb}'. Setting to 500.")
             self.max_file_size_mb = 500
         
-        # Validate log_level
         valid_log_levels = {'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'}
         if self.log_level.upper() not in valid_log_levels:
             logger.warning(f"Invalid log_level '{self.log_level}'. Defaulting to 'INFO'.")
             self.log_level = "INFO"
         
-        # Validate worker_count
         if self.worker_count is not None and self.worker_count <= 0:
             logger.warning(f"Invalid worker_count '{self.worker_count}'. Using auto-detection.")
             self.worker_count = None
@@ -120,10 +178,11 @@ class PostProcessingConfig:
     enable_language_detection: bool = False
     cache_size: int = 128
     formatting_style: str = "auto"
+    formatting_profile: str = "thinking_session"
     
     def __post_init__(self):
         """Validate post-processing configuration."""
-        valid_styles = {'auto', 'paragraphs', 'minimal'}
+        valid_styles = {'auto', 'paragraphs', 'minimal', 'bullets', 'thinking_session', 'meeting_notes', 'study_notes'}
         if self.formatting_style not in valid_styles:
             logger.warning(f"Invalid formatting_style '{self.formatting_style}'. Defaulting to 'auto'.")
             self.formatting_style = "auto"
@@ -131,6 +190,66 @@ class PostProcessingConfig:
         if self.cache_size <= 0:
             logger.warning(f"Invalid cache_size '{self.cache_size}'. Setting to 128.")
             self.cache_size = 128
+
+
+@dataclass
+class TranscriptionConfig:
+    segment_merge_threshold: float = -0.5
+    min_segment_duration: float = 0.1
+    progress_update_frequency: int = 5
+    enable_segment_filtering: bool = True
+    enable_audio_normalization: bool = True
+    enable_audio_preprocessing: bool = True
+    segment_cache_size: int = 1000
+    enable_parallel_segments: bool = False
+    filename_template: str = "{stem}_transcription.md"
+
+
+@dataclass
+class LocalModelConfig:
+    model_name: str = "Qwen/Qwen2.5-3B-Instruct"
+    device: str = "auto"
+    quantization: str = "4bit"
+    max_tokens: int = 4096
+    temperature: float = 0.2
+
+@dataclass
+class ApiSettingsConfig:
+    api_key: str = ""
+    model: str = "gpt-3.5-turbo"
+    max_tokens: int = 2000
+    temperature: float = 0.3
+
+@dataclass
+class ContextualRestorationConfig:
+    enabled: bool = True
+    provider: str = "local"
+    max_retries: int = 3
+    prompt_profile: str = "thinking_session"
+    local_model: LocalModelConfig = field(default_factory=LocalModelConfig)
+    api_settings: ApiSettingsConfig = field(default_factory=ApiSettingsConfig)
+
+@dataclass
+class EmotionThresholdsConfig:
+    high_energy_wps: float = 3.5
+    low_energy_wps: float = 2.0
+    min_exclamations: int = 2
+    serious_sentence_length: int = 20
+
+@dataclass
+class EmotionMappingConfig:
+    enabled: bool = False
+    enabled_emotions: List[str] = field(default_factory=lambda: ["cheerful", "urgent", "calm", "excited", "serious"])
+    thresholds: EmotionThresholdsConfig = field(default_factory=EmotionThresholdsConfig)
+
+
+@dataclass
+class MultiPassConfig:
+    enabled: bool = True
+    chunk_duration: int = 30
+    chunk_overlap: int = 2
+    contextual_restoration: ContextualRestorationConfig = field(default_factory=ContextualRestorationConfig)
+    emotion_mapping: EmotionMappingConfig = field(default_factory=EmotionMappingConfig)
 
 
 # ============================================================================
@@ -163,9 +282,14 @@ class ConfigManager:
         
         # Initialize config sections
         self.model = self._init_model_config()
+        self.audio_preprocess = self._init_audio_preprocess_config()
+        self.diarization = self._init_diarization_config()
+        self.report = self._init_report_config()
         self.runtime = self._init_runtime_config()
         self.realtime = self._init_realtime_config()
         self.post_processing = self._init_post_processing_config()
+        self.transcription = self._init_transcription_config()
+        self.multi_pass = self._init_multi_pass_config()
         
         # Ensure directories exist
         self._ensure_directories()
@@ -188,20 +312,88 @@ class ConfigManager:
     
     def _init_model_config(self) -> ModelConfig:
         """Initialize model configuration."""
-        model_data = self._raw_config.get('model', {})
+        data = self._raw_config.get('model', {})
+        decode_data = data.get('decode', {})
+        decode_config = DecodeConfig(
+            initial_prompt=decode_data.get('initial_prompt', ""),
+            beam_size=decode_data.get('beam_size', 5),
+            best_of=decode_data.get('best_of', 5),
+            temperature=decode_data.get('temperature', [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]),
+            compression_ratio_threshold=decode_data.get('compression_ratio_threshold', 2.4),
+            log_prob_threshold=decode_data.get('log_prob_threshold', -1.0),
+            no_speech_threshold=decode_data.get('no_speech_threshold', 0.6),
+            condition_on_previous_text=decode_data.get('condition_on_previous_text', True),
+            word_timestamps=decode_data.get('word_timestamps', True)
+        )
         return ModelConfig(
-            name=model_data.get('name', 'small'),
-            compute_type=model_data.get('compute_type', 'int8'),
-            device=model_data.get('device', 'auto')
+            name=data.get('name', 'medium'),
+            compute_type=data.get('compute_type', 'int8'),
+            device=data.get('device', 'auto'),
+            quality_mode=data.get('quality_mode', 'balanced'),
+            profile=data.get('profile', 'balanced'),
+            enable_vad=data.get('enable_vad', True),
+            vad_threshold=data.get('vad_threshold', 0.5),
+            enable_retry=data.get('enable_retry', True),
+            max_retries=data.get('max_retries', 2),
+            adaptive_vad=data.get('adaptive_vad', False),
+            batch_size=data.get('batch_size', 1),
+            enable_warmup=data.get('enable_warmup', True),
+            enable_dynamic_beam=data.get('enable_dynamic_beam', True),
+            decode=decode_config
+        )
+    
+    def _init_audio_preprocess_config(self) -> AudioPreProcessConfig:
+        data = self._raw_config.get('audio_preprocess', {})
+        noise_data = data.get('noise_reduction', {})
+        loudness_data = data.get('loudness', {})
+        pre= data.get('pre_emphasis', {})
+        trim = data.get('trim', {})
+        
+        return AudioPreProcessConfig(
+            enabled=data.get('enabled', True),
+            noise_reduction=AudioPreProcessNoiseReductionConfig(
+                enabled=noise_data.get('enabled', True),
+                stationary=noise_data.get('stationary', True),
+                prop_decrease=noise_data.get('prop_decrease', 0.75)
+            ),
+            loudness=AudioPreProcessLoudnessConfig(
+                enabled=loudness_data.get('enabled', True),
+                target_lufs=loudness_data.get('target_lufs', -23.0)
+            ),
+            pre_emphasis=AudioPreProcessPreEmphasisConfig(
+                enabled=pre.get('enabled', True),
+                coeff=pre.get('coeff', 0.97)
+            ),
+            trim=AudioPreProcessTrimConfig(
+                enabled=trim.get('enabled', True),
+                top_db=trim.get('top_db', 20)
+            )
+        )
+
+    def _init_diarization_config(self) -> DiarizationConfig:
+        data = self._raw_config.get('diarization', {})
+        return DiarizationConfig(
+            enabled=data.get('enabled', False),
+            pipeline_id=data.get('pipeline_id', 'pyannote/speaker-diarization@2.1'),
+            hf_token=data.get('hf_token', ''),
+            num_speakers=data.get('num_speakers'),
+            min_speakers=data.get('min_speakers'),
+            max_speakers=data.get('max_speakers')
+        )
+
+    def _init_report_config(self) -> ReportConfig:
+        data = self._raw_config.get('report', {})
+        return ReportConfig(
+            style=data.get('style', 'dashboard')
         )
     
     def _init_runtime_config(self) -> RuntimeConfig:
         """Initialize runtime configuration."""
         runtime_data = self._raw_config.get('runtime', {})
         return RuntimeConfig(
-            transcription_folder=runtime_data.get('transcription_folder', r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Notes"),
-            recordings_folder=runtime_data.get('recordings_folder', r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Recordings"),
-            processed_audio_folder=runtime_data.get('processed_audio_folder', r"D:\2. Areas\IdeaVerse\Areas\Inner Library\Processed"),
+            transcription_folder=runtime_data.get('transcription_folder', r"C:\Users\USER\Downloads\Insightron\Notes"),
+            recordings_folder=runtime_data.get('recordings_folder', r"C:\Users\USER\Downloads\Insightron\Recordings"),
+            processed_audio_folder=runtime_data.get('processed_audio_folder', r"C:\Users\USER\Downloads\Insightron\Processed"),
             max_file_size_mb=runtime_data.get('max_file_size_mb', 500),
             log_level=runtime_data.get('log_level', 'INFO'),
             worker_count=runtime_data.get('worker_count')
@@ -225,7 +417,65 @@ class ConfigManager:
         return PostProcessingConfig(
             enable_language_detection=pp_data.get('enable_language_detection', False),
             cache_size=pp_data.get('cache_size', 128),
-            formatting_style=pp_data.get('formatting_style', 'auto')
+            formatting_style=pp_data.get('formatting_style', 'auto'),
+            formatting_profile=pp_data.get('formatting_profile', 'thinking_session')
+        )
+
+    def _init_transcription_config(self) -> TranscriptionConfig:
+        data = self._raw_config.get('transcription', {})
+        return TranscriptionConfig(
+            segment_merge_threshold=data.get('segment_merge_threshold', -0.5),
+            min_segment_duration=data.get('min_segment_duration', 0.1),
+            progress_update_frequency=data.get('progress_update_frequency', 5),
+            enable_segment_filtering=data.get('enable_segment_filtering', True),
+            enable_audio_normalization=data.get('enable_audio_normalization', True),
+            enable_audio_preprocessing=data.get('enable_audio_preprocessing', True),
+            segment_cache_size=data.get('segment_cache_size', 1000),
+            enable_parallel_segments=data.get('enable_parallel_segments', False),
+            filename_template=data.get('filename_template', "{stem}_transcription.md")
+        )
+
+    def _init_multi_pass_config(self) -> MultiPassConfig:
+        data = self._raw_config.get('multi_pass', {})
+        cr_data = data.get('contextual_restoration', {})
+        local_data = cr_data.get('local_model', {})
+        api_data = cr_data.get('api_settings', {})
+        em_data = data.get('emotion_mapping', {})
+        threshold_data = em_data.get('thresholds', {})
+
+        return MultiPassConfig(
+            enabled=data.get('enabled', True),
+            chunk_duration=data.get('chunk_duration', 30),
+            chunk_overlap=data.get('chunk_overlap', 2),
+            contextual_restoration=ContextualRestorationConfig(
+                enabled=cr_data.get('enabled', True),
+                provider=cr_data.get('provider', 'local'),
+                max_retries=cr_data.get('max_retries', 3),
+                prompt_profile=cr_data.get('prompt_profile', 'thinking_session'),
+                local_model=LocalModelConfig(
+                    model_name=local_data.get('model_name', 'Qwen/Qwen2.5-3B-Instruct'),
+                    device=local_data.get('device', 'auto'),
+                    quantization=local_data.get('quantization', '4bit'),
+                    max_tokens=local_data.get('max_tokens', 4096),
+                    temperature=local_data.get('temperature', 0.2)
+                ),
+                api_settings=ApiSettingsConfig(
+                    api_key=api_data.get('api_key', ''),
+                    model=api_data.get('model', 'gpt-3.5-turbo'),
+                    max_tokens=api_data.get('max_tokens', 2000),
+                    temperature=api_data.get('temperature', 0.3)
+                )
+            ),
+            emotion_mapping=EmotionMappingConfig(
+                enabled=em_data.get('enabled', False),
+                enabled_emotions=em_data.get('enabled_emotions', ["cheerful", "urgent", "calm", "excited", "serious"]),
+                thresholds=EmotionThresholdsConfig(
+                    high_energy_wps=threshold_data.get('high_energy_wps', 3.5),
+                    low_energy_wps=threshold_data.get('low_energy_wps', 2.0),
+                    min_exclamations=threshold_data.get('min_exclamations', 2),
+                    serious_sentence_length=threshold_data.get('serious_sentence_length', 20)
+                )
+            )
         )
     
     def _ensure_directories(self):
@@ -241,9 +491,14 @@ class ConfigManager:
         """Reload configuration from file."""
         self._load()
         self.model = self._init_model_config()
+        self.audio_preprocess = self._init_audio_preprocess_config()
+        self.diarization = self._init_diarization_config()
+        self.report = self._init_report_config()
         self.runtime = self._init_runtime_config()
         self.realtime = self._init_realtime_config()
         self.post_processing = self._init_post_processing_config()
+        self.transcription = self._init_transcription_config()
+        self.multi_pass = self._init_multi_pass_config()
         self._ensure_directories()
         logger.info("Configuration reloaded")
     
@@ -352,12 +607,16 @@ REALTIME_SILENCE_THRESHOLD = _config_manager.realtime.silence_threshold
 FORMATTING_STYLES = {
     'auto': 'Smart paragraph breaks based on content',
     'paragraphs': 'New paragraph every 3 sentences',
-    'minimal': 'New paragraph every 5 sentences'
+    'minimal': 'New paragraph every 5 sentences',
+    'bullets': 'Format as bullet points',
+    'thinking_session': 'Thinking session format',
+    'meeting_notes': 'Meeting notes format',
+    'study_notes': 'Study notes format'
 }
 
 # Application metadata
 APP_NAME = "Insightron"
-APP_VERSION = "3.1.0"
+APP_VERSION = "4.0.0"
 APP_DESCRIPTION = "AI-powered audio transcription with Whisper - Multi-language support"
 
 # Maximum file size (in MB)
@@ -369,85 +628,26 @@ LOG_LEVEL = _config_manager.runtime.log_level
 # Multi-language support configuration
 SUPPORTED_LANGUAGES = {
     'auto': 'Auto-detect language',
-    'en': 'English',
-    'es': 'Spanish',
-    'fr': 'French',
-    'de': 'German',
-    'it': 'Italian',
-    'pt': 'Portuguese',
-    'ru': 'Russian',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    'zh': 'Chinese',
-    'ar': 'Arabic',
-    'hi': 'Hindi',
-    'th': 'Thai',
-    'vi': 'Vietnamese',
-    'tr': 'Turkish',
-    'pl': 'Polish',
-    'nl': 'Dutch',
-    'sv': 'Swedish',
-    'no': 'Norwegian',
-    'da': 'Danish',
-    'fi': 'Finnish',
-    'cs': 'Czech',
-    'hu': 'Hungarian',
-    'ro': 'Romanian',
-    'bg': 'Bulgarian',
-    'hr': 'Croatian',
-    'sk': 'Slovak',
-    'sl': 'Slovenian',
-    'et': 'Estonian',
-    'lv': 'Latvian',
-    'lt': 'Lithuanian',
-    'el': 'Greek',
-    'he': 'Hebrew',
-    'fa': 'Persian',
-    'ur': 'Urdu',
-    'bn': 'Bengali',
-    'ta': 'Tamil',
-    'te': 'Telugu',
-    'ml': 'Malayalam',
-    'kn': 'Kannada',
-    'gu': 'Gujarati',
-    'pa': 'Punjabi',
-    'mr': 'Marathi',
-    'ne': 'Nepali',
-    'si': 'Sinhala',
-    'my': 'Burmese',
-    'km': 'Khmer',
-    'lo': 'Lao',
-    'ka': 'Georgian',
-    'am': 'Amharic',
-    'sw': 'Swahili',
-    'zu': 'Zulu',
-    'af': 'Afrikaans',
-    'sq': 'Albanian',
-    'az': 'Azerbaijani',
-    'eu': 'Basque',
-    'be': 'Belarusian',
-    'bs': 'Bosnian',
-    'ca': 'Catalan',
-    'cy': 'Welsh',
-    'eo': 'Esperanto',
-    'gl': 'Galician',
-    'is': 'Icelandic',
-    'ga': 'Irish',
-    'mk': 'Macedonian',
-    'mt': 'Maltese',
-    'mn': 'Mongolian',
-    'ms': 'Malay',
-    'oc': 'Occitan',
-    'ps': 'Pashto',
-    'rm': 'Romansh',
-    'sn': 'Shona',
-    'so': 'Somali',
-    'tg': 'Tajik',
-    'tk': 'Turkmen',
-    'uk': 'Ukrainian',
-    'uz': 'Uzbek',
-    'yi': 'Yiddish',
-    'yo': 'Yoruba'
+    'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
+    'it': 'Italian', 'pt': 'Portuguese', 'ru': 'Russian', 'ja': 'Japanese',
+    'ko': 'Korean', 'zh': 'Chinese', 'ar': 'Arabic', 'hi': 'Hindi',
+    'th': 'Thai', 'vi': 'Vietnamese', 'tr': 'Turkish', 'pl': 'Polish',
+    'nl': 'Dutch', 'sv': 'Swedish', 'no': 'Norwegian', 'da': 'Danish',
+    'fi': 'Finnish', 'cs': 'Czech', 'hu': 'Hungarian', 'ro': 'Romanian',
+    'bg': 'Bulgarian', 'hr': 'Croatian', 'sk': 'Slovak', 'sl': 'Slovenian',
+    'et': 'Estonian', 'lv': 'Latvian', 'lt': 'Lithuanian', 'el': 'Greek',
+    'he': 'Hebrew', 'fa': 'Persian', 'ur': 'Urdu', 'bn': 'Bengali',
+    'ta': 'Tamil', 'te': 'Telugu', 'ml': 'Malayalam', 'kn': 'Kannada',
+    'gu': 'Gujarati', 'pa': 'Punjabi', 'mr': 'Marathi', 'ne': 'Nepali',
+    'si': 'Sinhala', 'my': 'Burmese', 'km': 'Khmer', 'lo': 'Lao',
+    'ka': 'Georgian', 'am': 'Amharic', 'sw': 'Swahili', 'zu': 'Zulu',
+    'af': 'Afrikaans', 'sq': 'Albanian', 'az': 'Azerbaijani', 'eu': 'Basque',
+    'be': 'Belarusian', 'bs': 'Bosnian', 'ca': 'Catalan', 'cy': 'Welsh',
+    'eo': 'Esperanto', 'gl': 'Galician', 'is': 'Icelandic', 'ga': 'Irish',
+    'mk': 'Macedonian', 'mt': 'Maltese', 'mn': 'Mongolian', 'ms': 'Malay',
+    'oc': 'Occitan', 'ps': 'Pashto', 'rm': 'Romansh', 'sn': 'Shona',
+    'so': 'Somali', 'tg': 'Tajik', 'tk': 'Turkmen', 'uk': 'Ukrainian',
+    'uz': 'Uzbek', 'yi': 'Yiddish', 'yo': 'Yoruba'
 }
 
 # Language detection configuration
