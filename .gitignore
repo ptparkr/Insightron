@@ -27,3 +27,9 @@ Thumbs.db
 # App runtime state
 .batch_state/
 *.log
+
+# Specified items
+benchmark_results.json
+insightron.egg-info/
+.cursor/
+benchmark_results.json
