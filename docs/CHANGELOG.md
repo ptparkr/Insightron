@@ -7,6 +7,55 @@ All notable changes to Insightron will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-02-28
+
+### 🚀 Major Features
+- ✅ **Single-Phase Engine Architecture**: New layered mental-model replacing the monolithic transcription flow:
+  - **BaseTranscriber** (Ground Truth Layer): Camera-like literal transcription — no cleanup, no guessing
+  - **TranscriptionEngine** (Single-Pass Brain): Refines literal output into a usable first draft with light error correction
+  - **TextFormatter** (Typesetter): Deterministic formatting into paragraphs, bullets, or named views
+  - **ResultHandler** (Contract): Unified output with quality scoring, diarization, and artifact persistence
+- ✅ **Dashboard Reports**: New `MarkdownRenderer` with rich quality dashboards including metrics tables, speaker timelines, low-confidence flags, and raw metadata JSON
+- ✅ **Audio Preprocessing Pipeline**: New `AudioPreProcessor` with 4-stage pipeline — noise reduction (noisereduce), LUFS normalization (pyloudnorm), pre-emphasis filtering, and edge trimming
+- ✅ **Speaker Diarization**: Optional pyannote-powered speaker identification via `Diarizer` and overlap-based `SpeakerAttribution`
+- ✅ **FormattingView System**: Named formatting views (`auto`, `thinking_session`, `meeting_notes`, `study_notes`, `bullets`, `minimal`) with per-view sentence limits and LaTeX mode support
+- ✅ **Typed Data Contracts**: Frozen dataclasses (`SegmentData`, `WordTimestamp`, `TranscriptionMetrics`, `TranscriptionReport`, `DiarizationResult`, `DiarizationTurn`) for type-safe pipeline data flow
+
+### Added
+- ✅ **BaseTranscriber** (`services/base_transcriber.py`): Ground Truth Layer with resource validation, literal transcription using `ModelManager`, and word-level timestamps
+- ✅ **AudioPreProcessor** (`services/transcription/audio_preprocessor.py`): Configurable audio preprocessing with `AudioPreprocessConfig` dataclass
+- ✅ **MarkdownRenderer** (`services/transcription/markdown_renderer.py`): Dashboard-style reports with quality metrics, speaker timeline, and file hash verification
+- ✅ **MetricsCalculator** (`services/transcription/metrics_calculator.py`): Word-level and temporal quality metrics computation
+- ✅ **Diarizer** (`services/transcription/diarization.py`): Thin pyannote wrapper with HF token support and configurable speaker constraints
+- ✅ **SpeakerAttribution** (`services/transcription/speaker_attribution.py`): Maximum-overlap speaker labeling for ASR segments and words
+- ✅ **Contracts Module** (`services/transcription/contracts.py`): Typed data contracts for the entire pipeline
+- ✅ **v2 LLM Restoration Philosophy**: Prompt profiles (`thinking_session`, `meeting_notes`, `study_notes`), JSON response contract with `segment_texts` and `flags`, boundary stitching for chunk seams
+
+### Changed
+- 🔄 **TranscriptionEngine**: Refactored from generic transcription wrapper to a "Single-Pass Brain" with `process_signal_single_pass()` and ASR artifact deduplication
+- 🔄 **TextFormatter**: Introduced `FormattingView` dataclass with named views, configurable sentence limits per view, LaTeX mode (`off`/`safe`/`math`), and view-aware paragraph/bullet break detection
+- 🔄 **LLM Provider**: Upgraded to v2 philosophy with `_build_restoration_instructions()` supporting prompt profiles, `_build_restoration_user_content()` with segment-count awareness, and `_parse_json_response()` for structured LLM output
+- 🔄 **ResultHandler**: Unified `save_result()` now integrates diarization, formatting profile resolution, dashboard/classic report styles, configurable filename templates, and restoration flag surfacing
+- 🔄 **Configuration**: Added `audio_preprocess`, `diarization`, `report.style`, `post_processing.formatting_profile`, and `transcription.filename_template` config sections
+- 🔄 **Result Schema**: Updated from `3.1.0-antigravity` to `4.0.0` with structured `analysis.metrics` and `analysis.diarization` fields
+
+### Technical Details
+- Added 7 new production files:
+  - `insightron/services/base_transcriber.py` (91 lines)
+  - `insightron/services/transcription/contracts.py` (93 lines)
+  - `insightron/services/transcription/audio_preprocessor.py` (115 lines)
+  - `insightron/services/transcription/markdown_renderer.py` (195 lines)
+  - `insightron/services/transcription/metrics_calculator.py` (~100 lines)
+  - `insightron/services/transcription/diarization.py` (82 lines)
+  - `insightron/services/transcription/speaker_attribution.py` (47 lines)
+- Modified 4 core files:
+  - `services/transcription/transcription_engine.py` (refactored to Single-Pass Brain)
+  - `services/transcription/text_formatter.py` (+FormattingView, named views)
+  - `services/transcription/llm_provider.py` (+v2 philosophy, prompt profiles)
+  - `services/transcription/result_handler.py` (+diarization, dashboard, templates)
+- All new modules use typed dataclasses with `frozen=True` for immutability
+- Pipeline is fully backward compatible — single-pass remains the default
+
 ## [3.1.0] - 2026-01-29
 
 ### 🚀 Major Features
@@ -165,7 +214,7 @@ Then transcribe normally - multi-pass pipeline activates automatically!
 ## [1.3.0] - 2025-12-01
 
 ### Added
-- ✅ **Realtime Mode (GUI)**: New “Realtime” tab for live microphone transcription with on-screen text as you speak.
+- ✅ **Realtime Mode (GUI)**: New "Realtime" tab for live microphone transcription with on-screen text as you speak.
 - ✅ **Audio Level Visualization**: Dynamic audio meter to monitor input levels during recording.
 - ✅ **Dual Saving**: Automatic saving of both raw audio (e.g., WAV) and Markdown transcript for each realtime session.
 - ✅ **Realtime Obsidian Integration**: Realtime transcripts saved directly into the configured Obsidian vault folder.
@@ -200,7 +249,7 @@ Then transcribe normally - multi-pass pipeline activates automatically!
 ## [1.1.0] - 2025-10-20
 
 ### Added
-- ✅ **Multi-Language Support**: Comprehensive support for 100+ languages via Whisper’s full language set.
+- ✅ **Multi-Language Support**: Comprehensive support for 100+ languages via Whisper's full language set.
   - Auto-detection of language from audio content.
   - Manual language selection for improved accuracy.
   - Coverage of major, European, Asian, and Middle Eastern/African languages, plus many more.

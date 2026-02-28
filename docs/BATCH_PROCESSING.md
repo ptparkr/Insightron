@@ -273,6 +273,6 @@ results = batch_transcribe_files(
 
 ## See Also
 
-- [benchmark_insightron.py](file:///d:/Developer%20Mode/Insightron/benchmark_insightron.py) - Performance benchmarking
-- [batch_processor.py](file:///d:/Developer%20Mode/Insightron/batch_processor.py) - Batch processing implementation
-- [transcribe.py](file:///d:/Developer%20Mode/Insightron/transcribe.py) - Core transcription logic
+- [benchmark_insightron.py](../tests/benchmarks/benchmark_insightron.py) - Performance benchmarking
+- [batch_processor.py](../insightron/services/batch/batch_processor.py) - Batch processing implementation
+- [transcribe.py](../insightron/services/transcription/transcribe.py) - Core transcription logic

@@ -61,6 +61,11 @@ Total: 7 essential files ✅
 - ✅ ROOT_DIRECTORY.md
 - ✅ CLEANUP_GUIDE.md
 - ✅ LEGACY_STRUCTURE.md
+- ✅ CODEBASE_EXPLORER.md
+- ✅ LLM_USAGE.md
+- ✅ note_shaping_roles.md
+- ✅ feedback_loop.md
+- ✅ ROOT_CLEANUP_SUMMARY.md
 
 ### Benchmarks → `tests/benchmarks/`
 - ✅ benchmark_insightron.py

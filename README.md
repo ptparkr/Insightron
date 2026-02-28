@@ -52,7 +52,7 @@ All documentation is in the `docs/` folder:
 
 - **[README.md](docs/README.md)** - Full documentation and features
 - **[LLM_USAGE.md](docs/LLM_USAGE.md)** - Guide for LLM integration & setup
-- **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history (see v3.1.0!)
+- **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history (see v4.0.0!)
 - **[QUICK_START.md](docs/QUICK_START.md)** - Quick start for developers
 - **[STRUCTURE.md](docs/STRUCTURE.md)** - Codebase structure guide
 - **[ROOT_DIRECTORY.md](docs/ROOT_DIRECTORY.md)** - Root directory organization
@@ -76,9 +76,13 @@ Insightron/
 
 ## ✨ Features
 
-### 🎯 NEW in v3.1.0: Multi-Pass Transcription
-- 🤖 **AI-Powered Accuracy**: 3-pass pipeline delivers large-model quality at small-model speed
-- 📝 **Smart Punctuation**: LLM restores proper punctuation and fixes phonetic errors
+### 🎯 NEW in v4.0.0: Single-Phase Engine & Beyond
+- 🏗️ **Layered Architecture**: Ground Truth → Single-Pass Brain → Typesetter → Contract
+- 📊 **Dashboard Reports**: Quality metrics table, speaker timeline, low-confidence flags
+- 🎧 **Audio Preprocessing**: Noise reduction, LUFS normalization, pre-emphasis, edge trimming
+- 🗣️ **Speaker Diarization**: pyannote-powered speaker identification and attribution
+- 📝 **FormattingViews**: Named views (thinking_session, meeting_notes, study_notes) with LaTeX support
+- 🤖 **v2 LLM Restoration**: Prompt profiles, JSON response contract, boundary stitching
 - 💭 **Emotion Detection**: Automatic markers like [Cheerful], [Urgent], [Calm]
 - 🧠 **Local or Cloud LLMs**: Choose Qwen2.5-3B (local) or OpenAI GPT (API)
 
@@ -97,6 +101,7 @@ Edit `config.yaml` to configure:
 - Transcription folder paths
 - Model settings (including multi-pass!)
 - Language preferences
+- Audio preprocessing, diarization, report styles
 - Multi-pass LLM provider and emotion thresholds
 
 ## 📖 For Developers

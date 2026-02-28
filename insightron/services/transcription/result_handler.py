@@ -182,7 +182,7 @@ class ResultHandler:
         
         # 3. Standardized Result Schema
         result_data = {
-            "version": "3.1.0-antigravity",
+            "version": "4.0.0",
             "metadata": metadata,
             "transcription": {
                 "full_text": final_text,

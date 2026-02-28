@@ -15,9 +15,9 @@ The goal is to make improvements **small, testable, and cumulative**.
 
 Map each item to exactly one change:
 
-- **Paragraph/bullet issue** → update `TextFormatter._indicates_long_pause` starter phrases or view sentence limits.
-- **Wrong term repair** → tighten `llm_provider.py` instructions (bias toward “leave unchanged + flag”).
-- **Style mismatch** → switch `post_processing.formatting_profile` or `multi_pass.contextual_restoration.prompt_profile`.
+- **Paragraph/bullet issue** → update `TextFormatter._indicates_long_pause` starter phrases or FormattingView sentence limits.
+- **Wrong term repair** → tighten `llm_provider.py` prompt profile instructions (bias toward "leave unchanged + flag").
+- **Style mismatch** → switch `post_processing.formatting_profile` or `multi_pass.contextual_restoration.prompt_profile` (see `thinking_session`, `meeting_notes`, `study_notes`).
 
 ### A/B test on one file
 

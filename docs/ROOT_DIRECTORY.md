@@ -30,7 +30,15 @@ Insightron/
 │   ├── RESTRUCTURE_SUMMARY.md
 │   ├── BATCH_PROCESSING.md
 │   ├── CHANGELOG.md
-│   └── PERFORMANCE_UPGRADE.md
+│   ├── PERFORMANCE_UPGRADE.md
+│   ├── CODEBASE_EXPLORER.md
+│   ├── LLM_USAGE.md
+│   ├── note_shaping_roles.md
+│   ├── feedback_loop.md
+│   ├── CLEANUP_GUIDE.md
+│   ├── LEGACY_STRUCTURE.md
+│   ├── ROOT_CLEANUP_SUMMARY.md
+│   └── ROOT_DIRECTORY.md
 ├── tests/                 # Test suite (including benchmarks/)
 │   └── benchmarks/
 │       ├── benchmark_insightron.py

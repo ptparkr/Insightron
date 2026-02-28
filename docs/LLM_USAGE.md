@@ -106,3 +106,55 @@ Update the `provider` and `api_settings` in `config.yaml`:
 -   **Memory Errors (Local)**: If you get "CUDA Out of Memory," try changing `quantization` to `4bit` or switching `device` to `cpu`.
 -   **Slow Processing**: LLM restoration adds an additional delay after the acoustic transcription. This is normal. Smaller chunks (`chunk_duration: 30`) help keep the latency predictable.
 -   **Missing Dependencies**: Ensure you've installed the `transformers` library if using local models.
+
+---
+
+## 🆕 v2 Restoration Philosophy (v4.0.0)
+
+In v4.0.0, the LLM restoration system has been upgraded to a **v2 philosophy** with several key improvements:
+
+### Prompt Profiles
+
+The LLM restoration now supports **prompt profiles** that bias the restoration style to match your content type:
+
+```yaml
+multi_pass:
+  contextual_restoration:
+    prompt_profile: "thinking_session"  # Options: thinking_session, meeting_notes, study_notes
+```
+
+| Profile | Behavior |
+|---------|----------|
+| `thinking_session` | Flowing style, preserves natural speech patterns and exploratory thinking |
+| `meeting_notes` | More structured, action-oriented restoration |
+| `study_notes` | Academic tone, preserves technical terms precisely |
+
+### JSON Response Contract
+
+The LLM now returns structured JSON with:
+- **`restored_text`**: The cleaned text
+- **`segment_texts`**: Optional per-segment aligned text
+- **`flags`**: Quality flags (e.g., `low_confidence`, `boundary_stitched`)
+
+### Boundary Stitching
+
+When processing audio in chunks, the v2 system provides `prev_clean` and `next_raw` context to the LLM, enabling seamless stitching across chunk boundaries. Stitched segments are marked with a `stitched` flag in the output.
+
+### Quality Flags
+
+Restoration flags are surfaced in the Markdown output under a **"Restoration Notes"** section, showing:
+- Per-flag counts across all segments
+- Number of stitched boundary spans
+- Pass 2 summary statistics
+
+### Formatting Profiles
+
+Set the default formatting profile in `config.yaml`:
+
+```yaml
+post_processing:
+  formatting_profile: "thinking_session"  # thinking_session, meeting_notes, study_notes
+```
+
+This controls how `TextFormatter` applies its `FormattingView` — each profile adjusts sentence limits, paragraph break sensitivity, and LaTeX mode.
+

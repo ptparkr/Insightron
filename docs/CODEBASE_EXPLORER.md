@@ -16,27 +16,40 @@ graph TD
     subgraph Service Layer
         G --> MP[Multi-Pass Transcriber]
         C --> MP
-        MP --> TE[Transcription Engine]
-        MP --> LLM[LLM Provider]
+        MP --> TE[TranscriptionEngine / Single-Pass Brain]
+        MP --> LLM[LLM Provider v2]
         MP --> EA[Emotion Analyzer]
+        TE --> BT[BaseTranscriber / Ground Truth]
     end
 
     subgraph Core Layer
-        TE --> MM[Model Manager]
-        TE --> RM[Resource Manager]
+        BT --> MM[Model Manager]
+        BT --> RM[Resource Manager]
         MM --> CFG[Config/Settings]
         RM --> CFG
     end
 
     subgraph Utilities
-        TF[Text Formatter]
-        RH[Result Handler]
+        TF[TextFormatter / Typesetter]
+        RH[ResultHandler / Contract]
         AL[Audio Loader]
+        AP[AudioPreProcessor]
+        MR[MarkdownRenderer]
+        MC[MetricsCalculator]
+        DI[Diarizer]
+        SA[SpeakerAttribution]
+        CT[Contracts]
     end
 
     MP --> TF
     MP --> RH
     TE --> AL
+    AL --> AP
+    RH --> MR
+    RH --> MC
+    RH --> DI
+    RH --> SA
+    RH --> CT
 ```
 
 ---
@@ -74,36 +87,56 @@ The backbone of the application, managing system resources, models, and configur
 ### 3. `insightron/services/`
 Contains the business logic for transcription and post-processing.
 
+- **`base_transcriber.py`**:
+  - **Use**: Ground Truth Layer — literal transcription with no cleanup.
+  - **Concept**: Camera-like: preserves hesitations, repetitions, and uncertainty. Validates system resources before transcription.
+  - **Integration**: Used by `TranscriptionEngine` as the lowest-level transcription interface.
 - **`transcription/multi_pass_transcriber.py`**:
   - **Use**: Orchestrates the 3-pass transcription pipeline.
   - **Concept**:
     - **Pass 1**: Raw detection using Whisper (`TranscriptionEngine`).
-    - **Pass 2**: Contextual restoration using an LLM (`LLMProvider`).
+    - **Pass 2**: Contextual restoration using an LLM (`LLMProvider`) with v2 philosophy.
     - **Pass 3**: Emotion mapping (`EmotionAnalyzer`) and optional speaker/structure passes.
   - **Integration**: Coordinates `TranscriptionEngine`, `LLMProvider`, `EmotionAnalyzer`, `TextFormatter`, and `ResultHandler`.
 - **`transcription/transcription_engine.py`**:
-  - **Use**: Low-level interface for the Whisper model.
-  - **Concept**: Handles signal processing and single-pass inference, chunking, and device/model selection.
-  - **Integration**: Used by `MultiPassTranscriber` for Pass 1 and by single-pass flows.
+  - **Use**: Single-Pass Brain — refines literal output into a stable first draft.
+  - **Concept**: Handles signal processing and single-pass inference with ASR artifact deduplication.
+  - **Integration**: Uses `BaseTranscriber` for literal ground truth, consumed by `MultiPassTranscriber`.
 - **`transcription/llm_provider.py`**:
-  - **Use**: Unified interface for local and cloud LLMs.
-  - **Concept**: Wraps providers (e.g. OpenAI, local Qwen) with strict, non‑hallucinating prompts focused on restoration.
+  - **Use**: Unified interface for local and cloud LLMs with v2 restoration philosophy.
+  - **Concept**: Wraps providers (e.g. OpenAI, local Qwen) with prompt profiles (`thinking_session`, `meeting_notes`, `study_notes`), JSON response contract, and boundary stitching.
 - **`transcription/emotion_analyzer.py`**:
   - **Use**: Computes emotion markers (e.g. `[Cheerful]`, `[Urgent]`).
   - **Concept**: Uses speech rate, lexical cues, and configuration thresholds.
 - **`transcription/text_formatter.py`**:
-  - **Use**: Deterministic formatting (paragraphs, bullets, views).
-  - **Concept**: Implements the “typesetter” role from note‑shaping docs.
+  - **Use**: Deterministic formatting (paragraphs, bullets, named views).
+  - **Concept**: Uses `FormattingView` dataclass with per-view sentence limits and LaTeX mode. Implements the "typesetter" role.
+- **`transcription/contracts.py`**:
+  - **Use**: Typed frozen dataclasses for pipeline data.
+  - **Concept**: `SegmentData`, `WordTimestamp`, `TranscriptionMetrics`, `TranscriptionReport`, `DiarizationResult` for type-safe data flow.
+- **`transcription/audio_preprocessor.py`**:
+  - **Use**: 4-stage audio preprocessing pipeline.
+  - **Concept**: Noise reduction (noisereduce), LUFS normalization (pyloudnorm), pre-emphasis filtering, and edge trimming.
+- **`transcription/markdown_renderer.py`**:
+  - **Use**: Dashboard-style Markdown reports.
+  - **Concept**: Quality metrics table, speaker timeline, low-confidence flags, raw metadata JSON, file hash verification.
+- **`transcription/metrics_calculator.py`**:
+  - **Use**: Word-level and temporal quality metrics.
+  - **Concept**: Computes confidence, speaking rate, vocabulary density, pause analysis, and language detection metrics.
 - **`transcription/result_handler.py` & `markdown_renderer.py`**:
   - **Use**: Turn results into Markdown/other artifacts and write them safely.
-  - **Concept**: Atomic writes, frontmatter, and view selection.
-- **`transcription/segment_analyzer.py`, `quality_metrics.py`, `metrics_calculator.py`**:
+  - **Concept**: Atomic writes, frontmatter, formatting profile resolution, dashboard/classic report styles.
+- **`transcription/diarization.py`**:
+  - **Use**: Optional pyannote speaker diarization wrapper.
+  - **Concept**: Supports HF token auth, configurable speaker constraints, returns `DiarizationResult`.
+- **`transcription/speaker_attribution.py`**:
+  - **Use**: Maximum-overlap speaker labeling for ASR segments and words.
+  - **Concept**: Assigns speaker labels from diarization turns to transcription segments.
+- **`transcription/segment_analyzer.py`, `quality_metrics.py`**:
   - **Use**: Advanced quality metrics and adaptive segment merging.
   - **Concept**: Compute confidence tiers, degradation detection, and per‑segment stats.
-- **`transcription/audio_loader.py` & `audio_preprocessor.py`**:
+- **`transcription/audio_loader.py`**:
   - **Use**: Robust loading, normalization, and preprocessing for all supported formats.
-- **`transcription/diarization.py` & `speaker_attribution.py`**:
-  - **Use**: Speaker‑aware processing (where enabled).
 - **`batch/batch_processor.py`**:
   - **Use**: Handles processing of multiple files in parallel.
   - **Concept**: Uses thread/process pools plus state/resume support (`batch_state_manager.py`, `progress_tracker.py`).

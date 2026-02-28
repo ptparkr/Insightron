@@ -1,4 +1,4 @@
-# 🎤 Insightron v3.1.0 - Experience the Future of AI Transcription
+# 🎤 Insightron v4.0.0 - Experience the Future of AI Transcription
 
 **Transform audio into beautifully structured insights with lightning-fast precision.**
 
@@ -6,19 +6,25 @@ Insightron is a next-generation transcription application powered by **faster-wh
 
 ## ✨ Key Features
 
-### 🤖 **NEW in v3.1.0: Multi-Pass Transcription**
-- **3-Pass Intelligence**: Revolutionary pipeline that delivers large-model accuracy at small-model speed
-  - **Pass 1 (Detection)**: Lightning-fast base model for raw text and precise timestamps
-  - **Pass 2 (Contextual Restoration)**: AI-powered LLM restores punctuation and fixes phonetic errors
-  - **Pass 3 (Emotion Mapping)**: Sentiment analysis injects emotional context markers
-- **Smart Batch Processing**: 30-second chunking with 2-second overlap for optimal memory and context
-- **Flexible LLM Support**: 
-  - **Local**: Qwen2.5-3B-Instruct (recommended), Phi-3-mini, Gemma-2B with 4-bit quantization
-  - **Cloud**: OpenAI GPT-3.5/4, with support for Anthropic Claude and Google Gemini coming soon
-- **Emotion Markers**: Automatic detection of [Cheerful], [Urgent], [Calm], [Excited], [Serious] tones
-- **Granular Control**: 131 lines of config options for complete customization
-- **Opt-In Design**: Multi-pass is disabled by default for complete backward compatibility
+### 🏗️ **NEW in v4.0.0: Single-Phase Engine Architecture**
+- **Layered Pipeline**: Clean mental-model separation for maximum clarity and extensibility:
+  - **BaseTranscriber** (Ground Truth): Camera-like literal transcription — no cleanup, no guessing
+  - **TranscriptionEngine** (Single-Pass Brain): Refines literal output into a usable first draft
+  - **TextFormatter** (Typesetter): Deterministic formatting with named views
+  - **ResultHandler** (Contract): Unified output with quality scoring and artifact persistence
+- **Dashboard Reports**: Rich quality dashboards with metrics tables, speaker timelines, and low-confidence flags
+- **Audio Preprocessing**: 4-stage pipeline with noise reduction, LUFS normalization, pre-emphasis, and edge trimming
+- **Speaker Diarization**: Optional pyannote-powered speaker identification and overlap-based attribution
+- **FormattingViews**: Named views (`thinking_session`, `meeting_notes`, `study_notes`) with per-view sentence limits and LaTeX support
+- **Typed Data Contracts**: Frozen dataclasses (`SegmentData`, `TranscriptionMetrics`, `DiarizationResult`) for type-safe data flow
+- **v2 LLM Restoration**: Prompt profiles, JSON response contract, boundary stitching, quality flags
 - **Detailed Guide**: See **[LLM_USAGE.md](LLM_USAGE.md)** for setup and configuration details
+
+### 🤖 **Multi-Pass Transcription (v3.1.0+)**
+- **3-Pass Intelligence**: Revolutionary pipeline that delivers large-model accuracy at small-model speed
+- **Flexible LLM Support**: Local (Qwen2.5-3B) or Cloud (OpenAI GPT)
+- **Emotion Markers**: Automatic detection of [Cheerful], [Urgent], [Calm], [Excited], [Serious] tones
+- **Opt-In Design**: Multi-pass is disabled by default for complete backward compatibility
 
 ### 🚀 **Performance & Reliability**
 - **⚡ faster-whisper Engine**: Up to **4x faster** transcription using CTranslate2 optimization
@@ -219,7 +225,7 @@ python cli.py arabic_audio.mp3 -l ar -v
 
 ## 📖 Usage Guide
 
-### **🤖 Multi-Pass Transcription (v3.1.0)**
+### **🤖 Multi-Pass Transcription (v3.1.0+)**
 
 Enable the revolutionary 3-pass pipeline for large-model accuracy at small-model speed!
 
@@ -612,20 +618,27 @@ black *.py
 
 *Transform audio into structured wisdom — locally, beautifully, intelligently.*
 
-**Insightron v3.1.0** - Multi-Pass Intelligence
+**Insightron v4.0.0** - Single-Phase Engine Architecture
 
-## 🆕 What's New in v3.1.0
+## 🆕 What's New in v4.0.0
+
+### **🏗️ Single-Phase Engine Architecture**
+- ✅ **Layered Pipeline**: `BaseTranscriber` → `TranscriptionEngine` → `TextFormatter` → `ResultHandler`
+- ✅ **Dashboard Reports**: Rich quality metrics, speaker timelines, low-confidence flags via `MarkdownRenderer`
+- ✅ **Audio Preprocessing**: Noise reduction, LUFS normalization, pre-emphasis, edge trimming via `AudioPreProcessor`
+- ✅ **Speaker Diarization**: pyannote-powered `Diarizer` + `SpeakerAttribution` for speaker identification
+- ✅ **FormattingViews**: Named views with per-view sentence limits, LaTeX support, and configurable formatting profiles
+- ✅ **Typed Contracts**: Frozen dataclasses for type-safe data flow across the pipeline
+- ✅ **v2 LLM Restoration**: Prompt profiles, JSON response contract, boundary stitching, quality flags
+- ✅ **Backward Compatible**: Single-pass remains the default; all new features are opt-in
+
+### **Previous Updates (v3.1.0)**
 
 ### **🤖 Multi-Pass Transcription Revolution**
 - ✅ **3-Pass Pipeline**: Achieve large-model accuracy at small-model speed with innovative multi-pass processing
-  - **Pass 1 (Detection)**: Fast base model transcription
-  - **Pass 2 (Contextual Restoration)**: AI-powered punctuation and error correction
-  - **Pass 3 (Emotion Mapping)**: Sentiment analysis with emotional markers
 - ✅ **Flexible LLM Integration**: Support for both local (Qwen2.5-3B, Phi-3, Gemma) and cloud (OpenAI GPT) models
 - ✅ **Smart Batch Processing**: 30-second chunking with 2-second overlap for memory efficiency
 - ✅ **Emotion Detection**: Automatic markers - [Cheerful], [Urgent], [Calm], [Excited], [Serious]
-- ✅ **Granular Control**: 131 lines of config options for complete customization
-- ✅ **Backward Compatible**: Opt-in design keeps single-pass as default
 
 ### **Previous Updates (v3.0.0)**
 

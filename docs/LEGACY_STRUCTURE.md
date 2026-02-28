@@ -11,7 +11,7 @@ The following folders are **legacy** and have been replaced by the new structure
 
 ## Migration Status
 
-✅ **New structure is active** under the `insightron/` package
+✅ **New structure is active** under the `insightron/` package (v4.0.0)
 ⚠️ **Old folders kept for reference** - can be removed after verification
 
 ## What to Do

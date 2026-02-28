@@ -27,7 +27,8 @@ Insightron/
 │   │   ├── resource_manager.py   # Efficiency Layer
 │   │   └── vad.py                # Voice Activity Detection
 │   ├── services/                 # Business logic
-│   │   ├── transcription/        # Transcription services (Modular v3.1)
+│   │   ├── base_transcriber.py   # Ground Truth Layer
+│   │   ├── transcription/        # Transcription services (Modular v4.0)
 │   │   ├── batch/                # Batch processing
 │   │   └── realtime/             # Real-time transcription
 │   ├── ui/                       # UI components
@@ -87,11 +88,16 @@ Both work identically - the new structure is backward compatible!
 - **`docs/QUICK_START.md`**: Quick start guide for developers
 - **Module docstrings**: Each file has clear documentation
 
-## 🔄 Migration Notes (v3.1.0)
+## 🔄 Migration Notes (v4.0.0)
 
 - ✅ **Package Renaming**: The `src` directory has been renamed to `insightron` to follow standard Python package conventions.
-- ✅ **New Efficiency Layer**: Added `core/resource_manager.py` for optimized performance on low-spec systems.
-- ✅ **Modular Transcription**: Refactored `AudioTranscriber` into smaller, specialized modules in `services/transcription/`.
+- ✅ **Single-Phase Engine**: New `BaseTranscriber` (Ground Truth Layer) and `TranscriptionEngine` (Single-Pass Brain) architecture.
+- ✅ **FormattingViews**: `TextFormatter` now uses `FormattingView` dataclass with named views and LaTeX support.
+- ✅ **Dashboard Reports**: New `MarkdownRenderer` for rich quality dashboards.
+- ✅ **Audio Preprocessing**: New `AudioPreProcessor` with noise reduction, LUFS, pre-emphasis, and trimming.
+- ✅ **Speaker Diarization**: New `Diarizer` and `SpeakerAttribution` modules.
+- ✅ **Typed Contracts**: New `contracts.py` with frozen dataclasses for type-safe data flow.
+- ✅ **v2 LLM Restoration**: Prompt profiles, JSON response contract, boundary stitching.
 - ✅ **Responsive UI**: Updated `ui/components/` to support dynamic resizing.
 - ✅ **Backward Compatible**: Old entry points and config formats still work.
 

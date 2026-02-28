@@ -11,6 +11,7 @@ Insightron/
 ├── config.yaml           # User configuration
 ├── insightron.py         # Legacy GUI entry point (still supported)
 ├── cli.py                # Legacy CLI entry point (still supported)
+├── run_insightron.py     # Alternative entry point
 ├── pytest.ini            # Test configuration
 └── user_settings.json    # User preferences
 ```

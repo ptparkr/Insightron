@@ -1,18 +1,19 @@
-# Insightron v3.1.0 - Quick Start Guide
+# Insightron v4.0.0 - Quick Start Guide
 
-## 🚀 What's New in v3.1.0
+## 🚀 What's New in v4.0.0
 
-Insightron v3.1.0 introduces **adaptive intelligence** with a new efficiency layer, dynamic resource management, and a fully responsive UI.
+Insightron v4.0.0 introduces the **Single-Phase Engine Architecture** with a layered pipeline, dashboard reports, audio preprocessing, speaker diarization, and FormattingViews.
 
 ### Key Improvements
 
-✅ **New Efficiency Layer** - Dedicated resource management for optimal CPU/RAM usage
-✅ **Advanced VAD System** - Interactive Voice Activity Detection with adaptive parameters
+✅ **Single-Phase Engine** - Layered pipeline: Ground Truth → Brain → Typesetter → Contract
+✅ **Dashboard Reports** - Rich quality metrics, speaker timelines, low-confidence flags
+✅ **Audio Preprocessing** - Noise reduction, LUFS normalization, pre-emphasis, trimming
+✅ **Speaker Diarization** - pyannote-powered speaker identification
+✅ **FormattingViews** - Named views (thinking_session, meeting_notes, study_notes) with LaTeX
+✅ **Typed Contracts** - Frozen dataclasses for type-safe data flow
+✅ **v2 LLM Restoration** - Prompt profiles, JSON response contract, quality flags
 ✅ **Dynamic Chunking** - Smart audio processing that adapts to hardware capabilities
-✅ **Responsive UI 2.0** - Brand new responsive design system
-✅ **Modular Architecture** - Complete refactor for superior stability 
-✅ **Quantization Optimization** - improved INT8/INT4 support
-✅ **Performance Metrics** - Real-time tracking of audio processing efficiency  
 
 ---
 
@@ -307,19 +308,18 @@ python cli.py *.mp3 -b -w 4  # Use fewer workers
 
 ## ✅ Summary
 
-**Before (v2.2.0):**
-- Adaptive segment merging
-- Batch processing with auto worker detection
-- Event-driven progress tracking
+**Before (v3.1.0):**
+- Everything in v3.1.0 (multi-pass, efficiency layer, dynamic chunking)
 
-**After (v3.1.0):**
-- ✅ **Everything in v2.2.0 plus:**
-- ✅ **New Efficiency Layer**: Optimal resource usage on any hardware
-- ✅ **Dynamic Chunking**: Process massive files without memory issues
-- ✅ **Advanced VAD**: Cleaner audio segmentation
-- ✅ **Responsive UI 2.0**: Perfect experience on any screen
-- ✅ **Modular Architecture**: Easier maintenance and extensions
-- ✅ **Quantization**: Even lower memory footprint
+**After (v4.0.0):**
+- ✅ **Everything in v3.1.0 plus:**
+- ✅ **Single-Phase Engine**: Layered pipeline for clarity and extensibility
+- ✅ **Dashboard Reports**: Rich quality dashboards in Markdown
+- ✅ **Audio Preprocessing**: Noise reduction, LUFS, pre-emphasis, trim
+- ✅ **Speaker Diarization**: pyannote integration with attribution
+- ✅ **FormattingViews**: Named views with LaTeX support
+- ✅ **Typed Contracts**: Immutable dataclasses for data integrity
+- ✅ **v2 LLM Restoration**: Smarter prompt profiles and quality flags
 
 **Get Started:**
 ```bash
