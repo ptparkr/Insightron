@@ -1,0 +1,72 @@
+# Insightron v3.1.0 - Enhanced Whisper AI Transcription Project Requirements
+# Optimized for performance, reliability, and cross-platform compatibility
+
+# Core Whisper AI (faster-whisper with CTranslate2)
+# v1.2.0+ uses importlib.metadata (no pkg_resources warnings)
+# Includes batched inference for 4x faster batch processing
+# Compatible with Python 3.10-3.12
+# Updated to latest stable version for better download handling
+faster-whisper>=1.2.0,<2.0.0
+
+# Explicitly list tokenizers to ensure we get a compatible version
+# or trigger the Rust build requirement clearly
+# Note: May require Rust for building from source on some systems
+tokenizers>=0.19.1,<1.0.0
+
+# Essential audio processing (optimized versions for stability)
+# librosa requires numpy, scipy, and soundfile
+librosa>=0.10.1,<1.0.0
+soundfile>=0.12.1,<1.0.0
+noisereduce>=3.0.0
+pyloudnorm>=0.1.1
+
+# Progress tracking and utilities
+tqdm>=4.66.0
+
+# Audio format support (enhanced compatibility)
+pydub>=0.25.1
+
+# Core scientific computing (Windows-compatible versions)
+# numpy 1.24+ required for Python 3.10+, but <1.27 for Python 3.12 compatibility
+numpy>=1.24.0,<1.27.0
+scipy>=1.10.0,<2.0.0
+
+# Optional: For advanced audio analysis and visualization
+matplotlib>=3.5.0
+
+# Development and testing (optional)
+pytest>=7.0.0
+
+# Build and packaging tools (pinned to avoid pkg_resources deprecation noise
+# from some CTranslate2/faster-whisper builds when used with newer setuptools)
+setuptools>=65.0.0,<81.0.0
+
+# Enhanced error handling and logging
+colorama>=0.4.6
+
+# Modern UI Framework
+# customtkinter requires tkinter (usually included with Python)
+customtkinter>=5.2.0,<6.0.0
+packaging>=23.0,<25.0
+
+# Realtime Audio Capture
+sounddevice>=0.4.6
+
+# Memory Monitoring
+psutil>=5.9.0
+
+# Configuration file parsing
+PyYAML>=6.0,<7.0
+
+# LLM & Multi-Pass Dependencies
+# Required for contextual restoration pass
+transformers>=4.40.0
+torch>=2.0.0
+accelerate>=0.28.0
+bitsandbytes>=0.43.0
+openai>=1.0.0
+
+# Speaker diarization (optional, single-phase enrichment)
+pyannote.audio>=3.1.1
+torchaudio>=2.0.0
+huggingface_hub>=0.20.0
