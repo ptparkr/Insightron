@@ -1,0 +1,2 @@
+config.yaml filter=username-filter
+user_settings.json filter=username-filter
