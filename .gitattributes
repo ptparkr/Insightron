@@ -1,2 +1,3 @@
 config.yaml filter=username-filter
 user_settings.json filter=username-filter
+insightron/core/config.py filter=username-filter

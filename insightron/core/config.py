@@ -117,9 +117,9 @@ class ReportConfig:
 @dataclass
 class RuntimeConfig:
     """Runtime configuration settings."""
-    transcription_folder: str = r"C:\Users\USER\Downloads\Insightron\Notes"
-    recordings_folder: str = r"C:\Users\USER\Downloads\Insightron\Recordings"
-    processed_audio_folder: str = r"C:\Users\USER\Downloads\Insightron\Processed"
+    transcription_folder: str = "C:\\Users\\USER\\Downloads\\Insightron\\Notes"
+    recordings_folder: str = "C:\\Users\\USER\\Downloads\\Insightron\\Recordings"
+    processed_audio_folder: str = "C:\\Users\\USER\\Downloads\\Insightron\\Processed"
     max_file_size_mb: int = 500
     log_level: str = "INFO"
     worker_count: Optional[int] = None  # None = auto-detect
@@ -274,7 +274,15 @@ class ConfigManager:
             return
         
         self._initialized = True
-        self.config_path = config_path
+        
+        # Resolve config_path relative to project root if it is not an absolute path
+        config_path_obj = Path(config_path)
+        if not config_path_obj.is_absolute():
+            project_root = Path(__file__).resolve().parent.parent.parent
+            self.config_path = str(project_root / config_path)
+        else:
+            self.config_path = config_path
+            
         self._raw_config: Dict[str, Any] = {}
         
         # Load configuration
@@ -391,9 +399,9 @@ class ConfigManager:
         """Initialize runtime configuration."""
         runtime_data = self._raw_config.get('runtime', {})
         return RuntimeConfig(
-            transcription_folder=runtime_data.get('transcription_folder', r"C:\Users\USER\Downloads\Insightron\Notes"),
-            recordings_folder=runtime_data.get('recordings_folder', r"C:\Users\USER\Downloads\Insightron\Recordings"),
-            processed_audio_folder=runtime_data.get('processed_audio_folder', r"C:\Users\USER\Downloads\Insightron\Processed"),
+            transcription_folder=runtime_data.get('transcription_folder', "C:\\Users\\USER\\Downloads\\Insightron\\Notes"),
+            recordings_folder=runtime_data.get('recordings_folder', "C:\\Users\\USER\\Downloads\\Insightron\\Recordings"),
+            processed_audio_folder=runtime_data.get('processed_audio_folder', "C:\\Users\\USER\\Downloads\\Insightron\\Processed"),
             max_file_size_mb=runtime_data.get('max_file_size_mb', 500),
             log_level=runtime_data.get('log_level', 'INFO'),
             worker_count=runtime_data.get('worker_count')
