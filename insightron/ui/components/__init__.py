@@ -14,6 +14,7 @@ from insightron.ui.components.settings_panel import SettingsPanel
 from insightron.ui.components.progress_panel import ProgressPanel
 from insightron.ui.components.results_panel import ResultsPanel
 from insightron.ui.components.file_selector import FileSelector
+from insightron.ui.components.audio_visualizer import AudioVisualizer
 
 __all__ = [
     'Header',
@@ -21,4 +22,5 @@ __all__ = [
     'ProgressPanel',
     'ResultsPanel',
     'FileSelector',
+    'AudioVisualizer',
 ]

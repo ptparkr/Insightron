@@ -14,7 +14,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
-from insightron.ui.components import Header, SettingsPanel, ProgressPanel, ResultsPanel, FileSelector
+from insightron.ui.components import Header, SettingsPanel, ProgressPanel, ResultsPanel, FileSelector, AudioVisualizer
 from insightron.ui.themes.theme_manager import ThemeManager
 from insightron.ui.themes.design_tokens import LayoutMode, SPACING
 from insightron.ui.responsive import ResponsiveManager
@@ -380,100 +380,103 @@ class InsightronGUI:
         self.batch_transcribe_btn.grid(row=1, column=0, sticky="ew", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
     
     def _setup_realtime_tab(self):
-        """Setup realtime transcription tab with design tokens."""
-        # Configure tab grid for horizontal expansion
+        """Setup realtime transcription tab with glassmorphism design tokens."""
+        # Configure tab grid for horizontal expansion and centering
         self.tab_realtime.grid_columnconfigure(0, weight=1)
+        self.tab_realtime.grid_rowconfigure(0, weight=1)
         
+        # Main glass-like card container
         rt_card = ctk.CTkFrame(
             self.tab_realtime,
-            corner_radius=ThemeManager.get_radius('lg'),
-            border_width=0,  # Seamless - no border
-            fg_color=self.theme.background,  # Match background for seamless look
+            corner_radius=ThemeManager.get_radius('lg') * 2, # Extra rounded
+            border_width=1,  # Subtle border for glass effect
+            border_color=self.theme.border,
+            fg_color=self.theme.surface_light,  # Lighter than background to stand out
         )
-        # CRITICAL: Use grid with sticky="ew" to force horizontal expansion
-        rt_card.grid(row=0, column=0, sticky="ew", pady=SPACING.lg, padx=SPACING.lg)
+        rt_card.grid(row=0, column=0, sticky="nsew", pady=SPACING.lg, padx=SPACING.lg)
         rt_card.grid_columnconfigure(0, weight=1)
+        rt_card.grid_rowconfigure(0, weight=1) # Allow visualizer to expand
         
-        inner = ctk.CTkFrame(rt_card, fg_color="transparent", border_width=0)
-        inner.grid(row=0, column=0, sticky="ew", padx=SPACING.lg, pady=SPACING.lg)
-        inner.grid_columnconfigure(0, weight=1)
+        # Visualizer Container (Top)
+        viz_container = ctk.CTkFrame(rt_card, fg_color="transparent")
+        viz_container.grid(row=0, column=0, sticky="nsew", padx=SPACING.xl, pady=(SPACING.xl, SPACING.md))
+        viz_container.grid_columnconfigure(0, weight=1)
+        viz_container.grid_rowconfigure(0, weight=1)
         
-        # Microphone selection
-        body_size = ThemeManager.get_font_size('body')
-        mic_label = ctk.CTkLabel(
-            inner,
-            text="Select Microphone",
-            font=('Segoe UI', body_size, 'bold'),
-            text_color=self.theme.text_secondary
+        self.audio_level_bar = AudioVisualizer(
+            viz_container,
+            num_bars=60,
+            update_speed_ms=40,
+            height=150
         )
-        mic_label.grid(row=0, column=0, sticky="w", pady=(0, SPACING.xs))
+        self.audio_level_bar.grid(row=0, column=0, sticky="nsew")
+        
+        # Controls Container (Bottom)
+        controls = ctk.CTkFrame(rt_card, fg_color="transparent")
+        controls.grid(row=1, column=0, sticky="ew", padx=SPACING.xl, pady=(0, SPACING.xl))
+        controls.grid_columnconfigure(0, weight=1)
+        
+        # Microphone selection centered
+        body_size = ThemeManager.get_font_size('body')
+        
+        mic_frame = ctk.CTkFrame(controls, fg_color="transparent")
+        mic_frame.grid(row=0, column=0, pady=(0, SPACING.lg))
+        
+        mic_icon = ctk.CTkLabel(
+            mic_frame,
+            text="🎙️",
+            font=('Segoe UI', body_size + 4)
+        )
+        mic_icon.pack(side="left", padx=(0, SPACING.sm))
         
         self.mic_var = ctk.StringVar(value="Loading...")
         btn_height = ThemeManager.get_button_height('md')
         self.mic_combo = ctk.CTkComboBox(
-            inner,
+            mic_frame,
             variable=self.mic_var,
             values=["Loading..."],
             font=('Segoe UI', body_size),
             height=btn_height,
-            corner_radius=ThemeManager.get_radius('sm'),
-            fg_color=self.theme.surface_light,
+            width=250,
+            corner_radius=btn_height // 2, # Pill shape
+            fg_color=self.theme.surface,
             border_color=self.theme.border,
-            button_color=self.theme.primary,
-            button_hover_color=self.theme.primary_hover,
+            border_width=1,
+            button_color=self.theme.surface,
+            button_hover_color=self.theme.border,
             dropdown_fg_color=self.theme.surface_light,
             dropdown_hover_color=self.theme.primary
         )
-        self.mic_combo.grid(row=1, column=0, sticky="ew", pady=(0, SPACING.lg))
+        self.mic_combo.pack(side="left")
         
         # Refresh button
-        btn_height_sm = ThemeManager.get_button_height('sm')
-        caption_size = ThemeManager.get_font_size('caption')
         refresh_btn = ctk.CTkButton(
-            inner,
-            text="🔄 Refresh",
+            mic_frame,
+            text="🔄",
             command=self._refresh_microphones,
-            height=btn_height_sm,
-            font=('Segoe UI', caption_size),
+            height=btn_height,
+            width=btn_height,
+            font=('Segoe UI', body_size),
             fg_color="transparent",
-            border_width=1,
-            border_color=self.theme.border,
-            corner_radius=ThemeManager.get_radius('sm')
+            hover_color=self.theme.surface_light,
+            corner_radius=btn_height // 2
         )
-        refresh_btn.grid(row=2, column=0, sticky="ew", pady=(0, SPACING.md))
+        refresh_btn.pack(side="left", padx=(SPACING.sm, 0))
         
-        # Audio level indicator
-        audio_label = ctk.CTkLabel(
-            inner,
-            text="Audio Level",
-            font=('Segoe UI', body_size, 'bold'),
-            text_color=self.theme.text_secondary
-        )
-        audio_label.grid(row=3, column=0, sticky="w", pady=(SPACING.md, SPACING.xs))
-        
-        self.audio_level_bar = ctk.CTkProgressBar(
-            inner,
-            height=20,
-            progress_color=self.theme.success,
-            corner_radius=ThemeManager.get_radius('sm')
-        )
-        self.audio_level_bar.grid(row=4, column=0, sticky="ew", pady=(0, SPACING.lg))
-        self.audio_level_bar.set(0)
-        
-        # Record button
-        btn_height_lg = ThemeManager.get_button_height('lg')
+        # Record button (Large Pill)
+        btn_height_lg = ThemeManager.get_button_height('lg') + 14 # Massive button
         self.record_btn = ctk.CTkButton(
-            self.tab_realtime,
-            text="🔴 Start Recording",
+            controls,
+            text="🔴 RECORD",
             command=self._toggle_recording,
-            font=('Segoe UI', body_size + 3, 'bold'),
+            font=('Segoe UI', body_size + 4, 'bold'),
             height=btn_height_lg,
-            corner_radius=ThemeManager.get_radius('lg'),
+            width=240,
+            corner_radius=btn_height_lg // 2, # Pill shape
             fg_color=self.theme.error,
             hover_color='#DC2626'
         )
-        # CRITICAL: Use grid with sticky="ew" to force horizontal expansion
-        self.record_btn.grid(row=1, column=0, sticky="ew", padx=SPACING.lg, pady=(SPACING.sm, SPACING.lg))
+        self.record_btn.grid(row=1, column=0, pady=(0, SPACING.md))
         
         # Realtime init is now part of _init_services_async
     
@@ -515,7 +518,7 @@ class InsightronGUI:
                     break
             
             self.is_recording = True
-            self.record_btn.configure(text="⬛ Stop Recording", fg_color=self.theme.primary)
+            self.record_btn.configure(text="⬛ STOP RECORDING", fg_color=self.theme.surface, text_color=self.theme.text_primary, border_width=2, border_color=self.theme.border)
             self.progress_panel.update_status("🎙️ Listening...")
             self.results_panel.append(f"--- Recording Started ({name}) ---")
             
@@ -534,7 +537,7 @@ class InsightronGUI:
     def _stop_recording(self):
         """Stop realtime recording."""
         self.is_recording = False
-        self.record_btn.configure(text="🔴 Start Recording", fg_color=self.theme.error)
+        self.record_btn.configure(text="🔴 RECORD", fg_color=self.theme.error, text_color="#FFFFFF", border_width=0)
         if self.realtime_transcriber:
             self.realtime_transcriber.stop_transcription()
         
@@ -588,7 +591,7 @@ class InsightronGUI:
             self.results_panel.append(f"⏹ Stopped recording - Save failed: {e}")
         
         self.progress_panel.update_status("✅ Stopped")
-        self.audio_level_bar.set(0)
+        self.audio_level_bar.reset()
     
     def _on_realtime_text(self, text: str):
         """Callback for realtime text."""
@@ -599,17 +602,8 @@ class InsightronGUI:
         self.root.after(0, lambda: self._update_audio_level(level))
     
     def _update_audio_level(self, level: float):
-        """Update progress bar with color coding."""
-        self.audio_level_bar.set(level)
-        
-        if level < 0.5:
-            color = self.theme.success
-        elif level < 0.8:
-            color = '#F59E0B'
-        else:
-            color = self.theme.error
-        
-        self.audio_level_bar.configure(progress_color=color)
+        """Update audio visualizer level."""
+        self.audio_level_bar.set_level(level)
     
     def _start_transcription(self):
         """Start single file transcription."""
