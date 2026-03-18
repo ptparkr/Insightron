@@ -171,6 +171,25 @@ def run_batch(args):
         sys.exit(1)
 
 
+def run_web():
+    """Run the modern Web UI application."""
+    print("✅ All checks passed!")
+    print("🚀 Starting Web UI application on http://localhost:8000...")
+    
+    try:
+        import uvicorn
+        # The app is located at insightron.app.web.server:app
+        uvicorn.run("insightron.app.web.server:app", host="127.0.0.1", port=8000, reload=False)
+    except ImportError:
+        print("❌ Error: Web dependencies not installed. Run `pip install fastapi uvicorn python-multipart websockets`")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ Error starting web server: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
 def main():
     """Main application entry point."""
     print("🎤 Insightron v3.1.0 - AI Audio Transcriber")
@@ -187,6 +206,7 @@ def main():
     
     # Parse arguments
     parser = argparse.ArgumentParser(description="Insightron - AI Audio Transcriber")
+    parser.add_argument('--web', action='store_true', help='Launch the modern Web UI (FastAPI)')
     subparsers = parser.add_subparsers(dest='command', help='Command to run')
     
     # Batch command
@@ -203,7 +223,11 @@ def main():
     
     if args.command == 'batch':
         run_batch(args)
+    elif args.web:
+        run_web()
     else:
+        # Default behavior: run GUI, but maybe prompt them that web is available
+        print("💡 Tip: Try running with `--web` for the new modern HTML interface!")
         run_gui()
 
 
