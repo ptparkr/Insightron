@@ -1,19 +1,22 @@
 """
 Batch processing services module.
 
-Provides batch transcription functionality:
-- batch_transcribe_files: Main batch processing function
-- BatchState: State management for batch operations
-- ProgressTracker: Progress tracking and reporting
+Provides optimized batch transcription functionality.
 """
 
-from insightron.services.batch.batch_processor import batch_transcribe_files
+from insightron.services.batch.processor import (
+    batch_transcribe,
+    OptimizedBatchProcessor,
+    BatchResult,
+)
+
+# Backward compatibility
 from insightron.services.batch.batch_state_manager import BatchState, FileStatus
-from insightron.services.batch.progress_tracker import ProgressTracker
 
 __all__ = [
-    'batch_transcribe_files',
-    'BatchState',
-    'FileStatus',
-    'ProgressTracker',
+    "batch_transcribe",
+    "OptimizedBatchProcessor",
+    "BatchResult",
+    "BatchState",
+    "FileStatus",
 ]

@@ -55,9 +55,9 @@ class LazyImport:
 
     @staticmethod
     def batch():
-        from insightron.services.batch.batch_processor import batch_transcribe_files
+        from insightron.services.batch import batch_transcribe
 
-        return batch_transcribe_files
+        return batch_transcribe
 
     @staticmethod
     def ctk():
@@ -200,11 +200,6 @@ def run_batch(args) -> None:
         model_size=args.model or model,
         language=args.language or language,
         max_workers=args.workers,
-        use_multiprocessing=True,
-        progress_callback=lambda c, t, f: print(f"[{c}/{t}] {f}"),
-        use_multi_pass=args.multi_pass,
-        enable_emotion=args.emotion,
-        formatting_style=args.style,
     )
 
     # Report

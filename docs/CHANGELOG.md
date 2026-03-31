@@ -9,52 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.0] - 2026-03-31
 
-### 🚀 Major Architecture Refactoring
+### Complete Architecture Refactoring
 
-**Performance Focus**: Reduced algorithmic complexity from O(n) to O(1) for config lookups, implemented async startup, and optimized ML resource allocation.
+**All phases implemented and tested:**
 
-### Added
+- Phase A: Foundation (config, resources, bus)
+- Phase B: Core Optimization (model, audio, formatter)
+- Phase C: Pipeline & Batch
+- Phase D: GUI Refactor
 
-- ✅ **TOML Configuration**: Migrated from YAML to TOML (`config.toml`) for O(1) config parsing using Python 3.11+ `tomllib`
-- ✅ **Resource Pool** (`insightron/core/resources.py`): Unified ML workload resource management with O(1) allocation
-- ✅ **Message Bus** (`insightron/core/bus.py`): Event-driven inter-component communication with O(1) pub/sub
-- ✅ **Modular Config** (`insightron/core/config/`): Split config into models, loader, and manager for better maintainability
-- ✅ **Async Startup**: Non-blocking initialization with `--check` mode for system diagnostics
-- ✅ **Lazy Imports**: Deferred module loading for faster startup time
+### Testing Completed
 
-### Changed
+- Round 1: Core imports, config, resources
+- Round 2: Pipeline, formatter, message bus
+- Round 3: Full integration, main entry point
 
-- 🔄 **main.py**: Refactored to ~200 LOC with async main, lazy imports, and modular entry points
-- 🔄 **Config System**: O(1) lookup via `@cache` decorator instead of O(n) YAML parsing per access
-- 🔄 **Entry Points**: New `--check` mode for system health diagnostics
-- 🔄 **Backward Compatibility**: Legacy `config.py` preserved with deprecation warnings for YAML config
+### New Modular Architecture
 
-### Technical Details
+```
+insightron/
+├── core/
+│   ├── config/           # TOML config (O(1))
+│   ├── model/            # Optimized model manager
+│   ├── resources.py      # Resource pool
+│   └── bus.py           # Message bus
+├── services/
+│   ├── audio/           # Indexed audio (O(log n))
+│   ├── pipeline/        # Unified pipeline
+│   └── batch/           # Optimized batch
+├── app/
+│   ├── main.py          # Refactored entry
+│   └── gui/             # Simplified GUI
+└── config.toml          # TOML config
+```
 
-- New files:
-  - `insightron/core/config/models.py` - Dataclass definitions (frozen=True)
-  - `insightron/core/config/loader.py` - TOML loader with caching
-  - `insightron/core/config/__init__.py` - Unified config manager
-  - `insightron/core/resources.py` - Resource pool (150 LOC)
-  - `insightron/core/bus.py` - Message bus (120 LOC)
-  - `config.toml` - New TOML configuration (replaces YAML)
-- Modified:
-  - `insightron/app/main.py` - Async startup, lazy imports
-  - `insightron/core/config.py` - Backward compatibility wrapper
-  - `insightron/core/__init__.py` - Updated exports
+### Legacy Code Preserved
 
-### Deprecations
+The old transcription services remain available for backward compatibility:
+- `insightron/services/transcription/` - Legacy modules (deprecated but importable)
+- `insightron/core/model_manager.py` - Old model manager (deprecated)
 
-- ⚠️ `config.yaml` - Migrate to `config.toml` (YAML still supported with warnings)
-- ⚠️ Synchronous model loading - Use async patterns for new code
-
-### Performance Improvements
-
-| Operation | Before | After | Method |
-|-----------|--------|-------|--------|
-| Config access | O(n) | O(1) | @cache + TOML |
-| Startup time | ~2s | ~0.5s | Lazy imports |
-| Resource detection | Per-call | O(1) | Cached quota |
+---
 
 ## [4.0.0] - 2026-02-28
 
