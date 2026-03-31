@@ -1,32 +1,49 @@
 """
-Core module for Insightron.
+Insightron Core Module
 
-This module provides foundational components including:
-- Configuration management (ConfigManager)
-- Model management (ModelManager)
-- Utility functions (formatting, markdown creation)
-- Settings persistence (SettingsManager)
+Provides foundational components:
+- Configuration (TOML-based, O(1) lookup)
+- Resource Pool (ML workload management)
+- Message Bus (inter-component communication)
 """
 
-from insightron.core.config import ConfigManager, get_config_manager
-from insightron.core.model_manager import ModelManager
-from insightron.core.settings_manager import SettingsManager
-from insightron.core.utils import (
-    create_markdown,
-    create_realtime_note,
-    format_text,
-    format_duration,
-    sanitize_filename
+from insightron.core.config import (
+    ConfigManager,
+    get_config_manager,
+    get_config,
+    get_all_config,
+)
+from insightron.core.resources import (
+    ResourcePool,
+    get_resource_pool,
+    WorkloadType,
+    QuotaInfo,
+)
+from insightron.core.bus import (
+    MessageBus,
+    get_message_bus,
+    EventType,
+    Event,
+    emit,
+    on,
 )
 
 __all__ = [
-    'ConfigManager',
-    'get_config_manager',
-    'ModelManager',
-    'SettingsManager',
-    'create_markdown',
-    'create_realtime_note',
-    'format_text',
-    'format_duration',
-    'sanitize_filename',
+    # Config
+    "ConfigManager",
+    "get_config_manager",
+    "get_config",
+    "get_all_config",
+    # Resources
+    "ResourcePool",
+    "get_resource_pool",
+    "WorkloadType",
+    "QuotaInfo",
+    # Bus
+    "MessageBus",
+    "get_message_bus",
+    "EventType",
+    "Event",
+    "emit",
+    "on",
 ]

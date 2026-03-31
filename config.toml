@@ -1,0 +1,88 @@
+# Insightron Configuration
+# Migrated from config.yaml to config.toml for faster parsing (Python 3.11+ tomllib)
+
+[model]
+name = "medium"
+compute_type = "int8"
+device = "auto"
+quality_mode = "balanced"
+enable_vad = true
+enable_retry = true
+max_retries = 2
+adaptive_vad = false
+batch_size = 1
+enable_warmup = true
+enable_dynamic_beam = true
+
+[model.decode]
+beam_size = 5
+best_of = 5
+temperature = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+condition_on_previous_text = true
+compression_ratio_threshold = 2.4
+log_prob_threshold = -1.0
+no_speech_threshold = 0.6
+word_timestamps = true
+initial_prompt = ""
+
+[audio_preprocess]
+enabled = true
+
+[audio_preprocess.noise_reduction]
+enabled = true
+stationary = true
+prop_decrease = 0.75
+
+[audio_preprocess.loudness]
+enabled = true
+target_lufs = -23.0
+
+[audio_preprocess.pre_emphasis]
+enabled = true
+coeff = 0.97
+
+[audio_preprocess.trim]
+enabled = true
+top_db = 20.0
+
+[diarization]
+enabled = false
+model = "pyannote/embedding"
+cluster_threshold = 0.5
+
+[realtime]
+buffer_duration_seconds = 30.0
+chunk_duration_seconds = 5.0
+stride_seconds = 1.0
+silence_threshold = 0.015
+silence_duration = 0.5
+
+[post_processing]
+formatting_profile = "thinking_session"
+
+[transcription]
+segment_merge_threshold = -0.5
+enable_audio_preprocessing = true
+min_confidence = -1.0
+filename_template = "{stem}_transcription.md"
+
+[multi_pass]
+enabled = true
+chunk_duration = 30.0
+chunk_overlap = 2.0
+
+[multi_pass.contextual_restoration]
+enabled = true
+provider = "local"
+
+[multi_pass.emotion_mapping]
+enabled = false
+enabled_emotions = ["cheerful", "urgent", "calm", "excited", "serious"]
+
+[runtime]
+worker_count = null
+transcription_folder = "transcriptions"
+processed_audio_folder = "processed_audio"
+
+[report]
+style = "classic"
