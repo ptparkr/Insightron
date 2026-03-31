@@ -1,4 +1,4 @@
-# 🎤 Insightron - AI Audio Transcriber
+# 🎤 Insightron v4.1.0 - AI Audio Transcriber
 
 **Transform audio into beautifully structured insights with lightning-fast precision.**
 
@@ -7,15 +7,17 @@
 ### Run the Application
 
 ```bash
-# Recommended (after install): GUI
-insightron
+# GUI mode (default)
 python -m insightron.app.main
 
-# Or (legacy)
-python run_insightron.py
+# Web UI mode
+python -m insightron.app.main --web
 
-# Or use the app module
-python insightron/app/main.py
+# Batch processing
+python -m insightron.app.main batch -i /path/to/audio
+
+# System check
+python -m insightron.app.main --check
 ```
 
 ### Installation
@@ -33,11 +35,7 @@ pip install -e .
 pip install -e ".[llm]"
 
 # Alternative: use the bundled installer
-python install.py
-
-# Or platform-specific installers
-automation/setup/install_windows.bat    # Windows
-./automation/setup/install_unix.sh      # Linux/macOS
+python automation/setup/install.py
 ```
 
 > **Note:** Some versions of the underlying `ctranslate2` / `faster-whisper`
@@ -50,13 +48,8 @@ automation/setup/install_windows.bat    # Windows
 
 All documentation is in the `docs/` folder:
 
-- **[README.md](docs/README.md)** - Full documentation and features
-- **[LLM_USAGE.md](docs/LLM_USAGE.md)** - Guide for LLM integration & setup
-- **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history (see v4.0.0!)
-- **[QUICK_START.md](docs/QUICK_START.md)** - Quick start for developers
-- **[STRUCTURE.md](docs/STRUCTURE.md)** - Codebase structure guide
-- **[ROOT_DIRECTORY.md](docs/ROOT_DIRECTORY.md)** - Root directory organization
-- **[RESTRUCTURE_SUMMARY.md](docs/RESTRUCTURE_SUMMARY.md)** - Recent restructuring details
+- **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history (see v4.1.0!)
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Detailed architecture guide
 
 ## 📁 Project Structure
 
@@ -64,49 +57,52 @@ All documentation is in the `docs/` folder:
 Insightron/
 ├── insightron/           # Main source code
 │   ├── app/              # Application entry points
-│   ├── core/             # Core functionality
+│   ├── core/             # Core functionality (config, model, resources, bus)
 │   ├── services/         # Business logic
-│   │   └── transcription/ # Multi-pass pipeline
+│   │   ├── audio/         # Optimized audio processing
+│   │   ├── pipeline/     # Unified transcription pipeline
+│   │   └── batch/        # Batch processing
 │   └── ui/               # UI components
 ├── docs/                 # Documentation
 ├── tests/                # Test suite
-├── automation/           # Setup & utility scripts
-└── config.yaml           # Configuration file
+├── automation/           # Setup scripts
+└── config.toml           # Configuration file (TOML)
 ```
 
 ## ✨ Features
 
-### 🎯 NEW in v4.0.0: Single-Phase Engine & Beyond
-- 🏗️ **Layered Architecture**: Ground Truth → Single-Pass Brain → Typesetter → Contract
-- 📊 **Dashboard Reports**: Quality metrics table, speaker timeline, low-confidence flags
-- 🎧 **Audio Preprocessing**: Noise reduction, LUFS normalization, pre-emphasis, edge trimming
-- 🗣️ **Speaker Diarization**: pyannote-powered speaker identification and attribution
-- 📝 **FormattingViews**: Named views (thinking_session, meeting_notes, study_notes) with LaTeX support
-- 🤖 **v2 LLM Restoration**: Prompt profiles, JSON response contract, boundary stitching
-- 💭 **Emotion Detection**: Automatic markers like [Cheerful], [Urgent], [Calm]
-- 🧠 **Local or Cloud LLMs**: Choose Qwen2.5-3B (local) or OpenAI GPT (API)
+### 🎯 NEW in v4.1.0: Minimal Architecture
+- ⚡ **O(1) Config Lookup**: TOML-based config with caching
+- 🚀 **O(log n) Audio Chunking**: Binary search indexed access
+- 🎨 **O(n) Text Formatting**: Single-pass processing with pre-compiled regex
+- 🧠 **Resource Pool**: Priority allocation for ML workloads
+- 📡 **Message Bus**: Event-driven inter-component communication
+- 🔄 **Async Startup**: Non-blocking initialization
 
 ### Core Features
 - ⚡ **Adaptive & Fast**: Up to 6x faster with Distil-Whisper & Dynamic Chunking
-- 🎨 **Responsive GUI**: Professional dark-themed interface that scales perfectly
-- 🧠 **Efficiency Layer**: Optimized for low-spec hardware & massive files
-- 📦 **Batch Processing**: Process multiple files efficiently with resume capability
+- 🎨 **Responsive GUI**: Professional dark-themed interface
+- 📦 **Batch Processing**: Process multiple files with retry + circuit breaker
 - 🔴 **Real-time**: Live audio transcription with VAD
 - 🌍 **100+ Languages**: Multi-language support
-- 💾 **Obsidian Integration**: Direct save to your vault
 
 ## 🛠️ Configuration
 
-Edit `config.yaml` to configure:
+Edit `config.toml` to configure:
 - Transcription folder paths
-- Model settings (including multi-pass!)
+- Model settings
 - Language preferences
-- Audio preprocessing, diarization, report styles
-- Multi-pass LLM provider and emotion thresholds
+- Audio preprocessing options
 
 ## 📖 For Developers
 
-See [docs/QUICK_START.md](docs/QUICK_START.md) for development guide.
+```bash
+# System check
+python -m insightron.app.main --check
+
+# Run tests
+pytest tests/
+```
 
 ## 📝 License
 

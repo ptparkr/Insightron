@@ -23,6 +23,7 @@ from insightron.services.transcription.speaker_attribution import SpeakerAttribu
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 class ResultHandler:
     """
     Handles post-processing of transcription results:
@@ -77,52 +78,62 @@ class ResultHandler:
         """
         if not segments or len(segments) <= 1:
             return segments
-        
+
         # Analyze first
         analysis = self.segment_analyzer.analyze_segments(segments)
-        speech_rate_wpm = analysis.get('speech_rate_wpm', analysis['speech_rate'] * 60)
-        logger.info(f"Segment analysis: {analysis['analysis_quality']} quality, "
-                   f"adaptive_threshold={analysis['adaptive_threshold']:.3f}s, "
-                   f"speech_rate={speech_rate_wpm:.1f} WPM")
+        speech_rate_wpm = analysis.get("speech_rate_wpm", analysis["speech_rate"] * 60)
+        logger.info(
+            f"Segment analysis: {analysis['analysis_quality']} quality, "
+            f"adaptive_threshold={analysis['adaptive_threshold']:.3f}s, "
+            f"speech_rate={speech_rate_wpm:.1f} WPM"
+        )
 
         merged = []
         current = segments[0].copy()
-        
+
         for i in range(1, len(segments)):
             next_seg = segments[i]
-            
+
             should_merge, reason = self.segment_analyzer.should_merge_segments(
                 current, next_seg, analysis
             )
-            
+
             if should_merge:
-                current['end'] = next_seg['end']
-                current['text'] = current['text'] + ' ' + next_seg['text']
-                
+                current["end"] = next_seg["end"]
+                current["text"] = current["text"] + " " + next_seg["text"]
+
                 # Weighted confidence average by duration
-                if 'confidence' in current and 'confidence' in next_seg:
-                    dur_current = current.get('_original_duration', current['end'] - current['start'])
-                    dur_next = next_seg.get('_original_duration', next_seg['end'] - next_seg['start'])
+                if "confidence" in current and "confidence" in next_seg:
+                    dur_current = current.get(
+                        "_original_duration", current["end"] - current["start"]
+                    )
+                    dur_next = next_seg.get(
+                        "_original_duration", next_seg["end"] - next_seg["start"]
+                    )
                     total_dur = dur_current + dur_next
                     if total_dur > 0:
                         weighted_conf = (
-                            (current['confidence'] * dur_current + next_seg['confidence'] * dur_next) 
-                            / total_dur
-                        )
-                        current['confidence'] = weighted_conf
-                
+                            current["confidence"] * dur_current
+                            + next_seg["confidence"] * dur_next
+                        ) / total_dur
+                        current["confidence"] = weighted_conf
+
                 logger.debug(f"Merged segments: {reason}")
             else:
                 merged.append(current)
                 current = next_seg.copy()
-        
+
         merged.append(current)
-        
-        logger.info(f"Segment merging: {len(segments)} -> {len(merged)} segments "
-                   f"({(1 - len(merged)/len(segments))*100:.1f}% reduction)")
+
+        logger.info(
+            f"Segment merging: {len(segments)} -> {len(merged)} segments "
+            f"({(1 - len(merged) / len(segments)) * 100:.1f}% reduction)"
+        )
         return merged
 
-    def calculate_quality_metrics(self, segments: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def calculate_quality_metrics(
+        self, segments: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """
         Calculate detailed quality metrics for transcribed segments.
 
@@ -161,7 +172,7 @@ class ResultHandler:
         )
         effective_style = self._resolve_style(formatting_profile, formatting_style)
         final_text = self.formatter.format_structure(segments, style=effective_style)
-        
+
         # 2. Truth Scoring (Quality/Risk)
         quality_analysis = self.quality_calc.calculate_risk_metrics(segments)
 
@@ -179,10 +190,10 @@ class ResultHandler:
             no_speech_probability=no_speech_prob,
             compression_ratio=compression_ratio,
         )
-        
+
         # 3. Standardized Result Schema
         result_data = {
-            "version": "4.0.0",
+            "version": "4.1.0",
             "metadata": metadata,
             "transcription": {
                 "full_text": final_text,
@@ -198,10 +209,12 @@ class ResultHandler:
             "quality": quality_analysis,
             "stats": {
                 "processing_time": processing_time,
-                "rtf": processing_time / metadata.get('duration_seconds', 1.0) if metadata.get('duration_seconds', 1.0) > 0 else 0
-            }
+                "rtf": processing_time / metadata.get("duration_seconds", 1.0)
+                if metadata.get("duration_seconds", 1.0) > 0
+                else 0,
+            },
         }
-        
+
         # 4. Deterministic Persistence
         source_path = Path(audio_path)
         now = datetime.now()
@@ -228,13 +241,15 @@ class ResultHandler:
             output_filename = f"{output_filename}.md"
 
         output_path = self.output_dir / output_filename
-        
+
         # Generate Markdown with clear uncertainty exposure
         self._write_markdown(output_path, result_data)
-        
+
         # 7. Save Processed Audio (optional, but good practice to keep together)
         try:
-            processed_audio_path = save_processed_audio(audio_path, PROCESSED_AUDIO_FOLDER)
+            processed_audio_path = save_processed_audio(
+                audio_path, PROCESSED_AUDIO_FOLDER
+            )
             artifacts = result_data.setdefault("artifacts", {})
             artifacts["processed_audio_path"] = str(processed_audio_path)
         except Exception as e:
@@ -249,7 +264,9 @@ class ResultHandler:
             metrics = (data.get("analysis") or {}).get("metrics")
             source_path = str((data.get("metadata") or {}).get("source_path") or "")
             md = self.renderer.render_dashboard(
-                audio_path=source_path if source_path else str((data.get("metadata") or {}).get("filename") or ""),
+                audio_path=source_path
+                if source_path
+                else str((data.get("metadata") or {}).get("filename") or ""),
                 segments=data["transcription"].get("segments", []),
                 metrics=metrics,
                 diarization=diar,
@@ -265,7 +282,7 @@ class ResultHandler:
         risk = data["quality"]
         action = risk["action_recommendation"]
         stats = data.get("stats", {})
-        
+
         # Color indicator for risk
         color = "🟢" if action == "Accept" else "🟡" if action == "Flag" else "🔴"
 
@@ -273,14 +290,16 @@ class ResultHandler:
         segments = data["transcription"].get("segments", [])
         timestamps_section = ""
         if segments:
-            timestamps_section = "\n## Timestamps\n\n" + create_timestamps_section(segments)
+            timestamps_section = "\n## Timestamps\n\n" + create_timestamps_section(
+                segments
+            )
 
         # Restoration flags (multi-pass pass2_restore attaches `quality_flags` per segment)
         flag_counts: Dict[str, int] = {}
         stitched_count = 0
         total_segments = len(segments)
         for seg in segments:
-            for flag in (seg.get("quality_flags") or []):
+            for flag in seg.get("quality_flags") or []:
                 flag_counts[str(flag)] = flag_counts.get(str(flag), 0) + 1
             if seg.get("stitched"):
                 stitched_count += 1
