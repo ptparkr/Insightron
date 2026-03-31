@@ -78,13 +78,13 @@ class MessageBus:
             with self._sub_lock:
                 if event_type is None:
                     self._global_subscribers = [
-                        r for r in self._global_subscribers if r() is not None
+                        r for r in self._global_subscribers if r is not ref and r() is not None
                     ]
                 else:
                     self._subscribers[event_type] = [
                         r
                         for r in self._subscribers.get(event_type, [])
-                        if r() is not None
+                        if r is not ref and r() is not None
                     ]
 
         return unsubscribe

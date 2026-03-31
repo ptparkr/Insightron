@@ -192,7 +192,19 @@ class ConfigManager:
 # Backward compatibility aliases
 WHISPER_MODEL = "medium"
 DEFAULT_LANGUAGE = "auto"
-SUPPORTED_LANGUAGES = ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh"]
+SUPPORTED_LANGUAGES = {
+    "auto": "Auto Detect",
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "zh": "Chinese",
+}
 TRANSCRIPTION_FOLDER = Path("transcriptions")
 PROCESSED_AUDIO_FOLDER = Path("processed_audio")
 OUTPUT_ENCODING = "utf-8"

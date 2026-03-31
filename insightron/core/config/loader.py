@@ -1,9 +1,12 @@
 import tomllib
+import logging
 from pathlib import Path
 from typing import Any, Optional
 from functools import cache
 
-CONFIG_DIR = Path(__file__).parent.parent.parent
+logger = logging.getLogger(__name__)
+
+CONFIG_DIR = Path(__file__).resolve().parent.parent.parent.parent
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 
 
@@ -11,6 +14,7 @@ CONFIG_FILE = CONFIG_DIR / "config.toml"
 def _load_config() -> dict[str, Any]:
     """Load and cache config file - O(1) access after initial load."""
     if not CONFIG_FILE.exists():
+        logger.warning("Config file not found at %s; using defaults.", CONFIG_FILE)
         return {}
 
     with open(CONFIG_FILE, "rb") as f:

@@ -120,7 +120,7 @@ class ResourcePool:
         max_by_memory = int(quota.memory_gb / mem_per_worker)
         max_by_cpu = quota.workers_allowed
 
-        return min(max_by_memory, max_by_cpu)
+        return max(1, min(max_by_memory, max_by_cpu))
 
     def recommend_quantization(self) -> str:
         """Recommend compute type based on available memory."""
