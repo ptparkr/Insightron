@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+insightron/__pycache__/
+insightron/**/__pycache__/
 
 # Virtualenvs
 .venv/
@@ -31,5 +33,8 @@ Thumbs.db
 # Specified items
 benchmark_results.json
 insightron.egg-info/
+
+# Editor/IDE
 .cursor/
-benchmark_results.json
+.vscode/
+.idea/

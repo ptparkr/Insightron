@@ -49,6 +49,14 @@ The old transcription services remain available for backward compatibility:
 - `insightron/services/transcription/` - Legacy modules (deprecated but importable)
 - `insightron/core/model_manager.py` - Old model manager (deprecated)
 
+### Cleanup & Optimization
+
+- Removed deprecated `config.yaml` (replaced by `config.toml`)
+- Removed legacy entry points: `cli.py`, `run_insightron.py`, `install.py`, `install_dependencies.py`
+- Removed `automation/scripts/` directory (14 deprecated scripts)
+- Updated `.gitignore` with comprehensive cache and editor patterns
+- Removed YAML config fallback code from `config.py`
+
 ---
 
 ## [4.0.0] - 2026-02-28
