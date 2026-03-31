@@ -454,12 +454,27 @@ from insightron.services.batch.batch_processor import batch_transcribe_files
 
 ### GUI Mode
 ```bash
-python insightron.py
+python -m insightron.app.main
 ```
 
 ### CLI Mode
 ```bash
-python cli.py --help
+python -m insightron.app.cli.cli --help
+```
+
+### Web Mode
+```bash
+python -m insightron.app.main --web
+```
+
+### Batch Mode
+```bash
+python -m insightron.app.main batch -i /path/to/audio
+```
+
+### System Check
+```bash
+python -m insightron.app.main --check
 ```
 
 ## Migration Notes (v4.0.0)

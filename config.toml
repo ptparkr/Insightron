@@ -80,7 +80,7 @@ enabled = false
 enabled_emotions = ["cheerful", "urgent", "calm", "excited", "serious"]
 
 [runtime]
-worker_count = null
+worker_count = 1
 transcription_folder = "transcriptions"
 processed_audio_folder = "processed_audio"
 
