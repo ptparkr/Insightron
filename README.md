@@ -48,36 +48,46 @@ python automation/setup/install.py
 
 All documentation is in the `docs/` folder:
 
+- **[STRUCTURE.md](docs/STRUCTURE.md)** - Architecture diagrams and codebase structure with detailed mermaid charts
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Detailed architecture guide with design patterns
+- **[QUICK_START.md](docs/QUICK_START.md)** - Quick start guide
+- **[BATCH_PROCESSING.md](docs/BATCH_PROCESSING.md)** - Batch processing documentation
+- **[LLM_USAGE.md](docs/LLM_USAGE.md)** - LLM integration guide
+- **[PERFORMANCE_UPGRADE.md](docs/PERFORMANCE_UPGRADE.md)** - Performance optimizations
 - **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history (see v4.1.0!)
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Detailed architecture guide
+- **[README.md](docs/README.md)** - Full documentation index
 
 ## 📁 Project Structure
 
 ```
 Insightron/
 ├── insightron/           # Main source code
-│   ├── app/              # Application entry points
+│   ├── app/              # Application entry points (GUI, CLI, Web)
 │   ├── core/             # Core functionality (config, model, resources, bus)
 │   ├── services/         # Business logic
-│   │   ├── audio/         # Optimized audio processing
-│   │   ├── pipeline/     # Unified transcription pipeline
-│   │   └── batch/        # Batch processing
+│   │   ├── transcription/ # Transcription pipeline
+│   │   ├── batch/         # Batch processing
+│   │   └── realtime/      # Real-time transcription
 │   └── ui/               # UI components
 ├── docs/                 # Documentation
-├── tests/                # Test suite
+│   ├── STRUCTURE.md      # Architecture diagrams (mermaid)
+│   ├── ARCHITECTURE.md   # Detailed architecture
+│   ├── QUICK_START.md    # Quick start guide
+│   └── ...
 ├── automation/           # Setup scripts
 └── config.toml           # Configuration file (TOML)
 ```
 
 ## ✨ Features
 
-### 🎯 NEW in v4.1.0: Minimal Architecture
+### NEW in v4.1.0: Minimal Architecture
 - ⚡ **O(1) Config Lookup**: TOML-based config with caching
 - 🚀 **O(log n) Audio Chunking**: Binary search indexed access
 - 🎨 **O(n) Text Formatting**: Single-pass processing with pre-compiled regex
 - 🧠 **Resource Pool**: Priority allocation for ML workloads
 - 📡 **Message Bus**: Event-driven inter-component communication
 - 🔄 **Async Startup**: Non-blocking initialization
+- 📊 **Architecture Diagrams**: Detailed mermaid diagrams in `docs/STRUCTURE.md`
 
 ### Core Features
 - ⚡ **Adaptive & Fast**: Up to 6x faster with Distil-Whisper & Dynamic Chunking
@@ -99,10 +109,9 @@ Edit `config.toml` to configure:
 ```bash
 # System check
 python -m insightron.app.main --check
-
-# Run tests
-pytest tests/
 ```
+
+Architecture documentation: See [docs/STRUCTURE.md](docs/STRUCTURE.md) for detailed mermaid diagrams.
 
 ## 📝 License
 

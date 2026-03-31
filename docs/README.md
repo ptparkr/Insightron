@@ -1,4 +1,37 @@
-# 🎤 Insightron v4.0.0 - Experience the Future of AI Transcription
+# 🎤 Insightron v4.1.0 - Documentation Index
+
+**Transform audio into beautifully structured insights with lightning-fast precision.**
+
+## 📚 Documentation Index
+
+| Document | Description |
+|----------|-------------|
+| **[STRUCTURE.md](STRUCTURE.md)** | Architecture diagrams and codebase structure with detailed mermaid charts |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Detailed architecture guide with design patterns and components |
+| **[QUICK_START.md](QUICK_START.md)** | Quick start guide for new users |
+| **[BATCH_PROCESSING.md](BATCH_PROCESSING.md)** | Batch processing documentation |
+| **[LLM_USAGE.md](LLM_USAGE.md)** | LLM integration guide for multi-pass transcription |
+| **[PERFORMANCE_UPGRADE.md](PERFORMANCE_UPGRADE.md)** | Performance optimizations and benchmarking |
+| **[CHANGELOG.md](CHANGELOG.md)** | Version history and release notes |
+
+## Quick Links
+
+- **Installation**: See main [README.md](../README.md)
+- **Configuration**: Edit `config.toml`
+- **Architecture**: See [STRUCTURE.md](STRUCTURE.md) for detailed mermaid diagrams
+- **Development**: See [ARCHITECTURE.md](ARCHITECTURE.md)
+
+## Key Features
+
+- ⚡ **O(1) Config Lookup**: TOML-based config with caching
+- 🚀 **Single-Pass + Multi-Pass**: Flexible transcription pipeline
+- 🎨 **Formatting Views**: `thinking_session`, `meeting_notes`, `study_notes`
+- 🧠 **LLM Restoration**: Local or cloud LLM for punctuation/formatting
+- 📊 **Dashboard Reports**: Quality metrics, speaker timelines
+
+---
+
+# 🎤 Insightron v4.1.0 - Experience the Future of AI Transcription
 
 **Transform audio into beautifully structured insights with lightning-fast precision.**
 
