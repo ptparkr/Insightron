@@ -65,7 +65,6 @@ insightron/
 │   └── responsive.py      # Responsive layout
 └── utils/                  # Utilities
 
-tests/                      # Test suite
 automation/                 # Setup scripts
 docs/                       # Documentation
 ```
@@ -625,17 +624,6 @@ multi_pass:
     enabled: false
     enabled_emotions: [cheerful, urgent, calm, excited, serious]
 ```
-
----
-
-## 15. Testing
-
-The project includes comprehensive tests in `tests/`:
-- Unit tests for individual components
-- Integration tests for transcription pipeline
-- Batch processing tests
-- Quality metric tests
-- Performance benchmarks
 
 ---
 

@@ -54,7 +54,6 @@ Insightron/
 ├── automation/                   # Automation scripts
 │   ├── setup/                    # Installers (setup.py, install.py)
 │   └── scripts/                  # Utilities (benchmark, troubleshooting)
-├── tests/                        # Test suite and benchmarks
 ├── docs/                         # Documentation
 ├── config.yaml                   # Configuration file
 ├── insightron.py                 # Root GUI/App entry point
