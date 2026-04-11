@@ -1,4 +1,3 @@
-import collections
 import sounddevice as sd
 import numpy as np
 import threading
@@ -6,13 +5,7 @@ import queue
 import logging
 import time
 from typing import Optional, Callable, List, Dict, Any
-from insightron.core.model_manager import ModelManager
-from insightron.core.config import (
-    REALTIME_BUFFER_SECONDS, 
-    REALTIME_SILENCE_THRESHOLD,
-    DEFAULT_LANGUAGE,
-    get_config
-)
+from insightron.core.config import DEFAULT_LANGUAGE, get_config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,38 +20,41 @@ class RealtimeTranscriber(BaseTranscriber):
     Uses a ring buffer and producer-consumer architecture for smooth transcription.
     """
     
-    def __init__(self):
-        # Initialize BaseTranscriber (load model config via getters)
-        model_size = get_config('model.name', 'medium')
-        language = get_config('insightron.services.transcription.language', DEFAULT_LANGUAGE)
-        super().__init__(model_size=model_size)
+    def __init__(self, model_size: Optional[str] = None, language: Optional[str] = None):
+        # Initialize BaseTranscriber; GUI can override config defaults.
+        resolved_model = model_size if model_size is not None else get_config(
+            "model.name", "medium"
+        )
+        resolved_lang = (
+            language
+            if language is not None
+            else get_config("transcription.language", DEFAULT_LANGUAGE)
+        )
+        super().__init__(model_size=resolved_model)
         
         self.is_running = False
         self.result_callback = None
         self.audio_level_callback = None
         self.stream = None
         
-        # Audio parameters
-        self.sample_rate = get_config('insightron.services.realtime.sample_rate', 16000)
+        # Audio parameters (keys match repo config.toml [realtime] section)
+        self.sample_rate = int(get_config("realtime.sample_rate", 16000))
         self.channels = 1
         self.dtype = 'float32'
         self.block_size = 4096
-        
-        # Ring Buffer Configuration
-        self.buffer_duration = REALTIME_BUFFER_SECONDS
+
+        self.buffer_duration = float(get_config("realtime.buffer_duration_seconds", 30.0))
         self.buffer_size = int(self.sample_rate * self.buffer_duration)
         self.ring_buffer = np.zeros(self.buffer_size, dtype=self.dtype)
         self.write_index = 0
-        
-        # Processing parameters
-        self.chunk_duration = get_config('insightron.services.realtime.chunk_duration_seconds', 5)
-        self.stride = get_config('insightron.services.realtime.stride_seconds', 1)
+
+        self.chunk_duration = float(get_config("realtime.chunk_duration_seconds", 5))
+        self.stride = float(get_config("realtime.stride_seconds", 1))
         self.chunk_samples = int(self.sample_rate * self.chunk_duration)
         self.stride_samples = int(self.sample_rate * self.stride)
-        
-        # Silence detection
-        self.silence_threshold = REALTIME_SILENCE_THRESHOLD
-        self.silence_duration = get_config('insightron.services.realtime.silence_duration', 0.5)
+
+        self.silence_threshold = float(get_config("realtime.silence_threshold", 0.015))
+        self.silence_duration = float(get_config("realtime.silence_duration", 0.5))
         self.last_speech_time = 0
         
         # Threading
@@ -70,11 +66,9 @@ class RealtimeTranscriber(BaseTranscriber):
         # State
         self.full_audio_buffer = [] # Keep for saving recording
         self.transcribed_text = ""
-        self.language = language
-        self.model_size = model_size  # Default model size
+        self.language = resolved_lang
+        self.model_size = resolved_model
         self.transcribed_segments = []  # Store all transcribed segments
-        self.detected_language = None  # Store detected language
-        
         self.detected_language = None  # Store detected language
         
         # Performance/Stability: VAD Pre-Processing
