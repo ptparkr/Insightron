@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import List
 
 from insightron.services.transcription.transcribe import AudioTranscriber
-from insightron.services.transcription.text_formatter import TextFormatter
+from insightron.services.audio.formatter import TextFormatter
 from insightron.core.config import WHISPER_MODEL, TRANSCRIPTION_FOLDER
 
 

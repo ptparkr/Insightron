@@ -14,11 +14,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from insightron.core.config import get_config
-from insightron.services.transcription.audio_loader import AudioLoader
+from insightron.services.audio.loader import AudioLoader
 from insightron.services.transcription.transcription_engine import TranscriptionEngine
 from insightron.services.transcription.llm_provider import LLMProviderFactory
 from insightron.services.transcription.emotion_analyzer import EmotionAnalyzer
-from insightron.services.transcription.text_formatter import TextFormatter
+from insightron.services.audio.formatter import TextFormatter
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

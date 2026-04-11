@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Insightron v3.1.0 - Enhanced Dependency Installer
+Insightron v4.1.1 - Enhanced Dependency Installer
 Cross-platform installer with Windows optimization, better error handling,
 and comprehensive dependency management for the Whisper AI transcription tool.
 """
@@ -54,7 +54,7 @@ def run_command(command, description, exit_on_fail=False):
 
 def main():
     """Main installation process"""
-    print("🎤 Insightron v3.1.0 - Enhanced Dependency Installer")
+    print("🎤 Insightron v4.1.1 - Enhanced Dependency Installer")
     print("=" * 60)
     
     # Display platform information

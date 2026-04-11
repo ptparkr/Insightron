@@ -84,7 +84,7 @@ class AudioTranscriber:
         )
 
         result_data = {
-            "version": "4.1.0",
+            "version": "4.1.1",
             "metadata": {
                 "filename": result.metadata.get("filename"),
                 "duration_seconds": result.metadata.get("duration_seconds"),

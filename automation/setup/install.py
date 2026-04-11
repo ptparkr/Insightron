@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Insightron v3.1.0 - Universal Cross-Platform Installer
+Insightron v4.1.1 - Universal Cross-Platform Installer
 Enhanced dependency installer that works on Windows, macOS, and Linux
 with intelligent error handling and compatibility checks.
 """
@@ -148,7 +148,7 @@ def install_dependencies():
         print(f"⚠️  Could not change to script directory: {e}")
         print("   Continuing with current directory...")
     
-    print("\n🎤 Insightron v3.1.0 - Universal Cross-Platform Installer")
+    print("\n🎤 Insightron v4.1.1 - Universal Cross-Platform Installer")
     print("=" * 60)
     print(f"Platform: {platform.system()} {platform.release()}")
     print(f"Architecture: {platform.machine()}")

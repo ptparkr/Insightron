@@ -13,7 +13,7 @@ from insightron.core.config import (
 )
 from insightron.services.transcription.segment_analyzer import SegmentAnalyzer
 from insightron.services.transcription.quality_metrics import QualityMetricsCalculator
-from insightron.services.transcription.text_formatter import TextFormatter
+from insightron.services.audio.formatter import TextFormatter
 from insightron.services.transcription.metrics_calculator import MetricsCalculator
 from insightron.services.transcription.markdown_renderer import MarkdownRenderer
 from insightron.services.transcription.contracts import DiarizationResult
@@ -193,7 +193,7 @@ class ResultHandler:
 
         # 3. Standardized Result Schema
         result_data = {
-            "version": "4.1.0",
+            "version": "4.1.1",
             "metadata": metadata,
             "transcription": {
                 "full_text": final_text,

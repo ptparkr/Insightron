@@ -1,4 +1,4 @@
-# Insightron v3.1.0 - Minimal Requirements
+# Insightron v4.1.1 - Minimal Requirements
 # Use this if the main requirements.txt fails
 # Optimized for compatibility and faster installation
 

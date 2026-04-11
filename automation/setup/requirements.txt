@@ -1,4 +1,4 @@
-# Insightron v3.1.0 - Enhanced Whisper AI Transcription Project Requirements
+# Insightron v4.1.1 - Enhanced Whisper AI Transcription Project Requirements
 # Optimized for performance, reliability, and cross-platform compatibility
 
 # Core Whisper AI (faster-whisper with CTranslate2)

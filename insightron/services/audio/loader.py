@@ -5,6 +5,7 @@ Features:
 - O(1) metadata lookup
 - O(1) chunk access via index
 - Lazy loading for large files
+- Optional preprocessing (noise reduction, LUFS normalization, etc.)
 """
 
 import logging
@@ -192,6 +193,65 @@ class AudioLoader:
         """Clear all caches."""
         self._cache.clear()
         self._index.clear()
+
+    def load_and_preprocess(self, audio_path: str) -> Any:
+        """
+        High-efficiency intake with optional preprocessing.
+        """
+        from insightron.services.transcription.audio_preprocessor import (
+            AudioPreProcessor,
+            AudioPreprocessConfig,
+        )
+        from insightron.core.config import get_config_manager
+
+        path = Path(audio_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+        audio = self.load(audio_path)
+
+        cfg = get_config_manager()
+        enabled = cfg.get("audio_preprocess.enabled", True)
+        if not enabled:
+            return audio
+
+        ap_cfg = AudioPreprocessConfig(
+            enabled=enabled,
+            noise_reduction_enabled=cfg.get("audio_preprocess.noise_reduction.enabled", True),
+            noise_reduction_stationary=cfg.get("audio_preprocess.noise_reduction.stationary", True),
+            noise_reduction_prop_decrease=cfg.get("audio_preprocess.noise_reduction.prop_decrease", 0.75),
+            loudness_enabled=cfg.get("audio_preprocess.loudness.enabled", True),
+            loudness_target_lufs=cfg.get("audio_preprocess.loudness.target_lufs", -23.0),
+            pre_emphasis_enabled=cfg.get("audio_preprocess.pre_emphasis.enabled", True),
+            pre_emphasis_coeff=cfg.get("audio_preprocess.pre_emphasis.coeff", 0.97),
+            trim_enabled=cfg.get("audio_preprocess.trim.enabled", True),
+            trim_top_db=cfg.get("audio_preprocess.trim.top_db", 20.0),
+        )
+
+        pre = AudioPreProcessor(sr=self.TARGET_SR, cfg=ap_cfg)
+        processed, _ = pre.process(audio)
+        return processed
+
+    def segment_by_time(self, audio: Any, segment_seconds: float) -> List[Dict[str, Any]]:
+        """Segment audio strictly by time."""
+        samples_per_segment = int(segment_seconds * self.TARGET_SR)
+        segments = []
+
+        for i in range(0, len(audio), samples_per_segment):
+            chunk = audio[i:i + samples_per_segment]
+            start_time = i / self.TARGET_SR
+            end_time = min((i + samples_per_segment) / self.TARGET_SR, len(audio) / self.TARGET_SR)
+
+            segments.append({
+                "signal": chunk,
+                "start_sample": i,
+                "end_sample": i + len(chunk),
+                "start_time": start_time,
+                "end_time": end_time,
+                "duration": end_time - start_time
+            })
+
+        return segments
 
 
 def get_loader() -> AudioLoader:

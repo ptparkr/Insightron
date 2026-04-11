@@ -55,9 +55,8 @@ Insightron/
 │   ├── setup/                    # Installers (setup.py, install.py)
 │   └── scripts/                  # Utilities (benchmark, troubleshooting)
 ├── docs/                         # Documentation
-├── config.yaml                   # Configuration file
-├── insightron.py                 # Root GUI/App entry point
-└── cli.py                        # Root CLI entry point
+├── config.toml                   # Configuration file (TOML)
+└── pyproject.toml                # Package configuration
 ```
 
 ## Architecture Diagram
@@ -94,7 +93,6 @@ flowchart TB
         MAIN["main.py<br/>Router"]
         GUI["gui/main_window.py<br/>CustomTkinter"]
         CLI["cli/cli.py"]
-        WEB["web/server.py<br/>FastAPI"]
     end
 
     subgraph CORE["Core Layer (core/)"]
@@ -462,11 +460,6 @@ python -m insightron.app.main
 python -m insightron.app.cli.cli --help
 ```
 
-### Web Mode
-```bash
-python -m insightron.app.main --web
-```
-
 ### Batch Mode
 ```bash
 python -m insightron.app.main batch -i /path/to/audio
@@ -477,12 +470,9 @@ python -m insightron.app.main batch -i /path/to/audio
 python -m insightron.app.main --check
 ```
 
-## Migration Notes (v4.0.0)
+## Migration Notes (v4.1.1)
 
-- The `src` directory has been renamed to `insightron` to be a proper Python package.
-- All `from src...` imports have been updated to `from insightron...`.
-- Legacy root folders (`core`, `transcription`, etc.) have been merged into `insightron`.
-- New modules added: `base_transcriber.py`, `contracts.py`, `audio_preprocessor.py`, `markdown_renderer.py`, `metrics_calculator.py`, `diarization.py`, `speaker_attribution.py`.
-- `TranscriptionEngine` refactored to Single-Pass Brain with `process_signal_single_pass()`.
-- `TextFormatter` now uses `FormattingView` dataclass with named views.
-- `ResultHandler` supports dashboard/classic report styles and formatting profiles.
+- All v4.1.0 features remain intact in v4.1.1
+- Minimal Architecture refinements with optimized data flow
+- Enhanced quality metrics and memory efficiency improvements
+- The `src` directory was renamed to `insightron` in v4.0.0

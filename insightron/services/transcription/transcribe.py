@@ -12,7 +12,7 @@ from insightron.core.config import (
 )
 
 # New components
-from insightron.services.transcription.audio_loader import AudioLoader
+from insightron.services.audio.loader import AudioLoader
 from insightron.services.transcription.transcription_engine import TranscriptionEngine
 from insightron.services.transcription.result_handler import ResultHandler
 from insightron.services.base_transcriber import BaseTranscriber

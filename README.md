@@ -1,4 +1,4 @@
-# 🎤 Insightron v4.1.0 - AI Audio Transcriber
+# 🎤 Insightron v4.1.1 - AI Audio Transcriber
 
 **Transform audio into beautifully structured insights with lightning-fast precision.**
 
@@ -9,9 +9,6 @@
 ```bash
 # GUI mode (default)
 python -m insightron.app.main
-
-# Web UI mode
-python -m insightron.app.main --web
 
 # Batch processing
 python -m insightron.app.main batch -i /path/to/audio
@@ -54,7 +51,7 @@ All documentation is in the `docs/` folder:
 - **[BATCH_PROCESSING.md](docs/BATCH_PROCESSING.md)** - Batch processing documentation
 - **[LLM_USAGE.md](docs/LLM_USAGE.md)** - LLM integration guide
 - **[PERFORMANCE_UPGRADE.md](docs/PERFORMANCE_UPGRADE.md)** - Performance optimizations
-- **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history (see v4.1.0!)
+- **[CHANGELOG.md](docs/CHANGELOG.md)** - Version history (see v4.1.1!)
 - **[README.md](docs/README.md)** - Full documentation index
 
 ## 📁 Project Structure
@@ -80,7 +77,7 @@ Insightron/
 
 ## ✨ Features
 
-### NEW in v4.1.0: Minimal Architecture
+### NEW in v4.1.1: Minimal Architecture
 - ⚡ **O(1) Config Lookup**: TOML-based config with caching
 - 🚀 **O(log n) Audio Chunking**: Binary search indexed access
 - 🎨 **O(n) Text Formatting**: Single-pass processing with pre-compiled regex

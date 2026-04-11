@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced Setup Script for Insightron v2.2.0
+Enhanced Setup Script for Insightron v4.1.1
 Optimized installation process with better error handling, progress tracking,
 and faster dependency management for the Whisper AI transcription project.
 """
@@ -219,7 +219,7 @@ def test_installation():
 
 def main():
     """Main setup function"""
-    print("Insightron v2.2.0 Setup")
+    print("Insightron v4.1.1 Setup")
     print("=" * 40)
     
     # Check Python version

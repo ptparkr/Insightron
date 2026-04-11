@@ -24,7 +24,7 @@ class InsightronGUI:
 
     def __init__(self, root: ctk.CTk):
         self.root = root
-        self.root.title("Insightron v4.1.0")
+        self.root.title("Insightron v4.1.1")
         self.root.geometry("1100x900")
         self.root.minsize(520, 600)
 
@@ -58,7 +58,7 @@ class InsightronGUI:
         # Header
         self.header = ctk.CTkLabel(
             self.main,
-            text="Insightron v4.1.0",
+            text="Insightron v4.1.1",
             font=ctk.CTkFont(size=24, weight="bold"),
         )
         self.header.pack(pady=10)

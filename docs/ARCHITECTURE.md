@@ -6,7 +6,7 @@ Insightron is a professional-grade AI audio transcription application built with
 
 ## Version
 
-**Current Version**: 4.0.0
+**Current Version**: 4.1.1
 
 ---
 
@@ -25,11 +25,9 @@ Insightron follows a **layered architecture** pattern with clear separation betw
 ```
 insightron/
 ├── app/                    # Application entry points
-│   ├── main.py            # Main entry point (GUI/Web/Batch)
+│   ├── main.py            # Main entry point (GUI/Batch)
 │   ├── gui/               # Tkinter-based GUI
 │   │   └── main_window.py # Main GUI window
-│   ├── web/               # FastAPI web server
-│   │   └── server.py      # Web API server
 │   └── auto_ingest.py     # Auto file monitoring
 ├── core/                   # Core functionality
 │   ├── config.py          # Configuration management
@@ -75,19 +73,17 @@ docs/                       # Documentation
 
 ### 2.1 Main Entry (insightron/app/main.py)
 
-The `main.py` serves as the primary application orchestrator, supporting three distinct modes:
+The `main.py` serves as the primary application orchestrator, supporting two distinct modes:
 
 1. **GUI Mode** (default) - Launches CustomTkinter-based desktop application
-2. **Web Mode** (`--web` flag) - Launches FastAPI web server on port 8000
-3. **Batch Mode** (`batch` subcommand) - CLI-based batch processing
+2. **Batch Mode** (`batch` subcommand) - CLI-based batch processing
 
 ```python
 # Entry flow:
 main() 
   ├── check_dependencies()    # Validate required packages
   ├── check_paths()           # Validate configured directories
-  ├── parse_args()           # Parse CLI arguments
-  └── run_gui() / run_web() / run_batch()
+  └── run_gui() / run_batch()
 ```
 
 ### 2.2 Legacy Entry (run_insightron.py)
@@ -382,19 +378,6 @@ InsightronGUI
 - Async service initialization
 - Threaded transcription (non-blocking UI)
 
-### 7.2 Web Server (app/web/server.py)
-
-**Framework**: FastAPI
-
-**Endpoints**:
-- `GET /api/settings` - Get current settings
-- `POST /api/settings` - Update settings
-- `POST /api/transcribe` - Single file transcription
-- `POST /api/batch` - Batch transcription
-- `WS /api/realtime` - Realtime transcription
-
-**Static Files**: Serves HTML/CSS/JS frontend
-
 ---
 
 ## 8. UI Components
@@ -570,7 +553,6 @@ Results + Summary
 - **pyannote.audio**: Speaker diarization
 - **transformers**: Local LLM support
 - **openai**: Cloud LLM support
-- **fastapi/uvicorn**: Web server
 - **psutil**: Resource monitoring
 
 ---
@@ -676,9 +658,8 @@ multi_pass:
 | `insightron/services/transcription/multi_pass_transcriber.py` | Multi-pass pipeline |
 | `insightron/services/batch/batch_processor.py` | Batch processing |
 | `insightron/app/gui/main_window.py` | GUI application |
-| `insightron/app/web/server.py` | Web API server |
-| `config.yaml` | Application configuration |
+| `config.toml` | Application configuration |
 
 ---
 
-*Generated for Insightron v4.0.0*
+*Generated for Insightron v4.1.1*

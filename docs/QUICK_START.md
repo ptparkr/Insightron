@@ -1,8 +1,8 @@
-# Insightron v4.0.0 - Quick Start Guide
+# Insightron v4.1.1 - Quick Start Guide
 
-## 🚀 What's New in v4.0.0
+## 🚀 What's New in v4.1.1
 
-Insightron v4.0.0 introduces the **Single-Phase Engine Architecture** with a layered pipeline, dashboard reports, audio preprocessing, speaker diarization, and FormattingViews.
+Insightron v4.1.1 introduces the **Minimal Architecture** with refined single-phase engine, improved quality metrics, and streamlined pipeline.
 
 ### Key Improvements
 
@@ -308,18 +308,14 @@ python cli.py *.mp3 -b -w 4  # Use fewer workers
 
 ## ✅ Summary
 
-**Before (v3.1.0):**
-- Everything in v3.1.0 (multi-pass, efficiency layer, dynamic chunking)
+**Before (v4.0.0):**
+- Everything in v4.0.0 (single-phase engine, dashboard, audio preprocessing, diarization)
 
-**After (v4.0.0):**
-- ✅ **Everything in v3.1.0 plus:**
-- ✅ **Single-Phase Engine**: Layered pipeline for clarity and extensibility
-- ✅ **Dashboard Reports**: Rich quality dashboards in Markdown
-- ✅ **Audio Preprocessing**: Noise reduction, LUFS, pre-emphasis, trim
-- ✅ **Speaker Diarization**: pyannote integration with attribution
-- ✅ **FormattingViews**: Named views with LaTeX support
-- ✅ **Typed Contracts**: Immutable dataclasses for data integrity
-- ✅ **v2 LLM Restoration**: Smarter prompt profiles and quality flags
+**After (v4.1.1):**
+- ✅ **Everything in v4.0.0 plus:**
+- ✅ **Minimal Architecture**: Refined pipeline with optimized data flow
+- ✅ **Enhanced Quality Metrics**: Improved confidence scoring and degradation detection
+- ✅ **Better Memory Efficiency**: Optimized resource management for large batches
 
 **Get Started:**
 ```bash

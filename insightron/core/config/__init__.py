@@ -209,7 +209,7 @@ TRANSCRIPTION_FOLDER = Path("transcriptions")
 PROCESSED_AUDIO_FOLDER = Path("processed_audio")
 OUTPUT_ENCODING = "utf-8"
 ENSURE_UTF8_ENCODING = True
-APP_VERSION = "4.1.0"
+APP_VERSION = "4.1.1"
 
 
 def get_config_with_fallback(path: str, default: Any = None) -> Any:

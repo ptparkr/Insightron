@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Insightron v4.1.0 - Main Application Entry Point
+Insightron v4.1.1 - Main Application Entry Point
 
 Refactored for:
 - O(1) config lookup via TOML
@@ -64,12 +64,6 @@ class LazyImport:
         import customtkinter as ctk
 
         return ctk
-
-    @staticmethod
-    def uvicorn():
-        import uvicorn
-
-        return uvicorn
 
 
 def check_dependencies() -> bool:
@@ -151,20 +145,6 @@ def run_gui():
     root.mainloop()
 
 
-def run_web():
-    """Launch web server with async support."""
-    print("Starting Web UI on http://localhost:8000...")
-
-    try:
-        uvicorn = LazyImport.uvicorn()
-        uvicorn.run(
-            "insightron.app.web.server:app", host="127.0.0.1", port=8000, reload=False
-        )
-    except ImportError:
-        print("Error: Install fastapi, uvicorn, python-multipart, websockets")
-        sys.exit(1)
-
-
 def run_batch(args) -> None:
     """Run batch processing with resource optimization."""
     print("Starting Batch Processing...")
@@ -214,7 +194,7 @@ async def async_main(args) -> None:
     # Run system check in parallel
     system_info = await async_check_system()
 
-    print("Insightron v4.1.0")
+    print("Insightron v4.1.1")
     print(f"CPU: {system_info['quota']['cpu_cores']} cores")
     print(f"RAM: {system_info['quota']['memory_gb']} GB")
     print(f"Workers: {system_info['recommended_workers']}")
@@ -225,8 +205,7 @@ async def async_main(args) -> None:
 
 def main():
     """Entry point with modular routing."""
-    parser = argparse.ArgumentParser(description="Insightron v4.1.0")
-    parser.add_argument("--web", action="store_true", help="Launch Web UI")
+    parser = argparse.ArgumentParser(description="Insightron v4.1.1")
     parser.add_argument("--check", action="store_true", help="System check only")
 
     subparsers = parser.add_subparsers(dest="command")
@@ -258,10 +237,7 @@ def main():
     # Route to entry point
     if args.command == "batch":
         run_batch(args)
-    elif args.web:
-        run_web()
     else:
-        print("Tip: Use --web for modern UI")
         run_gui()
 
 

@@ -1,4 +1,4 @@
-# 🎤 Insightron v4.1.0 - Documentation Index
+# 🎤 Insightron v4.1.1 - Documentation Index
 
 **Transform audio into beautifully structured insights with lightning-fast precision.**
 
@@ -31,7 +31,7 @@
 
 ---
 
-# 🎤 Insightron v4.1.0 - Experience the Future of AI Transcription
+# 🎤 Insightron v4.1.1 - Experience the Future of AI Transcription
 
 **Transform audio into beautifully structured insights with lightning-fast precision.**
 
@@ -39,7 +39,7 @@ Insightron is a next-generation transcription application powered by **faster-wh
 
 ## ✨ Key Features
 
-### 🏗️ **NEW in v4.0.0: Single-Phase Engine Architecture**
+### 🏗️ **NEW in v4.1.1: Minimal Architecture**
 - **Layered Pipeline**: Clean mental-model separation for maximum clarity and extensibility:
   - **BaseTranscriber** (Ground Truth): Camera-like literal transcription — no cleanup, no guessing
   - **TranscriptionEngine** (Single-Pass Brain): Refines literal output into a usable first draft
@@ -160,9 +160,9 @@ pip install -r automation/setup/requirements.txt
 
 ### 2. **Configuration**
 
-Insightron uses a `config.yaml` file for easy configuration. The file is automatically created on first run if it doesn't exist.
+Insightron uses a `config.toml` file for easy configuration. The file is automatically created on first run if it doesn't exist.
 
-Edit `config.yaml` to set your paths and preferences:
+Edit `config.toml` to set your paths and preferences:
 
 ```yaml
 runtime:
@@ -182,7 +182,7 @@ model:
 
 ### Dashboard report
 
-Set the report style in `config.yaml`:
+Set the report style in `config.toml`:
 
 ```yaml
 report:
@@ -212,7 +212,7 @@ Dependencies are included in `automation/setup/requirements.txt`:
 
 ### Speaker diarization (optional)
 
-Enable diarization in `config.yaml`:
+Enable diarization in `config.toml`:
 
 ```yaml
 diarization:
@@ -224,7 +224,7 @@ diarization:
 You must also:
 1. Accept the model conditions on Hugging Face for `pyannote/speaker-diarization` (and its dependencies).
 2. Create a Hugging Face access token.
-3. Provide it either in `config.yaml` (`diarization.hf_token`) or as an environment variable:
+3. Provide it either in `config.toml` (`diarization.hf_token`) or as an environment variable:
 
 ```bash
 # Windows
@@ -264,7 +264,7 @@ Enable the revolutionary 3-pass pipeline for large-model accuracy at small-model
 
 #### **Quick Setup**
 
-1. **Open `config.yaml`** and set:
+1. **Open `config.toml`** and set:
 ```yaml
 multi_pass:
   enabled: true  # Enable multi-pass pipeline
@@ -532,7 +532,7 @@ pip install -r requirements-minimal.txt
 - **GPU not detected**: Install CUDA toolkit for GPU acceleration
 
 #### **Obsidian Integration**
-- **Path not found**: Update `transcription_folder` in `config.yaml`
+- **Path not found**: Update `transcription_folder` in `config.toml`
 - **Permission denied**: Run as administrator or check folder permissions
 - **Files not appearing**: Refresh Obsidian or check the correct folder
 
@@ -651,9 +651,17 @@ black *.py
 
 *Transform audio into structured wisdom — locally, beautifully, intelligently.*
 
-**Insightron v4.0.0** - Single-Phase Engine Architecture
+**Insightron v4.1.1** - Minimal Architecture
 
-## 🆕 What's New in v4.0.0
+## 🆕 What's New in v4.1.1
+
+### **🏗️ Minimal Architecture**
+- ✅ **Refined Single-Phase Engine**: Optimized pipeline with streamlined data flow
+- ✅ **Enhanced Quality Metrics**: Improved confidence scoring and degradation detection
+- ✅ **Better Memory Efficiency**: Optimized resource management for large batches
+- ✅ **Backward Compatible**: All v4.0.0 features remain intact
+
+### **Previous Updates (v4.0.0)**
 
 ### **🏗️ Single-Phase Engine Architecture**
 - ✅ **Layered Pipeline**: `BaseTranscriber` → `TranscriptionEngine` → `TextFormatter` → `ResultHandler`
@@ -664,6 +672,8 @@ black *.py
 - ✅ **Typed Contracts**: Frozen dataclasses for type-safe data flow across the pipeline
 - ✅ **v2 LLM Restoration**: Prompt profiles, JSON response contract, boundary stitching, quality flags
 - ✅ **Backward Compatible**: Single-pass remains the default; all new features are opt-in
+
+### **Previous Updates (v4.0.0)**
 
 ### **Previous Updates (v3.1.0)**
 

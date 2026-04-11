@@ -7,6 +7,16 @@ All notable changes to Insightron will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1] - 2026-04-11
+
+### Cleanup and Optimization
+
+- Removed web UI components (FastAPI, uvicorn) - GUI only now
+- Consolidated duplicate AudioLoader class
+- Consolidated duplicate TextFormatter class  
+- Removed deprecated config.yaml references (now config.toml)
+- Updated documentation to reflect changes
+
 ## [4.1.0] - 2026-03-31
 
 ### Complete Architecture Refactoring

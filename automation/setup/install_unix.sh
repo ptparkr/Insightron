@@ -1,12 +1,12 @@
 #!/bin/bash
-# Insightron v2.2.0 - Unix/Linux Installer
+# Insightron v4.1.1 - Unix/Linux Installer
 # Enhanced Whisper AI Transcription Tool
 # Compatible with Linux and macOS
 
 set -e  # Exit on error
 
 echo "================================================"
-echo "   Insightron v3.1.0 - Unix/Linux Installer"
+echo "   Insightron v4.1.1 - Unix/Linux Installer"
 echo "   Enhanced Whisper AI Transcription Tool"
 echo "================================================"
 echo ""

@@ -5,11 +5,16 @@ Features:
 - O(n) single-pass processing
 - Pre-compiled regex patterns
 - Frozen dataclass views
+- View-specific transition overrides
+- Optional filler removal and error correction
 """
 
 import re
+import logging
 from dataclasses import dataclass
-from typing import FrozenSet, Literal
+from typing import FrozenSet, Literal, Dict, List, Any
+
+logger = logging.getLogger(__name__)
 
 # Pre-compiled patterns - compiled once at import
 _PUNCTUATION_CLEAN = re.compile(r"\s+([,.!?;:])")
@@ -61,6 +66,16 @@ _BASE_TRANSITIONS: FrozenSet[str] = frozenset(
     ]
 )
 
+# View-specific transition overrides
+_VIEW_OVERRIDES: Dict[str, Dict[str, List[str]]] = {
+    "thinking_session": {"add": [], "remove": ["then", "after that"]},
+    "meeting_notes": {
+        "add": ["so the next thing", "action item", "we need to"],
+        "remove": [],
+    },
+    "study_notes": {"add": [], "remove": []},
+}
+
 # LaTeX maps - use dict for proper escaping
 SAFE_LATEX = {
     "alpha": r"$\alpha$",
@@ -82,6 +97,13 @@ MATH_LATEX = {"pi": r"$\pi$"}
 
 # Strict fillers
 STRICT_FILLERS: FrozenSet[str] = frozenset(["um", "uh", "er", "ah"])
+
+# Common transcription error fixes
+_COMMON_ERRORS = {
+    "gonna": "going to",
+    "wanna": "want to",
+    "gotta": "got to",
+}
 
 
 class TextFormatter:
@@ -125,6 +147,40 @@ class TextFormatter:
         raw = " ".join(seg.get("text", "") for seg in segments).strip()
         return self.format(raw)
 
+    def format_structure(self, segments: List[Dict[str, Any]], style: str = "auto") -> str:
+        """Apply structural formatting to segments."""
+        return self.format_segments(segments)
+
+    def format_text(self, text: str, style: str = "auto") -> str:
+        """Format raw text directly."""
+        return self.format(text)
+
+    def format_with_custom_structure(self, text: str, max_sentences_per_paragraph: int = 3) -> str:
+        """Format text with custom paragraph limit."""
+        original = self._view.sentences_per_paragraph
+        self._view.sentences_per_paragraph = max_sentences_per_paragraph
+        result = self.format(text)
+        self._view.sentences_per_paragraph = original
+        return result
+
+    def format_as_bullets(self, text: str) -> str:
+        """Format as bullets."""
+        original = self._view.structure
+        self._view.structure = "bullets"
+        result = self.format(text)
+        self._view.structure = original
+        return result
+
+    def clean_text(self, text: str) -> str:
+        """Clean and normalize text."""
+        if not text:
+            return ""
+        text = re.sub(r"\s+", " ", text).strip()
+        text = self._fix_common_errors(text)
+        text = self._remove_fillers(text)
+        text = re.sub(r",+", ",", text)
+        return text.strip()
+
     def _normalize(self, text: str) -> str:
         """Normalize whitespace and punctuation - O(n)."""
         # Capitalize first letter
@@ -150,6 +206,18 @@ class TextFormatter:
         words = text.split()
         cleaned = [w for w in words if w.strip(".,!?;:").lower() not in STRICT_FILLERS]
         return " ".join(cleaned)
+
+    def _fix_common_errors(self, text: str) -> str:
+        """Fix common transcription errors."""
+        for k, v in _COMMON_ERRORS.items():
+            text = re.sub(rf"\b{re.escape(k)}\b", v, text, flags=re.IGNORECASE)
+        return text
+
+    def _indicates_long_pause(self, text: str) -> bool:
+        """Check if text indicates a pause/topic change."""
+        if len(text.split()) <= 2:
+            return False
+        return bool(self._transition_pattern.match(text.strip()))
 
     def _apply_latex(self, text: str) -> str:
         """Apply LaTeX conversion - O(n)."""
