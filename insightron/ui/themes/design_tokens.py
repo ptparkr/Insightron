@@ -123,9 +123,9 @@ class ComponentSizing:
     input_height: Tuple[int, int, int] = (30, 34, 38)
     
     # Corner radii
-    radius_sm: int = 4
-    radius_md: int = 8
-    radius_lg: int = 12
+    radius_sm: int = 12
+    radius_md: int = 20
+    radius_lg: int = 32
     
     # Minimum widths for interactive elements
     min_touch_target: int = 44  # Accessibility minimum

@@ -101,8 +101,8 @@ class InsightronGUI:
             self._body.grid_rowconfigure(1, weight=0)
             self._body.grid_columnconfigure(0, weight=2, minsize=360)
             self._body.grid_columnconfigure(1, weight=1, minsize=280)
-            self.tabview.grid(row=0, column=0, sticky="nsew", padx=(0, pad), pady=0)
-            self._activity_card.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
+            self.tabview.grid(row=0, column=0, columnspan=1, sticky="nsew", padx=(0, pad), pady=0)
+            self._activity_card.grid(row=0, column=1, columnspan=1, sticky="nsew", padx=0, pady=0)
         else:
             self._body.grid_columnconfigure(0, weight=1)
             self._body.grid_columnconfigure(1, weight=0)
@@ -202,8 +202,7 @@ class InsightronGUI:
             self.root,
             fg_color=self.theme.surface,
             corner_radius=ThemeManager.get_radius("lg"),
-            border_width=1,
-            border_color=self.theme.border,
+            border_width=0,
         )
         self.main.grid(row=0, column=0, sticky="nsew", padx=pad, pady=pad)
         self.root.grid_rowconfigure(0, weight=1)
@@ -214,7 +213,7 @@ class InsightronGUI:
         header_block = ctk.CTkFrame(self.main, fg_color="transparent")
         header_block.grid(row=0, column=0, sticky="ew", padx=lg, pady=(lg, sm := ThemeManager.get_spacing("sm")))
 
-        accent_bar = ctk.CTkFrame(header_block, fg_color=self.theme.primary, corner_radius=2, height=4)
+        accent_bar = ctk.CTkFrame(header_block, fg_color=self.theme.primary, corner_radius=ThemeManager.get_radius("sm"), height=4)
         accent_bar.pack(fill="x", pady=(0, sm))
 
         title_row = ctk.CTkFrame(header_block, fg_color="transparent")
@@ -245,8 +244,7 @@ class InsightronGUI:
             self.main,
             fg_color=self.theme.surface_light,
             corner_radius=r,
-            border_width=1,
-            border_color=self.theme.border,
+            border_width=0,
         )
         settings.grid(row=1, column=0, sticky="ew", padx=lg, pady=(0, pad))
         settings.grid_columnconfigure(7, weight=1)
@@ -284,16 +282,14 @@ class InsightronGUI:
             segmented_button_unselected_hover_color=self.theme.surface_light,
             text_color=self.theme.text_primary,
             corner_radius=r,
-            border_width=1,
-            border_color=self.theme.border,
+            border_width=0,
         )
 
         self._activity_card = ctk.CTkFrame(
             self._body,
             fg_color=self.theme.surface_light,
             corner_radius=r,
-            border_width=1,
-            border_color=self.theme.border,
+            border_width=0,
         )
         self._activity_card.grid_rowconfigure(3, weight=1)
         self._activity_card.grid_columnconfigure(0, weight=1)
@@ -316,7 +312,7 @@ class InsightronGUI:
             progress_color=self.theme.accent,
             fg_color=self.theme.surface,
             height=10,
-            corner_radius=5,
+            corner_radius=ThemeManager.get_radius("sm"),
         )
         self.progress.grid(row=1, column=0, sticky="ew", padx=pad, pady=(0, act_pad))
         self.progress.set(0)
@@ -334,8 +330,7 @@ class InsightronGUI:
             font=ctk.CTkFont(family="Consolas", size=ThemeManager.get_font_size("mono")),
             fg_color=self.theme.surface,
             text_color=self.theme.text_primary,
-            border_color=self.theme.border,
-            border_width=1,
+            border_width=0,
             corner_radius=r,
         )
         self.results.grid(row=3, column=0, sticky="nsew", padx=pad, pady=(0, pad))
@@ -373,8 +368,7 @@ class InsightronGUI:
             font=ctk.CTkFont(size=ThemeManager.get_font_size("body_small")),
             fg_color=self.theme.surface,
             text_color=self.theme.text_primary,
-            border_color=self.theme.border,
-            border_width=1,
+            border_width=0,
             corner_radius=ThemeManager.get_radius("md"),
         )
         self.batch_list.pack(fill="both", expand=True, pady=(0, 12))
@@ -400,6 +394,7 @@ class InsightronGUI:
         self.mic_menu = ctk.CTkOptionMenu(mic_row, values=["Default"], variable=self.mic_var)
         self.mic_menu.pack(side="left", fill="x", expand=True)
         self._style_option(self.mic_menu, "primary")
+        self.mic_menu.configure(fg_color=self.theme.surface_light)
 
         self._section_label(inner, "Live transcript").pack(anchor="w", pady=(0, 6))
         self.live_transcript = ctk.CTkTextbox(
@@ -408,8 +403,7 @@ class InsightronGUI:
             font=ctk.CTkFont(family="Consolas", size=ThemeManager.get_font_size("body_small")),
             fg_color=self.theme.surface,
             text_color=self.theme.text_primary,
-            border_color=self.theme.border,
-            border_width=1,
+            border_width=0,
             corner_radius=ThemeManager.get_radius("md"),
         )
         self.live_transcript.pack(fill="both", expand=True, pady=(0, 12))

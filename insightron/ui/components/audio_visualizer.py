@@ -53,7 +53,7 @@ class AudioVisualizer(ctk.CTkFrame):
         # Using a fixed minimal height, it will expand based on master layout
         self.canvas = ctk.CTkCanvas(
             self,
-            bg=self._hex_to_rgb_tk(self.theme.surface_light),
+            bg=self._hex_to_rgb_tk(self.theme.surface),
             highlightthickness=0,
             bd=0
         )
@@ -75,7 +75,9 @@ class AudioVisualizer(ctk.CTkFrame):
         """
         Set the raw audio level (0.0 to 1.0)
         """
-        self.current_level = max(0.0, min(1.0, level))
+        # Multiply by a sensitivity factor to make the waveform more active during speech
+        sensitivity_multiplier = 3.5 
+        self.current_level = max(0.0, min(1.0, level * sensitivity_multiplier))
         self._generate_target_heights()
 
     def _generate_target_heights(self):
@@ -158,10 +160,26 @@ class AudioVisualizer(ctk.CTkFrame):
             x0 = x_offset
             x1 = x_offset + bar_width
             
-            # Draw rounded caps if possible, tk rect is simple so we use polygons/ovals for caps if desired,
-            # but for a simple clean look, straight rects are fine. We will use simple rects for speed.
+            radius = bar_width / 2
+
+            # Ensure h is at least bar_width to fit the spherical caps without distortion
+            if h < bar_width:
+                h = bar_width
+                y0 = (canvas_height / 2) - (h / 2)
+                y1 = (canvas_height / 2) + (h / 2)
+
+            # Draw curved caps (ovals)
+            self.canvas.create_oval(
+                x0, y0, x1, y0 + bar_width,
+                fill=bar_color, outline="", width=0
+            )
+            self.canvas.create_oval(
+                x0, y1 - bar_width, x1, y1,
+                fill=bar_color, outline="", width=0
+            )
+            # Center connecting rectangle
             self.canvas.create_rectangle(
-                x0, y0, x1, y1,
+                x0, y0 + radius, x1, y1 - radius,
                 fill=bar_color, outline="", width=0
             )
             
