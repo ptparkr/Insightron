@@ -7,15 +7,27 @@ All notable changes to Insightron will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.1.1] - 2026-04-11
+## [4.1.1] - 2026-04-12
 
-### Cleanup and Optimization
+### 🎨 UI & Layout Optimization
+- **ThemeManager & Responsive Layout**: Completely refined the main GUI design, fixing action button and activity log layout conflicts.
+- **Premium Compact Interface**: Removed redundant borders, merged redundant modes, and optimized tokens for maximum visual density.
+- **Smooth Animations**: Introduced polished transitions and interactions via a modular `ThemeManager`.
+- **Tabbed Architecture**: Streamlined the main window with a unified tabbed mode selection framework.
 
-- Removed web UI components (FastAPI, uvicorn) - GUI only now
-- Consolidated duplicate AudioLoader class
-- Consolidated duplicate TextFormatter class  
-- Removed deprecated config.yaml references (now config.toml)
-- Updated documentation to reflect changes
+### 🧠 Pipeline Enhancements
+- **Multi-Pass Integration**: Fully integrated multi-pass transcription pipeline (detection, contextual restoration, and emotion mapping) into the new 4.1.0 modular architecture.
+
+### 🐛 Bug Fixes
+- **File Validation**: Resolved critical `validate_audio_file` attribute error regression.
+- **Core Stability**: Improved message bus subscriber cleanup and fixed resource pool quota calculations.
+- **Config & Entry Points**: Re-aligned configuration initialization and updated entry points.
+
+### 🧹 Cleanup & Optimization
+- **Web UI Sunset**: Removed experimental web UI components (FastAPI, uvicorn) – Insightron is now entirely GUI/CLI-driven.
+- **Code Duplication**: Consolidated duplicate `AudioLoader` and `TextFormatter` classes.
+- **Artifact Removal**: Removed redundant legacy test suites and fully purged deprecated `config.yaml` references.
+- **Documentation**: Added core architecture diagrams to `STRUCTURE.md` and updated overarching documentation.
 
 ## [4.1.0] - 2026-03-31
 
