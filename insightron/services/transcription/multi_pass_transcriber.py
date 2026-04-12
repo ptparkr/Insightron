@@ -212,9 +212,10 @@ class MultiPassTranscriber:
         self.transcription_engine.literal_transcriber.validate_resources()
         
         # 2. Signal Intake
-        self.audio_loader.validate_audio_file(audio_path)
-        metadata = self.audio_loader.get_audio_metadata(audio_path)
-        signal = self.audio_loader.load_signal(audio_path)
+        self.audio_loader.validate(audio_path)
+        import dataclasses
+        metadata = dataclasses.asdict(self.audio_loader.get_metadata(audio_path))
+        signal = self.audio_loader.load(audio_path)
         
         # 3. Deterministic Chunking (aligning with AudioTranscriber)
         chunks = self.audio_loader.segment_by_time(signal, segment_seconds=30.0)
@@ -241,7 +242,7 @@ class MultiPassTranscriber:
             language: str
             duration: float
         
-        info = Info(language=language or "auto", duration=metadata.get('duration', 0))
+        info = Info(language=language or "auto", duration=metadata.get('duration_seconds', metadata.get('duration', 0)))
         
         logger.info(f"Pass 1 complete: {len(all_segments)} segments detected")
         return all_segments, info

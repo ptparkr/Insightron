@@ -52,11 +52,12 @@ class AudioTranscriber(BaseTranscriber):
         """
         Extract comprehensive audio metadata for integration tests and callers.
 
-        Wraps `AudioLoader.get_audio_metadata` and adds:
+        Wraps `AudioLoader.get_metadata` and adds:
         - `duration_formatted` (MM:SS)
         - `file_extension`
         """
-        metadata = self.loader.get_audio_metadata(audio_path)
+        import dataclasses
+        metadata = dataclasses.asdict(self.loader.get_metadata(audio_path))
         duration = float(metadata.get("duration_seconds") or 0.0)
 
         if duration > 0:
@@ -92,10 +93,10 @@ class AudioTranscriber(BaseTranscriber):
             self.validate_resources()
 
             # 1. Signal Intake
-            self.loader.validate_audio_file(audio_path)
-            metadata = self.loader.get_audio_metadata(audio_path)
+            self.loader.validate(audio_path)
+            metadata = self.get_audio_metadata(audio_path)
             metadata["source_path"] = audio_path
-            signal = self.loader.load_signal(audio_path)
+            signal = self.loader.load(audio_path)
             
             if progress_callback:
                 progress_callback(f"Signal intake complete. Analyzing {metadata['filename']}...")
