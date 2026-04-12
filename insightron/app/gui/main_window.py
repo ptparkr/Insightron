@@ -31,13 +31,18 @@ class InsightronGUI:
         self.root = root
         self.theme = ThemeManager.get_theme()
         self.root.title(f"Insightron · v{APP_VERSION}")
-        self.root.geometry("1180x940")
-        self.root.minsize(520, 680)
+        self.root.geometry("900x740")
+        self.root.minsize(480, 600)
         self.root.configure(fg_color=self.theme.background)
+        
+        # Start invisible for fade-in animation
+        # Note: -alpha is supported on Windows/macOS
+        try:
+            self.root.attributes("-alpha", 0.0)
+        except Exception:
+            pass
 
-        self.selected_file: Optional[str] = None
         self.batch_files: List[str] = []
-        self.is_transcribing = False
         self.is_batch_running = False
         self._live_running = False
 
@@ -53,6 +58,17 @@ class InsightronGUI:
         self._init_pipeline_async()
 
         logger.info("GUI initialized")
+        self._animate_fade_in()
+
+    def _animate_fade_in(self, alpha: float = 0.0):
+        """Smooth fade-in animation for the main window."""
+        try:
+            if alpha < 1.0:
+                alpha += 0.08
+                self.root.attributes("-alpha", min(alpha, 1.0))
+                self.root.after(16, lambda: self._animate_fade_in(alpha))
+        except Exception:
+            pass
 
     def _setup_theme(self):
         ctk.set_appearance_mode("Dark")
@@ -324,39 +340,21 @@ class InsightronGUI:
         )
         self.results.grid(row=3, column=0, sticky="nsew", padx=pad, pady=(0, pad))
 
-        self._build_tab_file()
-        self._build_tab_batch()
+        self._build_tab_files()
         self._build_tab_live()
 
         w0 = self.root.winfo_width()
         self._apply_body_layout(w0 if w0 >= 400 else _BODY_SPLIT_PX + 120)
         self.root.after(120, lambda: self._apply_body_layout(self.root.winfo_width()))
 
-    def _build_tab_file(self):
-        tab = self.tabview.add("Single file")
-        inner = ctk.CTkFrame(tab, fg_color="transparent")
-        inner.pack(fill="both", expand=True, padx=ThemeManager.get_spacing("md"), pady=ThemeManager.get_spacing("md"))
-
-        self._section_label(inner, "Source").pack(anchor="w", pady=(0, 6))
-        row = ctk.CTkFrame(inner, fg_color="transparent")
-        row.pack(fill="x", pady=(0, lg := ThemeManager.get_spacing("lg")))
-        self.file_entry = ctk.CTkEntry(row, placeholder_text="Path to audio file…")
-        self.file_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
-        self._style_entry(self.file_entry)
-        self._ghost_button(row, "Browse…", self._browse_file).pack(side="left")
-
-        self._section_label(inner, "Run").pack(anchor="w", pady=(0, 6))
-        self.transcribe_btn = self._accent_button(inner, "Transcribe file", self._start_transcribe)
-        self.transcribe_btn.pack(fill="x")
-
-    def _build_tab_batch(self):
-        tab = self.tabview.add("Batch queue")
+    def _build_tab_files(self):
+        tab = self.tabview.add("Audio Files")
         inner = ctk.CTkFrame(tab, fg_color="transparent")
         inner.pack(fill="both", expand=True, padx=ThemeManager.get_spacing("md"), pady=ThemeManager.get_spacing("md"))
 
         ctk.CTkLabel(
             inner,
-            text="Add multiple files. Each completed job writes to your configured transcription folder.",
+            text="Add audio files. Each completed job writes to your configured transcription folder.",
             text_color=self.theme.text_secondary,
             font=ctk.CTkFont(size=ThemeManager.get_font_size("body_small")),
             wraplength=520,
@@ -383,7 +381,7 @@ class InsightronGUI:
         self.batch_list.configure(state="disabled")
 
         self._section_label(inner, "Run").pack(anchor="w", pady=(0, 6))
-        self.batch_btn = self._accent_button(inner, "Run batch", self._start_batch)
+        self.batch_btn = self._accent_button(inner, "Transcribe Files", self._start_batch)
         self.batch_btn.pack(fill="x")
 
     def _build_tab_live(self):
@@ -400,9 +398,8 @@ class InsightronGUI:
         mic_row.pack(fill="x", pady=(0, 12))
         self.mic_var = ctk.StringVar(value="Loading…")
         self.mic_menu = ctk.CTkOptionMenu(mic_row, values=["Default"], variable=self.mic_var)
-        self.mic_menu.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        self.mic_menu.pack(side="left", fill="x", expand=True)
         self._style_option(self.mic_menu, "primary")
-        self._ghost_button(mic_row, "Refresh", self._refresh_mics).pack(side="right")
 
         self._section_label(inner, "Live transcript").pack(anchor="w", pady=(0, 6))
         self.live_transcript = ctk.CTkTextbox(
@@ -440,15 +437,6 @@ class InsightronGUI:
         self.live_stop_btn.pack(side="left", expand=True, fill="x", padx=(6, 0))
 
         self.root.after(200, self._refresh_mics)
-
-    def _browse_file(self):
-        path = filedialog.askopenfilename(
-            filetypes=[("Audio", "*.mp3 *.wav *.m4a *.flac *.mp4 *.ogg *.aac")]
-        )
-        if path:
-            self.file_entry.delete(0, "end")
-            self.file_entry.insert(0, path)
-            self.selected_file = path
 
     def _batch_add_files(self):
         paths = filedialog.askopenfilenames(
@@ -522,43 +510,6 @@ class InsightronGUI:
         m = self.model_var.get()
         lang = self.lang_var.get()
         self._pipeline = get_pipeline(m, lang)
-
-    def _start_transcribe(self):
-        path = self.file_entry.get().strip() or self.selected_file
-        if not path or not Path(path).is_file():
-            messagebox.showerror("Insightron", "Please select an audio file.")
-            return
-        self.selected_file = path
-        if self.is_transcribing:
-            return
-        self.is_transcribing = True
-        self.transcribe_btn.configure(state="disabled")
-        self.progress.set(0)
-        self.results.delete("1.0", "end")
-
-        def run():
-            try:
-                self._ui(self._set_status, "Transcribing…")
-                self._ui(self.progress.set, 0.2)
-                self._ensure_pipeline()
-                assert self._pipeline is not None
-
-                def on_prog(msg: str):
-                    self._ui(self._log_line, msg)
-
-                result = self._pipeline.transcribe(path, progress_callback=on_prog)
-                self._ui(self.progress.set, 1.0)
-                self._ui(self._set_status, "Complete")
-                self._ui(self.results.insert, "end", f"\n{result.full_text}\n")
-                self._ui(self.results.see, "end")
-            except Exception as e:
-                logger.exception("Transcribe failed")
-                self._ui(lambda: messagebox.showerror("Insightron", str(e)))
-            finally:
-                self.is_transcribing = False
-                self._ui(self.transcribe_btn.configure, state="normal")
-
-        threading.Thread(target=run, daemon=True).start()
 
     def _start_batch(self):
         if not self.batch_files:

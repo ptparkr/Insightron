@@ -61,20 +61,20 @@ class ThemeManager:
     
     # Modern Dark - Black Theme (Default)
     DARK_THEME = Theme(
-        primary='#3B82F6',           # Bright Blue
-        primary_hover='#2563EB',
-        secondary='#8B5CF6',         # Purple
-        secondary_hover='#7C3AED',
-        accent='#10B981',             # Emerald
-        accent_hover='#059669',
-        surface='#121212',            # Material Dark (Almost Black)
-        surface_light='#1E1E1E',     # Slightly lighter for inputs/hovers
-        background='#000000',          # Pure Black
-        text_primary='#FFFFFF',        # Pure White
-        text_secondary='#A1A1AA',   # Light Gray
-        border='#27272A',            # Subtle Dark Border
+        primary='#6366F1',           # Vibrant Indigo
+        primary_hover='#4F46E5',
+        secondary='#EC4899',         # Vibrant Pink
+        secondary_hover='#DB2777',
+        accent='#0EA5E9',             # Bright Sky Blue
+        accent_hover='#0284C7',
+        surface='#18181B',            # Zinc 900 (Sleek dark)
+        surface_light='#27272A',     # Zinc 800 (Elevated elements)
+        background='#09090B',          # Zinc 950 (Deep background)
+        text_primary='#FAFAFA',        # Zinc 50 (Very crisp text)
+        text_secondary='#A1A1AA',   # Zinc 400 (Subtle text)
+        border='#3F3F46',            # Zinc 700 (Clean divider)
         success='#10B981',
-        error='#EF4444',
+        error='#F43F5E',             # Rose 500
         warning='#F59E0B',
     )
     

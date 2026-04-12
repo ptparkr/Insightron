@@ -1,0 +1,20 @@
+{
+  "batch_id": "0e55758a_20260412_154943",
+  "total_files": 1,
+  "completed": 0,
+  "failed_count": 1,
+  "statistics": {
+    "total_time_seconds": 3.448086,
+    "throughput": 0.0,
+    "success_rate": 0.0,
+    "batch_id": "0e55758a_20260412_154943",
+    "average_time_per_file": 3.448086
+  },
+  "successful": [],
+  "failed": [
+    {
+      "file": "C:\\Users\\mshan\\Music\\MusicBee\\Music\\Dharan Kumar\\Podaa Podi (Original Motion Picture Soundtrack)\\1-01 Love Panalaama.flac",
+      "error": "'AudioLoader' object has no attribute 'validate_audio_file'"
+    }
+  ]
+}

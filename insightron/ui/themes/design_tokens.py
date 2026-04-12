@@ -23,12 +23,12 @@ class SpacingScale:
     Consistent spacing scale using multiples of 4px base unit.
     Use these instead of magic numbers for padding/margins.
     """
-    xs: int = 4      # Micro spacing - tight elements
-    sm: int = 8      # Compact - between related items
-    md: int = 16     # Standard - section padding
-    lg: int = 24     # Comfortable - card padding
-    xl: int = 32     # Spacious - major sections
-    xxl: int = 48    # Hero - large visual breaks
+    xs: int = 2      # Micro spacing - tight elements
+    sm: int = 6      # Compact - between related items
+    md: int = 12     # Standard - section padding
+    lg: int = 20     # Comfortable - card padding
+    xl: int = 28     # Spacious - major sections
+    xxl: int = 40    # Hero - large visual breaks
     
     def get(self, size: str) -> int:
         """Get spacing value by name."""
@@ -42,22 +42,22 @@ class TypographyScale:
     Each tuple contains (desktop, tablet, mobile) font sizes.
     """
     # Display/hero text
-    hero: Tuple[int, int, int] = (36, 28, 24)
+    hero: Tuple[int, int, int] = (32, 26, 22)
     
     # Headings
-    h1: Tuple[int, int, int] = (24, 20, 18)
-    h2: Tuple[int, int, int] = (18, 16, 15)
-    h3: Tuple[int, int, int] = (15, 14, 13)
+    h1: Tuple[int, int, int] = (20, 18, 16)
+    h2: Tuple[int, int, int] = (16, 14, 14)
+    h3: Tuple[int, int, int] = (14, 13, 12)
     
     # Body text
-    body: Tuple[int, int, int] = (15, 14, 13)
-    body_small: Tuple[int, int, int] = (13, 12, 12)
+    body: Tuple[int, int, int] = (13, 12, 11)
+    body_small: Tuple[int, int, int] = (12, 11, 10)
     
     # Captions and labels
-    caption: Tuple[int, int, int] = (12, 11, 11)
+    caption: Tuple[int, int, int] = (11, 10, 10)
     
     # Monospace (for logs)
-    mono: Tuple[int, int, int] = (12, 11, 10)
+    mono: Tuple[int, int, int] = (11, 10, 9)
     
     def get_size(self, style: str, mode: LayoutMode) -> int:
         """
@@ -115,16 +115,16 @@ class ComponentSizing:
     Provides consistent heights/widths across UI elements.
     """
     # Button heights (compact, standard, expanded)
-    button_sm: Tuple[int, int, int] = (28, 32, 36)
-    button_md: Tuple[int, int, int] = (36, 42, 48)
-    button_lg: Tuple[int, int, int] = (44, 52, 56)
+    button_sm: Tuple[int, int, int] = (24, 28, 30)
+    button_md: Tuple[int, int, int] = (30, 34, 38)
+    button_lg: Tuple[int, int, int] = (38, 44, 48)
     
     # Input heights  
-    input_height: Tuple[int, int, int] = (36, 40, 44)
+    input_height: Tuple[int, int, int] = (30, 34, 38)
     
     # Corner radii
-    radius_sm: int = 6
-    radius_md: int = 10
+    radius_sm: int = 4
+    radius_md: int = 8
     radius_lg: int = 12
     
     # Minimum widths for interactive elements
