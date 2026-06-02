@@ -1,36 +1,41 @@
-# Insightron v4.1.1 - Minimal Requirements
-# Use this if the main requirements.txt fails
-# Optimized for compatibility and faster installation
+# Insightron v4.1.1 - Python 3.14 Minimal Requirements
+# Use this if the main requirements.txt fails.
 
 # Core Whisper AI (latest stable)
-faster-whisper>=1.0.0
-tokenizers>=0.19.1
+faster-whisper>=1.2.1,<2.0.0
+tokenizers>=0.23.1,<1.0.0
 
 # Essential audio processing (minimal versions)
-librosa>=0.10.0
-soundfile>=0.12.0
-noisereduce>=3.0.0
-pyloudnorm>=0.1.1
+librosa>=0.11.0,<1.0.0
+soundfile>=0.13.1,<1.0.0
+noisereduce>=3.0.3,<4.0.0
+pyloudnorm>=0.2.0,<1.0.0
 
 # Progress tracking
-tqdm>=4.60.0
+tqdm>=4.67.0
 
 # Audio format support
 pydub>=0.25.0
 
 # Core scientific computing (minimal versions)
-numpy>=1.21.0
-scipy>=1.7.0
+numpy>=2.2.0,<3.0.0; python_version < "3.14"
+numpy>=2.3.0,<3.0.0; python_version >= "3.14"
+scipy>=1.15.0,<2.0.0; python_version < "3.14"
+scipy>=1.16.0,<2.0.0; python_version >= "3.14"
 
 # Enhanced error handling
 colorama>=0.4.6
 
 # Basic LLM support
-transformers>=4.40.0
-torch>=2.0.0
-openai>=1.0.0
+transformers>=5.0.0,<6.0.0; python_version >= "3.14"
+transformers>=4.57.0,<6.0.0; python_version < "3.14"
+torch>=2.12.0,<3.0.0; python_version >= "3.14"
+torch>=2.9.0,<3.0.0; python_version < "3.14"
+openai>=2.0.0,<3.0.0
 
 # Speaker diarization (optional; requires HF token + heavier deps)
-pyannote.audio>=3.1.1
-torchaudio>=2.0.0
-huggingface_hub>=0.20.0
+pyannote.audio>=4.0.0,<5.0.0; python_version >= "3.14"
+pyannote.audio>=3.4.0,<5.0.0; python_version < "3.14"
+torchaudio>=2.11.0,<3.0.0; python_version >= "3.14"
+torchaudio>=2.9.0,<3.0.0; python_version < "3.14"
+huggingface_hub>=1.0.0,<2.0.0

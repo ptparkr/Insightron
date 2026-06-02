@@ -8,6 +8,7 @@ from insightron.core.resource_manager import ResourceManager
 # from insightron.services.transcription.quality_metrics import QualityMetricsCalculator  <-- Removed to avoid circular import
 import numpy as np
 import time
+import gc
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,8 @@ class ModelManager:
     """
     _instance = None
     _model = None
+    _model_cache: Dict[tuple[str, str, str], WhisperModel] = {}
+    _active_cache_key: Optional[tuple[str, str, str]] = None
     _loaded_model_size = None  # Track which model is currently loaded
     _load_lock: Lock = Lock()
 
