@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, Tuple
 
 import numpy as np
 
@@ -38,7 +37,7 @@ class AudioPreProcessor:
         self.sr = int(sr)
         self.cfg = cfg
 
-    def process(self, audio: np.ndarray) -> Tuple[np.ndarray, dict]:
+    def process(self, audio: np.ndarray) -> tuple[np.ndarray, dict]:
         meta: dict = {"applied": [], "skipped": []}
 
         if audio is None:
@@ -46,7 +45,8 @@ class AudioPreProcessor:
 
         y = np.asarray(audio, dtype=np.float32)
         if y.ndim != 1:
-            y = np.mean(y, axis=-1).astype(np.float32)
+            # specifying dtype in np.mean avoids an extra allocation with astype
+            y = np.mean(y, axis=-1, dtype=np.float32)
 
         if not self.cfg.enabled:
             meta["skipped"].append("preprocess_disabled")
@@ -88,7 +88,10 @@ class AudioPreProcessor:
         if self.cfg.pre_emphasis_enabled:
             coeff = float(self.cfg.pre_emphasis_coeff)
             if 0.0 <= coeff < 1.0 and len(y) >= 2:
-                y = np.append(y[0], y[1:] - coeff * y[:-1]).astype(np.float32)
+                y_new = np.empty_like(y)
+                y_new[0] = y[0]
+                y_new[1:] = y[1:] - coeff * y[:-1]
+                y = y_new
                 meta["applied"].append("pre_emphasis")
             else:
                 meta["skipped"].append("pre_emphasis(invalid_coeff_or_short)")
@@ -107,7 +110,7 @@ class AudioPreProcessor:
 
         # Final safety: prevent NaNs / inf
         if not np.isfinite(y).all():
-            y = np.nan_to_num(y, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+            y = np.nan_to_num(y, nan=0.0, posinf=0.0, neginf=0.0, copy=False)
             meta["applied"].append("nan_to_num")
 
         return y, meta

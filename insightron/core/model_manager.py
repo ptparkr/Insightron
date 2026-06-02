@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Dict, Any, Tuple, Iterator
+from typing import Any, Iterator
 from threading import Lock
 from faster_whisper import WhisperModel
 from faster_whisper.transcribe import TranscriptionInfo, Segment
@@ -9,6 +9,13 @@ from insightron.core.resource_manager import ResourceManager
 import numpy as np
 import time
 import gc
+from collections import OrderedDict
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +45,128 @@ class ModelManager:
         - info: TranscriptionInfo with .language, .language_probability, .duration
     """
     _instance = None
-    _model = None
-    _model_cache: Dict[tuple[str, str, str], WhisperModel] = {}
-    _active_cache_key: Optional[tuple[str, str, str]] = None
-    _loaded_model_size = None  # Track which model is currently loaded
+    _model_cache: OrderedDict[tuple[str, str, str], WhisperModel] = OrderedDict()
+    _max_cache_size = 2
+    _active_cache_key: tuple[str, str, str] | None = None
+    _load_lock: Lock = Lock()
+
+    # Performance-optimized default parameters with dynamic tuning
+    DEFAULT_PARAMS = {
+        "beam_size": 5,  # Accuracy priority (1=fastest, 5=balanced, 10=best)
+        "best_of": 5,  # Number of candidates for beam search
+        "temperature": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],  # Fallback temperatures
+        "condition_on_previous_text": True,  # Use context for better accuracy
+        "compression_ratio_threshold": 2.4,  # Detect repetition/failures
+        "log_prob_threshold": -1.0,  # Filter low-confidence segments
+        "no_speech_threshold": 0.6,  # Detect silence/non-speech
+        "patience": 1.0,  # Beam search patience (faster convergence)
+        "length_penalty": 1.0,  # Length penalty for beam search
+        "word_timestamps": True,  # Required for confidence + temporal metrics
+    }
+    
+    # Enhanced VAD parameters for cleaner segments (optimized for accuracy)
+    VAD_PARAMS = {
+        "threshold": 0.5,  # Speech detection confidence (0.0-1.0)
+        "min_speech_duration_ms": 250,  # Ignore very short utterances
+        "min_silence_duration_ms": 2000,  # Merge segments with short gaps
+        "speech_pad_ms": 400,  # Padding around detected speech
+    }
+    
+    # Performance cache for model warm-up
+    _model_warmup_done = False
+
+    def __new__(cls):
+        """
+        Thread-safe, patch-friendly singleton constructor.
+
+        When the real `ModelManager` type is used, we enforce a process-wide
+        singleton. When tests monkeypatch/override the symbol with a mock,
+        `cls` will no longer be the concrete `ModelManager` type, and we fall
+        back to a plain object construction to keep mocking behavior intact.
+        """
+        # If this is a mocked/derived class, don't enforce the singleton;
+        # letting the mock construct normally keeps tests simple.
+        if cls is not ModelManager:
+            return object.__new__(cls)
+
+        if ModelManager._instance is None:
+            ModelManager._instance = object.__new__(cls)
+            ModelManager._instance._initialized = False
+        return ModelManager._instance
+
+    def __init__(self):
+        # Guard against multiple initializations and work correctly when the
+        # class is patched/mocked in tests (where `_initialized` may not yet
+        # exist on the instance).
+        if getattr(self, "_initialized", False):
+            return
+        self._initialized = True
+        
+        # Get configuration
+        config = get_config_manager()
+        self.model_size = config.model.name
+        self.compute_type = config.model.compute_type
+        
+        # Device selection
+        device_setting = config.model.device
+        self.device = "auto" if device_setting == "auto" else device_setting
+        
+        # Quality mode configuration
+        self.quality_mode = config.get('model.quality_mode', 'balanced')  # high|balanced|fast
+        self.enable_vad = config.get('model.enable_vad', True)
+        self.enable_retry = config.get('model.enable_retry', True)
+        self.max_retries = config.get('model.max_retries', 2)
+        
+        # Adaptive VAD: dynamically adjust threshold based on audio characteristics
+        self.adaptive_vad = config.get('model.adaptive_vad', False)
+        self.batch_size = config.get('model.batch_size', 1)  # Batch inference support
+        
+        
+        # Initialize ResourceManager
+        self.resource_manager = ResourceManager()
+        
+        # Override compute_type if resources are constrained
+        recommended_quantization = self.resource_manager.recommend_quantization()
+        
+        if self.compute_type not in ["int8", "int8_float16"] and recommended_quantization == "int8":
+            logger.warning(
+                f"Low memory detected. Downgrading compute_type from {self.compute_type} to int8"
+            )
+            self.compute_type = "int8"
+
+        # Performance optimizations
+        self.enable_model_warmup = config.get('model.enable_warmup', True)
+        self.enable_dynamic_beam = config.get('model.enable_dynamic_beam', True)
+        self.audio_analysis_cache = {}  # Cache for audio characteristics
+        
+        # Use QualityMetricsCalculator for consistency - local import to avoid circular dependency
+        from insightron.services.transcription.quality_metrics import QualityMetricsCalculator
+        self.quality_metrics_calculator = QualityMetricsCalculator()
+        
+        # Adjust parameters based on quality mode
+        self._configure_quality_mode()
+        
+        logger.info(f"ModelManager initialized: Model={self.model_size}, Device={self.device}, "
+                   f"Quality={self.quality_mode}, VAD={self.enable_vad}, AdaptiveVAD={self.adaptive_vad}, "
+                   f"Warmup={self.enable_model_warmup}, DynamicBeam={self.enable_dynamic_beam}")
+
+    def _configure_quality_mode(self):
+        """Configure parameters based on quality mode."""
+        if self.quality_mode == "high":
+            # Maximum accuracy - slower but best results
+            self.default_beam_size = 5
+            self.default_best_of = 5
+        elif self.quality_mode == "balanced":
+            # Balance speed and accuracy
+            self.default_beam_size = 3
+            self.default_best_of = 3
+        else:  # fast
+            # Speed priority - faster but lower accuracy
+            self.default_beam_size = 1
+            self.default_best_of = 1
+
+    def load_model(self) -> WhisperModel:
+        """
     _load_lock: Lock = Lock()
 
     # Performance-optimized default parameters with dynamic tuning
@@ -169,35 +294,30 @@ class ModelManager:
         """
         config = get_config_manager()
         current_model_size = config.model.name
+        self.model_size = current_model_size
+
+        cache_key = (self.model_size, self.device, self.compute_type)
 
         # Ensure single-load semantics across threads.
         with ModelManager._load_lock:
-            if ModelManager._model is not None and ModelManager._loaded_model_size == current_model_size:
-                return ModelManager._model
+            # Check if model is already in cache
+            if cache_key in ModelManager._model_cache:
+                logger.info(f"Using cached model '{self.model_size}' on '{self.device}'")
+                # Move to end to mark as most recently used
+                ModelManager._model_cache.move_to_end(cache_key)
+                ModelManager._active_cache_key = cache_key
+                return ModelManager._model_cache[cache_key]
 
-            # Reload when model size changes.
-            if ModelManager._model is not None and ModelManager._loaded_model_size != current_model_size:
-                logger.info(
-                    f"Model size changed from '{ModelManager._loaded_model_size}' to '{current_model_size}'. Reloading..."
-                )
-
-                health = self.resource_manager.check_health()
-                if health.get("status") == "constrained":
-                    logger.warning(f"System constrained during model reload: {health.get('warnings')}")
-
-                try:
-                    del ModelManager._model
-                except Exception:
-                    pass
-                ModelManager._model = None
-                ModelManager._model_warmup_done = False
-
-            # Update instance model_size to match config for downstream logging/metadata.
-            self.model_size = current_model_size
-
+            # Model not in cache, load it
             logger.info(
                 f"Loading faster-whisper model '{self.model_size}' on device='{self.device}' compute_type='{self.compute_type}'"
             )
+
+            health = self.resource_manager.check_health()
+            if health.get("status") == "constrained":
+                logger.warning(f"System constrained during model load: {health.get('warnings')}")
+                # Aggressively clear cache if system is constrained
+                ModelManager.clear_cache(keep_active=False)
 
             try:
                 model_name = self.model_size
@@ -205,20 +325,29 @@ class ModelManager:
                     model_name = model_name.replace("openai/whisper-", "")
                     logger.info(f"Mapped model name: {self.model_size} -> {model_name}")
 
-                ModelManager._model = WhisperModel(
+                model = WhisperModel(
                     model_name,
                     device=self.device,
                     compute_type=self.compute_type,
                     download_root=None,
                     local_files_only=False,
                 )
-                ModelManager._loaded_model_size = self.model_size
+                
+                # Manage cache size
+                if len(ModelManager._model_cache) >= ModelManager._max_cache_size:
+                    # Remove least recently used
+                    evicted_key, evicted_model = ModelManager._model_cache.popitem(last=False)
+                    logger.info(f"Evicted model '{evicted_key[0]}' from cache to free memory.")
+                    del evicted_model
+                    ModelManager._run_garbage_collection()
 
-                if self.enable_model_warmup and not ModelManager._model_warmup_done:
-                    self._warmup_model()
-                    ModelManager._model_warmup_done = True
+                ModelManager._model_cache[cache_key] = model
+                ModelManager._active_cache_key = cache_key
 
-                return ModelManager._model
+                if self.enable_model_warmup:
+                    self._warmup_model(model)
+
+                return model
 
             except Exception as e:
                 error_msg = str(e)
@@ -228,7 +357,7 @@ class ModelManager:
                     raise RuntimeError(f"Could not download model '{self.model_size}': {error_msg}")
                 raise RuntimeError(f"Could not load model '{self.model_size}': {error_msg}")
     
-    def _warmup_model(self):
+    def _warmup_model(self, model: WhisperModel):
         """Warm up the model with a dummy inference to optimize first real inference."""
         try:
             logger.info("Warming up model for optimal performance...")
@@ -237,7 +366,7 @@ class ModelManager:
             start_time = time.time()
             
             # Run a quick warmup inference
-            segments, _ = ModelManager._model.transcribe(
+            segments, _ = model.transcribe(
                 dummy_audio,
                 beam_size=1,
                 language=None,
@@ -255,7 +384,7 @@ class ModelManager:
     def transcribe(
         self,
         audio,
-        language: Optional[str] = None,
+        language: str | None = None,
         task: str = "transcribe",
         **kwargs
     ) -> Tuple[Iterator[Segment], TranscriptionInfo]:
@@ -290,11 +419,11 @@ class ModelManager:
 
     def _build_transcription_params(
         self,
-        language: Optional[str],
+        language: str | None,
         task: str,
         audio: Any = None,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build optimized transcription parameters with dynamic tuning."""
         cfg = get_config_manager()
 
@@ -356,7 +485,7 @@ class ModelManager:
         
         return params
     
-    def _optimize_beam_size(self, audio: Any, default_beam: int, default_best_of: int) -> Tuple[int, int]:
+    def _optimize_beam_size(self, audio: Any, default_beam: int, default_best_of: int) -> tuple[int, int]:
         """
         Dynamically optimize beam size based on audio characteristics.
         For longer/complex audio, use higher beam size for accuracy.
@@ -387,7 +516,7 @@ class ModelManager:
             logger.debug(f"Beam size optimization failed: {e}, using defaults")
             return default_beam, default_best_of
     
-    def _optimize_vad_params(self, audio: Any, base_params: Dict[str, Any]) -> Dict[str, Any]:
+    def _optimize_vad_params(self, audio: Any, base_params: dict[str, Any]) -> dict[str, Any]:
         """
         Adaptively optimize VAD parameters based on audio characteristics.
         Adjusts threshold based on estimated noise level.
@@ -484,7 +613,7 @@ class ModelManager:
         # Should never reach here, but for type safety
         raise RuntimeError(f"Unexpected error in retry logic: {last_error}")
 
-    def get_quality_metrics(self, segments: list) -> Dict[str, Any]:
+    def get_quality_metrics(self, segments: list) -> dict[str, Any]:
         """
         Calculate quality metrics for transcribed segments.
         Uses QualityMetricsCalculator for consistency.
@@ -528,3 +657,31 @@ class ModelManager:
             "quality_tier": metrics['quality_tier'],
             "degradation_detected": metrics['degradation_detected']
         }
+
+    @classmethod
+    def _run_garbage_collection(cls):
+        """Run garbage collection and clear CUDA cache if applicable."""
+        gc.collect()
+        if TORCH_AVAILABLE and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    @classmethod
+    def clear_cache(cls, keep_active: bool = False):
+        """
+        Clears the model cache.
+        
+        Args:
+            keep_active: If True, keeps the currently active model.
+        """
+        with cls._load_lock:
+            if keep_active and cls._active_cache_key in cls._model_cache:
+                active_model = cls._model_cache.pop(cls._active_cache_key)
+                cls._model_cache.clear()
+                cls._model_cache[cls._active_cache_key] = active_model
+                logger.info(f"Cleared inactive models from cache.")
+            else:
+                cls._model_cache.clear()
+                cls._active_cache_key = None
+                logger.info("Cleared all models from cache.")
+            
+            cls._run_garbage_collection()

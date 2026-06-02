@@ -4,7 +4,7 @@ Tracks memory usage and provides warnings before OOM conditions
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Callable
 from datetime import datetime
 
 try:
@@ -22,12 +22,13 @@ class MemoryMonitor:
     Useful for batch processing large files.
     """
     
-    def __init__(self, warning_threshold_percent: float = 80.0):
+    def __init__(self, warning_threshold_percent: float = 80.0, clear_cache_callback: Callable[[], None] | None = None):
         """
         Initialize memory monitor.
         
         Args:
             warning_threshold_percent: Alert when memory usage exceeds this percentage
+            clear_cache_callback: Optional callback to clear model cache when memory is constrained
         """
         if not PSUTIL_AVAILABLE:
             logger.warning("psutil not available. Memory monitoring will be limited.")
@@ -38,10 +39,11 @@ class MemoryMonitor:
             self.initial_memory = self.process.memory_info().rss / (1024 * 1024)  # MB
         
         self.warning_threshold = warning_threshold_percent
+        self.clear_cache_callback = clear_cache_callback
         
         logger.info(f"Memory monitor initialized. Initial: {self.initial_memory:.1f}MB")
     
-    def get_memory_stats(self) -> Dict[str, Any]:
+    def get_memory_stats(self) -> dict[str, Any]:
         """
         Get current memory usage statistics.
         
@@ -73,7 +75,7 @@ class MemoryMonitor:
             'monitoring_available': True
         }
     
-    def check_memory_health(self) -> Dict[str, Any]:
+    def check_memory_health(self) -> dict[str, Any]:
         """
         Check memory health and return warnings if necessary.
         
@@ -99,6 +101,10 @@ class MemoryMonitor:
                 f"(available: {stats['available_memory_mb']:.1f}MB)"
             )
             status = 'warning'
+            
+            if self.clear_cache_callback:
+                logger.info("Memory constrained: invoking clear_cache_callback")
+                self.clear_cache_callback()
         
         # Check process memory growth
         if stats['memory_increase_mb'] > 2000:  # 2GB growth
@@ -107,6 +113,10 @@ class MemoryMonitor:
                 f"Consider reducing batch size."
             )
             status = 'warning'
+            
+            if self.clear_cache_callback:
+                logger.info("Process memory high: invoking clear_cache_callback")
+                self.clear_cache_callback()
         
         return {
             'status': status,

@@ -9,7 +9,7 @@ Orchestrates the three-pass transcription pipeline:
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, Callable, List, Tuple
+from typing import Any, Callable
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -31,9 +31,9 @@ class MultiPassResult:
     pass1_raw_text: str
     pass2_restored_text: str
     pass3_final_text: str
-    segments: List[Dict[str, Any]]
-    metadata: Dict[str, Any]
-    processing_times: Dict[str, float]
+    segments: list[dict[str, Any]]
+    metadata: dict[str, Any]
+    processing_times: dict[str, float]
 
 
 class BatchChunker:
@@ -63,7 +63,7 @@ class BatchChunker:
         """
         return duration > self.chunk_duration
     
-    def create_chunks_from_segments(self, segments: List[Dict], total_duration: float) -> List[List[Dict]]:
+    def create_chunks_from_segments(self, segments: list[dict], total_duration: float) -> list[list[dict]]:
         """
         Group segments into time-based chunks.
         
@@ -101,7 +101,7 @@ class BatchChunker:
         logger.info(f"Created {len(chunks)} chunks from {len(segments)} segments")
         return chunks
     
-    def merge_chunk_texts(self, chunk_texts: List[str]) -> str:
+    def merge_chunk_texts(self, chunk_texts: list[str]) -> str:
         """
         Merge text from multiple chunks, handling overlap.
         
@@ -132,7 +132,7 @@ class MultiPassTranscriber:
     Pass 3: Emotion Mapping - Analyzes text to inject emotion markers
     """
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Initialize multi-pass transcriber.
         
@@ -189,9 +189,9 @@ class MultiPassTranscriber:
     def pass1_detect(
         self,
         audio_path: str,
-        language: Optional[str] = None,
-        progress_callback: Optional[Callable[[str], None]] = None
-    ) -> Tuple[List[Dict], Any]:
+        language: str | None = None,
+        progress_callback: Callable[[str], None] | None = None
+    ) -> tuple[list[dict], Any]:
         """
         Pass 1: Detect raw text using base model.
         
@@ -223,17 +223,54 @@ class MultiPassTranscriber:
         all_segments = []
         num_chunks = len(chunks)
         
-        # 4. Transcribe Loop
-        for i, chunk in enumerate(chunks):
-            if progress_callback:
-                progress_callback(f"Pass 1/3: Processing chunk {i+1}/{num_chunks}...")
+        # 4. Transcribe Concurrent Loop
+        import concurrent.futures
+        from insightron.core.resource_manager import ResourceManager
+        
+        rm = ResourceManager()
+        # Use optimal worker count, bounded by num_chunks
+        max_workers = min(rm.get_optimal_worker_count(), num_chunks)
+        max_workers = max(1, max_workers)
+        
+        logger.info(f"Processing {num_chunks} chunks using {max_workers} concurrent workers")
+        
+        def process_chunk(chunk_idx, chunk_data):
+            try:
+                if progress_callback:
+                    progress_callback(f"Pass 1/3: Processing chunk {chunk_idx+1}/{num_chunks}...")
+                    
+                segments = self.transcription_engine.process_signal_single_pass(
+                    chunk_data["signal"],
+                    language=language,
+                    offset_time=chunk_data["start_time"]
+                )
+                return chunk_idx, segments, None
+            except Exception as e:
+                logger.error(f"Error processing chunk {chunk_idx}: {e}")
+                return chunk_idx, [], e
+
+        results = [None] * num_chunks
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(process_chunk, i, chunk): i 
+                for i, chunk in enumerate(chunks)
+            }
             
-            chunk_segments = self.transcription_engine.process_signal_single_pass(
-                chunk["signal"],
-                language=language,
-                offset_time=chunk["start_time"]
-            )
-            all_segments.extend(chunk_segments)
+            for future in concurrent.futures.as_completed(futures):
+                idx = futures[future]
+                try:
+                    chunk_idx, segments, err = future.result()
+                    if err:
+                        logger.warning(f"Chunk {chunk_idx} failed, skipping its segments.")
+                    else:
+                        results[chunk_idx] = segments
+                except Exception as exc:
+                    logger.error(f"Chunk {idx} generated an exception: {exc}")
+        
+        # Merge segments in order
+        for segments in results:
+            if segments:
+                all_segments.extend(segments)
         
         # Build a dummy info object for compatibility
         from dataclasses import dataclass
@@ -249,9 +286,9 @@ class MultiPassTranscriber:
     
     def pass2_restore(
         self,
-        segments: List[Dict],
-        progress_callback: Optional[Callable[[str], None]] = None
-    ) -> List[Dict]:
+        segments: list[dict],
+        progress_callback: Callable[[str], None] | None = None
+    ) -> list[dict]:
         """
         Pass 2: Restore punctuation and fix errors using LLM with v2 philosophy.
         """
@@ -333,7 +370,7 @@ class MultiPassTranscriber:
         logger.info(f"Pass 2 complete: Restored {len(restored_segments)} segments")
         return restored_segments
     
-    def _distribute_restored_text(self, original_segments: List[Dict], restored_text: str) -> List[Dict]:
+    def _distribute_restored_text(self, original_segments: list[dict], restored_text: str) -> list[dict]:
         """
         Distribute restored text back to original segments.
         
@@ -374,9 +411,9 @@ class MultiPassTranscriber:
     
     def pass3_map_emotions(
         self,
-        segments: List[Dict],
-        progress_callback: Optional[Callable[[str], None]] = None
-    ) -> List[Dict]:
+        segments: list[dict],
+        progress_callback: Callable[[str], None] | None = None
+    ) -> list[dict]:
         """
         Pass 3: Analyze and inject emotion markers.
         
@@ -428,8 +465,8 @@ class MultiPassTranscriber:
     def transcribe_multipass(
         self,
         audio_path: str,
-        language: Optional[str] = None,
-        progress_callback: Optional[Callable[[str], None]] = None
+        language: str | None = None,
+        progress_callback: Callable[[str], None] | None = None
     ) -> MultiPassResult:
         """
         Execute full multi-pass transcription pipeline.
