@@ -34,13 +34,13 @@ def check_python_version():
     if version[:2] < min_version:
         print(f"❌ ERROR: Python {min_version[0]}.{min_version[1]}+ required")
         print(f"   Current version: {version.major}.{version.minor}.{version.micro}")
-        print("   Please install Python 3.10, 3.11, or 3.12 from https://python.org")
+        print("   Please install Python 3.10 to 3.14 from https://python.org")
         return False
     
-    if version.minor >= 13:
+    if version.minor >= 15:
         print(f"\n⚠️  WARNING: Python 3.{version.minor} detected")
-        print("   Many scientific packages (like onnxruntime) do not yet support Python 3.13+.")
-        print("   We STRONGLY recommend using Python 3.10, 3.11, or 3.12.")
+        print("   Many scientific packages (like onnxruntime) do not yet support Python 3.15+.")
+        print("   We STRONGLY recommend using Python 3.10 to 3.14.")
         print("   The installation is likely to fail.\n")
         response = input("   Do you want to continue anyway? (y/N): ")
         if response.lower() != 'y':

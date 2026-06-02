@@ -63,10 +63,10 @@ def main():
     print(f"Architecture: {platform.machine()}")
     
     # Check Python version compatibility
-    if sys.version_info.minor >= 13:
+    if sys.version_info.minor >= 15:
         print("\n⚠️  WARNING: You are using Python 3.{}".format(sys.version_info.minor))
-        print("   Many scientific packages (like onnxruntime) do not yet support Python 3.13+.")
-        print("   We STRONGLY recommend using Python 3.10, 3.11, or 3.12.")
+        print("   Many scientific packages (like onnxruntime) do not yet support Python 3.15+.")
+        print("   We STRONGLY recommend using Python 3.10 to 3.14.")
         print("   The installation is likely to fail.\n")
         response = input("   Do you want to continue anyway? (y/N): ")
         if response.lower() != 'y':

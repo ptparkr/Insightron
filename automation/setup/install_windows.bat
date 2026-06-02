@@ -11,7 +11,7 @@ REM Check Python version
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo ERROR: Python is not installed or not in PATH
-    echo Please install Python 3.10 - 3.12 from https://python.org
+    echo Please install Python 3.10 - 3.14 from https://python.org
     pause
     exit /b 1
 )
@@ -21,10 +21,10 @@ for /f %%I in ('python -c "import sys; print(sys.version_info.minor)"') do set P
 if %PYTHON_MINOR% geq 13 (
     echo.
     echo [WARNING] You are using Python 3.%PYTHON_MINOR%.
-    echo           Many scientific packages ^(like onnxruntime^) do not yet support Python 3.13+.
+    echo           Many scientific packages ^(like onnxruntime^) do not yet support Python 3.15+.
     echo           This installation will likely fail.
     echo.
-    echo           PLEASE INSTALL PYTHON 3.10, 3.11, or 3.12.
+    echo           PLEASE INSTALL PYTHON 3.10 to 3.14.
     echo.
     echo           Press Ctrl+C to cancel or any key to try anyway...
     pause
@@ -139,7 +139,7 @@ if errorlevel 1 (
     echo           Common fixes:
     echo           1. Install Visual Studio Build Tools (for C++ compilation)
     echo           2. Install Rust (for tokenizers): https://rustup.rs/
-    echo           3. Ensure you are using Python 3.10 - 3.12
+    echo           3. Ensure you are using Python 3.10 - 3.14
     echo.
     echo           Run: python scripts/troubleshoot.py for detailed diagnostics.
 )

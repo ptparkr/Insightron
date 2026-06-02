@@ -78,7 +78,7 @@ def check_python_version() -> bool:
     """Check if Python version is compatible with Insightron."""
     version = sys.version_info
     min_version = (3, 10)
-    max_minor = 12  # Python 3.13+ not yet fully supported
+    max_minor = 12  # Python 3.15+ not yet fully supported
     
     if version[:2] < min_version:
         logger.error(f"Python {min_version[0]}.{min_version[1]}+ required, got {version.major}.{version.minor}")
@@ -87,10 +87,10 @@ def check_python_version() -> bool:
         return False
     
     if version.minor >= 13:
-        logger.warning(f"Python 3.{version.minor} detected - many packages don't support Python 3.13+ yet")
+        logger.warning(f"Python 3.{version.minor} detected - many packages don't support Python 3.15+ yet")
         print(f"⚠️  WARNING: Python 3.{version.minor} detected")
-        print("   Many scientific packages (like onnxruntime) do not yet support Python 3.13+.")
-        print("   We STRONGLY recommend using Python 3.10, 3.11, or 3.12.")
+        print("   Many scientific packages (like onnxruntime) do not yet support Python 3.15+.")
+        print("   We STRONGLY recommend using Python 3.10 to 3.14.")
         response = input("   Do you want to continue anyway? (y/N): ")
         if response.lower() != 'y':
             return False

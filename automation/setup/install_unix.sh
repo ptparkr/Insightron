@@ -22,7 +22,7 @@ elif command -v python &> /dev/null; then
     PYTHON_CMD="python"
 else
     echo "ERROR: Python is not installed or not in PATH"
-    echo "Please install Python 3.10 - 3.12 from https://python.org"
+    echo "Please install Python 3.10 - 3.14 from https://python.org"
     exit 1
 fi
 
@@ -35,10 +35,10 @@ echo ""
 
 if [ "$PYTHON_MINOR" -ge 13 ]; then
     echo "[WARNING] You are using Python 3.$PYTHON_MINOR."
-    echo "          Many scientific packages (like onnxruntime) do not yet support Python 3.13+."
+    echo "          Many scientific packages (like onnxruntime) do not yet support Python 3.15+."
     echo "          This installation will likely fail."
     echo ""
-    echo "          PLEASE INSTALL PYTHON 3.10, 3.11, or 3.12."
+    echo "          PLEASE INSTALL PYTHON 3.10 to 3.14."
     echo ""
     read -p "          Press Enter to continue anyway, or Ctrl+C to cancel..."
 fi
@@ -150,7 +150,7 @@ $PYTHON_CMD -c "import faster_whisper, librosa, numpy, customtkinter, sounddevic
     echo "              Ubuntu/Debian: sudo apt-get install python3-dev build-essential"
     echo "              macOS: xcode-select --install"
     echo "           2. Install Rust (for tokenizers): https://rustup.rs/"
-    echo "           3. Ensure you are using Python 3.10 - 3.12"
+    echo "           3. Ensure you are using Python 3.10 - 3.14"
     echo ""
     echo "          Run: $PYTHON_CMD scripts/troubleshoot.py for detailed diagnostics."
 }
